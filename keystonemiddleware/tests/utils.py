@@ -24,7 +24,7 @@ from six.moves.urllib import parse as urlparse
 import testtools
 import uuid
 
-from keystoneclient.openstack.common import jsonutils
+from keystonemiddleware.openstack.common import jsonutils
 
 
 class TestCase(testtools.TestCase):

@@ -154,18 +154,18 @@ import stat
 import tempfile
 import time
 
+from keystoneclient import access
+from keystoneclient.common import cms
+from keystoneclient import exceptions
 import netaddr
 from oslo.config import cfg
 import six
 from six.moves import urllib
 
-from keystoneclient import access
-from keystoneclient.common import cms
-from keystoneclient import exceptions
-from keystoneclient.middleware import memcache_crypt
-from keystoneclient.openstack.common import jsonutils
-from keystoneclient.openstack.common import memorycache
-from keystoneclient.openstack.common import timeutils
+from keystonemiddleware import memcache_crypt
+from keystonemiddleware.openstack.common import jsonutils
+from keystonemiddleware.openstack.common import memorycache
+from keystonemiddleware.openstack.common import timeutils
 
 
 # alternative middleware configuration in the main application's
@@ -1567,7 +1567,7 @@ def app_factory(global_conf, **local_conf):
 if __name__ == '__main__':
     """Run this module directly to start a protected echo service::
 
-        $ python -m keystoneclient.middleware.auth_token
+        $ python -m keystonemiddleware.auth_token
 
     When the ``auth_token`` module authenticates a request, the echo service
     will respond with all the environment variables presented to it by this

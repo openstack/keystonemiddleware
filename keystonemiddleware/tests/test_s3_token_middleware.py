@@ -19,9 +19,9 @@ import six
 import testtools
 import webob
 
-from keystoneclient.middleware import s3_token
-from keystoneclient.openstack.common import jsonutils
-from keystoneclient.tests import utils
+from keystonemiddleware.openstack.common import jsonutils
+from keystonemiddleware import s3_token
+from keystonemiddleware.tests import utils
 
 
 GOOD_RESPONSE = {'access': {'token': {'id': 'TOKEN_ID',

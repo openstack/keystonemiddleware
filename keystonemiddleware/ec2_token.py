@@ -25,32 +25,35 @@ import requests
 import webob.dec
 import webob.exc
 
-from keystone.common import config
-from keystone.common import wsgi
-from keystone.openstack.common import jsonutils
+from keystonemiddleware.openstack.common import jsonutils
 
 keystone_ec2_opts = [
-    cfg.StrOpt('keystone_ec2_url',
+    cfg.StrOpt('url',
                default='http://localhost:5000/v2.0/ec2tokens',
                help='URL to get token from ec2 request.'),
-    cfg.StrOpt('keystone_ec2_keyfile', help='Required if EC2 server requires '
-               'client certificate.'),
-    cfg.StrOpt('keystone_ec2_certfile', help='Client certificate key '
-               'filename. Required if EC2 server requires client '
-               'certificate.'),
-    cfg.StrOpt('keystone_ec2_cafile', help='A PEM encoded certificate '
-               'authority to use when verifying HTTPS connections. Defaults '
-               'to the system CAs.'),
-    cfg.BoolOpt('keystone_ec2_insecure', default=False, help='Disable SSL '
-                'certificate verification.'),
+    cfg.StrOpt('keyfile',
+               help='Required if EC2 server requires client certificate.'),
+    cfg.StrOpt('certfile',
+               help='Client certificate key filename. Required if EC2 server '
+                    'requires client certificate.'),
+    cfg.StrOpt('cafile',
+               help='A PEM encoded certificate authority to use when '
+                    'verifying HTTPS connections. Defaults to the system '
+                    'CAs.'),
+    cfg.BoolOpt('insecure', default=False,
+                help='Disable SSL certificate verification.'),
 ]
 
-CONF = config.CONF
-CONF.register_opts(keystone_ec2_opts)
+CONF = cfg.CONF
+CONF.register_opts(keystone_ec2_opts, group='keystone_ec2_token')
 
 
-class EC2Token(wsgi.Middleware):
+class EC2Token(object):
     """Authenticate an EC2 request with keystone and convert to token."""
+
+    def __init__(self, application):
+        super(EC2Token, self).__init__()
+        self.application = application
 
     @webob.dec.wsgify()
     def __call__(self, req):
@@ -81,18 +84,20 @@ class EC2Token(wsgi.Middleware):
         headers = {'Content-Type': 'application/json'}
 
         verify = True
-        if CONF.keystone_ec2_insecure:
+        if CONF.keystone_ec2_token.insecure:
             verify = False
-        elif CONF.keystone_ec2_cafile:
-            verify = CONF.keystone_ec2_cafile
+        elif CONF.keystone_ec2_token.cafile:
+            verify = CONF.keystone_ec2_token.cafile
 
         cert = None
-        if CONF.keystone_ec2_certfile and CONF.keystone_ec2_keyfile:
-            cert = (CONF.keystone_ec2_certfile, CONF.keystone_ec2_keyfile)
-        elif CONF.keystone_ec2_certfile:
-            cert = CONF.keystone_ec2_certfile
+        if (CONF.keystone_ec2_token.certfile and
+                CONF.keystone_ec2_token.keyfile):
+            cert = (CONF.keystone_ec2_certfile,
+                    CONF.keystone_ec2_token.keyfile)
+        elif CONF.keystone_ec2_token.certfile:
+            cert = CONF.keystone_ec2_token.certfile
 
-        response = requests.post(CONF.keystone_ec2_url, data=creds_json,
+        response = requests.post(CONF.keystone_ec2_token.url, data=creds_json,
                                  headers=headers, verify=verify, cert=cert)
 
         # NOTE(vish): We could save a call to keystone by
@@ -108,3 +113,19 @@ class EC2Token(wsgi.Middleware):
         # Authenticated!
         req.headers['X-Auth-Token'] = token_id
         return self.application
+
+
+def filter_factory(global_conf, **local_conf):
+    """Returns a WSGI filter app for use with paste.deploy."""
+    conf = global_conf.copy()
+    conf.update(local_conf)
+
+    def auth_filter(app):
+        return EC2Token(app, conf)
+    return auth_filter
+
+
+def app_factory(global_conf, **local_conf):
+    conf = global_conf.copy()
+    conf.update(local_conf)
+    return EC2Token(None, conf)

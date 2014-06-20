@@ -15,13 +15,13 @@
 import os
 
 import fixtures
+from keystoneclient.common import cms
+from keystoneclient import utils
 import six
 import testresources
 
-from keystoneclient.common import cms
-from keystoneclient.openstack.common import jsonutils
-from keystoneclient.openstack.common import timeutils
-from keystoneclient import utils
+from keystonemiddleware.openstack.common import jsonutils
+from keystonemiddleware.openstack.common import timeutils
 
 
 TESTDIR = os.path.dirname(os.path.abspath(__file__))

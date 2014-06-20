@@ -38,7 +38,7 @@ import requests
 import six
 from six.moves import urllib
 
-from keystoneclient.openstack.common import jsonutils
+from keystonemiddleware.openstack.common import jsonutils
 
 
 PROTOCOL_NAME = 'S3 Token Authentication'
