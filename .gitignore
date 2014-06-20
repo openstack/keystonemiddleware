@@ -49,3 +49,6 @@ ChangeLog
 # Editors
 *~
 .*.swp
+
+# Oslo Sync
+.update-venv
