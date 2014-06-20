@@ -32,7 +32,7 @@ authentication middleware which acts as the internal API mechanism for
 OpenStack projects based on the WSGI standard.
 
 This documentation describes the implementation in
-:class:`keystoneclient.middleware.auth_token`
+:class:`keystonemiddleware.auth_token`
 
 Specification Overview
 ======================
@@ -120,7 +120,7 @@ a WSGI component. Example for the auth_token middleware::
     pipeline = authtoken myService
 
     [filter:authtoken]
-    paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
+    paste.filter_factory = keystonemiddleware.auth_token:filter_factory
 
     # Prefix to prepend at the beginning of the path (string
     # value)
@@ -246,7 +246,7 @@ config file. For example in Nova, all middleware parameters can be removed
 from api-paste.ini::
 
     [filter:authtoken]
-    paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
+    paste.filter_factory = keystonemiddleware.auth_token:filter_factory
 
 and set in nova.conf::
 
@@ -414,10 +414,10 @@ unsuccessful.
 Extended the request with additional User Information
 -----------------------------------------------------
 
-:py:class:`keystoneclient.middleware.auth_token.AuthProtocol` extends the
+:py:class:`keystonemiddleware.auth_token.AuthProtocol` extends the
 request with additional information if the user has been authenticated. See the
 "What we add to the request for use by the OpenStack service" section in
-:py:mod:`keystoneclient.middleware.auth_token` for the list of fields set by
+:py:mod:`keystonemiddleware.auth_token` for the list of fields set by
 the auth_token middleware.
 
 

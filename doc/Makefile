@@ -62,9 +62,9 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/python-keystoneclient.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/keystonemiddleware.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/python-keystoneclient.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/keystonemiddleware.qhc"
 
 latex:
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex

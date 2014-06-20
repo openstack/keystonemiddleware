@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# python-keystoneclient documentation build configuration file, created by
+# keystonemiddleware documentation build configuration file, created by
 # sphinx-quickstart on Sun Dec  6 14:19:25 2009.
 #
 # This file is execfile()d with the current directory set to its containing
@@ -64,13 +64,13 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'python-keystoneclient'
+project = 'keystonemiddleware'
 copyright = 'OpenStack Contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-version_info = pbr.version.VersionInfo('python-keystoneclient')
+version_info = pbr.version.VersionInfo('keystonemiddleware')
 # The short X.Y version.
 version = version_info.version_string()
 # The full version, including alpha/beta/rc tags.
@@ -117,10 +117,7 @@ pygments_style = 'sphinx'
 # Grouping the document tree for man pages.
 # List of tuples 'sourcefile', 'target', 'title', 'Authors name', 'manual'
 
-man_pages = [
-    ('man/keystone', 'keystone', 'Client for OpenStack Identity API',
-     ['OpenStack Contributors'], 1),
-]
+man_pages = []
 
 # -- Options for HTML output --------------------------------------------------
 
@@ -195,7 +192,7 @@ html_last_updated_fmt = os.popen(git_cmd).read()
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'python-keystoneclientdoc'
+htmlhelp_basename = 'keystonemiddlewaredoc'
 
 
 # -- Options for LaTeX output -------------------------------------------------
@@ -210,8 +207,8 @@ htmlhelp_basename = 'python-keystoneclientdoc'
 # (source start file, target name, title, author, documentclass [howto/manual])
 # .
 latex_documents = [
-    ('index', 'python-keystoneclient.tex',
-     'python-keystoneclient Documentation',
+    ('index', 'keystonmiddleware.tex',
+     'keystonemiddleware Documentation',
      'Nebula Inc, based on work by Rackspace and Jacob Kaplan-Moss',
      'manual'),
 ]
