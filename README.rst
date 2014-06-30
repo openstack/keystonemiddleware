@@ -18,3 +18,5 @@ Bugs and feature requests are tracked on Launchpad at:
 For any other information, refer to the parent project, Keystone:
 
     https://github.com/openstack/keystone
+
+For information on contributing, see ``CONTRIBUTING.rst``.
