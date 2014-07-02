@@ -13,7 +13,7 @@
 import six
 import testtools
 
-from keystonemiddleware import memcache_crypt
+from keystonemiddleware import _memcache_crypt as memcache_crypt
 
 
 class MemcacheCryptPositiveTests(testtools.TestCase):

@@ -53,7 +53,7 @@ class EC2Token(object):
 
     def __init__(self, application):
         super(EC2Token, self).__init__()
-        self.application = application
+        self._application = application
 
     @webob.dec.wsgify()
     def __call__(self, req):
@@ -112,7 +112,7 @@ class EC2Token(object):
 
         # Authenticated!
         req.headers['X-Auth-Token'] = token_id
-        return self.application
+        return self._application
 
 
 def filter_factory(global_conf, **local_conf):

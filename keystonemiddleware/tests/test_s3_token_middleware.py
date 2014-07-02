@@ -158,7 +158,7 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
         req.headers['Authorization'] = 'access:signature'
         req.headers['X-Storage-Token'] = 'token'
         resp = req.get_response(self.middleware)
-        s3_denied_req = self.middleware.deny_request('AccessDenied')
+        s3_denied_req = self.middleware._deny_request('AccessDenied')
         self.assertEqual(resp.body, s3_denied_req.body)
         self.assertEqual(resp.status_int, s3_denied_req.status_int)
 
@@ -168,13 +168,13 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
         req.headers['X-Storage-Token'] = 'token'
         resp = req.get_response(self.middleware)
         self.assertEqual(resp.status_int, 400)
-        s3_invalid_req = self.middleware.deny_request('InvalidURI')
+        s3_invalid_req = self.middleware._deny_request('InvalidURI')
         self.assertEqual(resp.body, s3_invalid_req.body)
         self.assertEqual(resp.status_int, s3_invalid_req.status_int)
 
     def test_fail_to_connect_to_keystone(self):
         with mock.patch.object(self.middleware, '_json_request') as o:
-            s3_invalid_req = self.middleware.deny_request('InvalidURI')
+            s3_invalid_req = self.middleware._deny_request('InvalidURI')
             o.side_effect = s3_token.ServiceError(s3_invalid_req)
 
             req = webob.Request.blank('/v1/AUTH_cfa/c/o')
@@ -192,45 +192,45 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
         req.headers['Authorization'] = 'access:signature'
         req.headers['X-Storage-Token'] = 'token'
         resp = req.get_response(self.middleware)
-        s3_invalid_req = self.middleware.deny_request('InvalidURI')
+        s3_invalid_req = self.middleware._deny_request('InvalidURI')
         self.assertEqual(resp.body, s3_invalid_req.body)
         self.assertEqual(resp.status_int, s3_invalid_req.status_int)
 
 
 class S3TokenMiddlewareTestUtil(testtools.TestCase):
     def test_split_path_failed(self):
-        self.assertRaises(ValueError, s3_token.split_path, '')
-        self.assertRaises(ValueError, s3_token.split_path, '/')
-        self.assertRaises(ValueError, s3_token.split_path, '//')
-        self.assertRaises(ValueError, s3_token.split_path, '//a')
-        self.assertRaises(ValueError, s3_token.split_path, '/a/c')
-        self.assertRaises(ValueError, s3_token.split_path, '//c')
-        self.assertRaises(ValueError, s3_token.split_path, '/a/c/')
-        self.assertRaises(ValueError, s3_token.split_path, '/a//')
-        self.assertRaises(ValueError, s3_token.split_path, '/a', 2)
-        self.assertRaises(ValueError, s3_token.split_path, '/a', 2, 3)
-        self.assertRaises(ValueError, s3_token.split_path, '/a', 2, 3, True)
-        self.assertRaises(ValueError, s3_token.split_path, '/a/c/o/r', 3, 3)
-        self.assertRaises(ValueError, s3_token.split_path, '/a', 5, 4)
+        self.assertRaises(ValueError, s3_token._split_path, '')
+        self.assertRaises(ValueError, s3_token._split_path, '/')
+        self.assertRaises(ValueError, s3_token._split_path, '//')
+        self.assertRaises(ValueError, s3_token._split_path, '//a')
+        self.assertRaises(ValueError, s3_token._split_path, '/a/c')
+        self.assertRaises(ValueError, s3_token._split_path, '//c')
+        self.assertRaises(ValueError, s3_token._split_path, '/a/c/')
+        self.assertRaises(ValueError, s3_token._split_path, '/a//')
+        self.assertRaises(ValueError, s3_token._split_path, '/a', 2)
+        self.assertRaises(ValueError, s3_token._split_path, '/a', 2, 3)
+        self.assertRaises(ValueError, s3_token._split_path, '/a', 2, 3, True)
+        self.assertRaises(ValueError, s3_token._split_path, '/a/c/o/r', 3, 3)
+        self.assertRaises(ValueError, s3_token._split_path, '/a', 5, 4)
 
     def test_split_path_success(self):
-        self.assertEqual(s3_token.split_path('/a'), ['a'])
-        self.assertEqual(s3_token.split_path('/a/'), ['a'])
-        self.assertEqual(s3_token.split_path('/a/c', 2), ['a', 'c'])
-        self.assertEqual(s3_token.split_path('/a/c/o', 3), ['a', 'c', 'o'])
-        self.assertEqual(s3_token.split_path('/a/c/o/r', 3, 3, True),
+        self.assertEqual(s3_token._split_path('/a'), ['a'])
+        self.assertEqual(s3_token._split_path('/a/'), ['a'])
+        self.assertEqual(s3_token._split_path('/a/c', 2), ['a', 'c'])
+        self.assertEqual(s3_token._split_path('/a/c/o', 3), ['a', 'c', 'o'])
+        self.assertEqual(s3_token._split_path('/a/c/o/r', 3, 3, True),
                          ['a', 'c', 'o/r'])
-        self.assertEqual(s3_token.split_path('/a/c', 2, 3, True),
+        self.assertEqual(s3_token._split_path('/a/c', 2, 3, True),
                          ['a', 'c', None])
-        self.assertEqual(s3_token.split_path('/a/c/', 2), ['a', 'c'])
-        self.assertEqual(s3_token.split_path('/a/c/', 2, 3), ['a', 'c', ''])
+        self.assertEqual(s3_token._split_path('/a/c/', 2), ['a', 'c'])
+        self.assertEqual(s3_token._split_path('/a/c/', 2, 3), ['a', 'c', ''])
 
     def test_split_path_invalid_path(self):
         try:
-            s3_token.split_path('o\nn e', 2)
+            s3_token._split_path('o\nn e', 2)
         except ValueError as err:
             self.assertEqual(str(err), 'Invalid path: o%0An%20e')
         try:
-            s3_token.split_path('o\nn e', 2, 3, True)
+            s3_token._split_path('o\nn e', 2, 3, True)
         except ValueError as err:
             self.assertEqual(str(err), 'Invalid path: o%0An%20e')

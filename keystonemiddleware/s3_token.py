@@ -45,15 +45,15 @@ PROTOCOL_NAME = 'S3 Token Authentication'
 
 
 # TODO(kun): remove it after oslo merge this.
-def split_path(path, minsegs=1, maxsegs=None, rest_with_last=False):
+def _split_path(path, minsegs=1, maxsegs=None, rest_with_last=False):
     """Validate and split the given HTTP request path.
 
     **Examples**::
 
-        ['a'] = split_path('/a')
-        ['a', None] = split_path('/a', 1, 2)
-        ['a', 'c'] = split_path('/a/c', 1, 2)
-        ['a', 'c', 'o/r'] = split_path('/a/c/o/r', 1, 3, True)
+        ['a'] = _split_path('/a')
+        ['a', None] = _split_path('/a', 1, 2)
+        ['a', 'c'] = _split_path('/a/c', 1, 2)
+        ['a', 'c', 'o/r'] = _split_path('/a/c/o/r', 1, 3, True)
 
     :param path: HTTP Request path to be split
     :param minsegs: Minimum number of segments to be extracted
@@ -100,17 +100,18 @@ class S3Token(object):
 
     def __init__(self, app, conf):
         """Common initialization code."""
-        self.app = app
-        self.logger = logging.getLogger(conf.get('log_name', __name__))
-        self.logger.debug('Starting the %s component', PROTOCOL_NAME)
-        self.reseller_prefix = conf.get('reseller_prefix', 'AUTH_')
+        self._app = app
+        self._logger = logging.getLogger(conf.get('log_name', __name__))
+        self._logger.debug('Starting the %s component', PROTOCOL_NAME)
+        self._reseller_prefix = conf.get('reseller_prefix', 'AUTH_')
         # where to find the auth service (we use this to validate tokens)
 
         auth_host = conf.get('auth_host')
         auth_port = int(conf.get('auth_port', 35357))
         auth_protocol = conf.get('auth_protocol', 'https')
 
-        self.request_uri = '%s://%s:%s' % (auth_protocol, auth_host, auth_port)
+        self._request_uri = '%s://%s:%s' % (auth_protocol, auth_host,
+                                            auth_port)
 
         # SSL
         insecure = conf.get('insecure', False)
@@ -118,15 +119,15 @@ class S3Token(object):
         key_file = conf.get('keyfile')
 
         if insecure:
-            self.verify = False
+            self._verify = False
         elif cert_file and key_file:
-            self.verify = (cert_file, key_file)
+            self._verify = (cert_file, key_file)
         elif cert_file:
-            self.verify = cert_file
+            self._verify = cert_file
         else:
-            self.verify = None
+            self._verify = None
 
-    def deny_request(self, code):
+    def _deny_request(self, code):
         error_table = {
             'AccessDenied': (401, 'Access denied'),
             'InvalidURI': (400, 'Could not parse the specified URI'),
@@ -145,18 +146,18 @@ class S3Token(object):
     def _json_request(self, creds_json):
         headers = {'Content-Type': 'application/json'}
         try:
-            response = requests.post('%s/v2.0/s3tokens' % self.request_uri,
+            response = requests.post('%s/v2.0/s3tokens' % self._request_uri,
                                      headers=headers, data=creds_json,
-                                     verify=self.verify)
+                                     verify=self._verify)
         except requests.exceptions.RequestException as e:
-            self.logger.info('HTTP connection exception: %s', e)
-            resp = self.deny_request('InvalidURI')
+            self._logger.info('HTTP connection exception: %s', e)
+            resp = self._deny_request('InvalidURI')
             raise ServiceError(resp)
 
         if response.status_code < 200 or response.status_code >= 300:
-            self.logger.debug('Keystone reply error: status=%s reason=%s',
-                              response.status_code, response.reason)
-            resp = self.deny_request('AccessDenied')
+            self._logger.debug('Keystone reply error: status=%s reason=%s',
+                               response.status_code, response.reason)
+            resp = self._deny_request('AccessDenied')
             raise ServiceError(resp)
 
         return response
@@ -164,36 +165,36 @@ class S3Token(object):
     def __call__(self, environ, start_response):
         """Handle incoming request. authenticate and send downstream."""
         req = webob.Request(environ)
-        self.logger.debug('Calling S3Token middleware.')
+        self._logger.debug('Calling S3Token middleware.')
 
         try:
-            parts = split_path(req.path, 1, 4, True)
+            parts = _split_path(req.path, 1, 4, True)
             version, account, container, obj = parts
         except ValueError:
             msg = 'Not a path query, skipping.'
-            self.logger.debug(msg)
-            return self.app(environ, start_response)
+            self._logger.debug(msg)
+            return self._app(environ, start_response)
 
         # Read request signature and access id.
         if 'Authorization' not in req.headers:
             msg = 'No Authorization header. skipping.'
-            self.logger.debug(msg)
-            return self.app(environ, start_response)
+            self._logger.debug(msg)
+            return self._app(environ, start_response)
 
         token = req.headers.get('X-Auth-Token',
                                 req.headers.get('X-Storage-Token'))
         if not token:
             msg = 'You did not specify an auth or a storage token. skipping.'
-            self.logger.debug(msg)
-            return self.app(environ, start_response)
+            self._logger.debug(msg)
+            return self._app(environ, start_response)
 
         auth_header = req.headers['Authorization']
         try:
             access, signature = auth_header.split(' ')[-1].rsplit(':', 1)
         except ValueError:
             msg = 'You have an invalid Authorization header: %s'
-            self.logger.debug(msg, auth_header)
-            return self.deny_request('InvalidURI')(environ, start_response)
+            self._logger.debug(msg, auth_header)
+            return self._deny_request('InvalidURI')(environ, start_response)
 
         # NOTE(chmou): This is to handle the special case with nova
         # when we have the option s3_affix_tenant. We will force it to
@@ -215,8 +216,8 @@ class S3Token(object):
                                  'token': token,
                                  'signature': signature}}
         creds_json = jsonutils.dumps(creds)
-        self.logger.debug('Connecting to Keystone sending this JSON: %s',
-                          creds_json)
+        self._logger.debug('Connecting to Keystone sending this JSON: %s',
+                           creds_json)
         # NOTE(vish): We could save a call to keystone by having
         #             keystone return token, tenant, user, and roles
         #             from this call.
@@ -230,11 +231,11 @@ class S3Token(object):
         except ServiceError as e:
             resp = e.args[0]
             msg = 'Received error, exiting middleware with error: %s'
-            self.logger.debug(msg, resp.status_code)
+            self._logger.debug(msg, resp.status_code)
             return resp(environ, start_response)
 
-        self.logger.debug('Keystone Reply: Status: %d, Output: %s',
-                          resp.status_code, resp.content)
+        self._logger.debug('Keystone Reply: Status: %d, Output: %s',
+                           resp.status_code, resp.content)
 
         try:
             identity_info = resp.json()
@@ -242,16 +243,16 @@ class S3Token(object):
             tenant = identity_info['access']['token']['tenant']
         except (ValueError, KeyError):
             error = 'Error on keystone reply: %d %s'
-            self.logger.debug(error, resp.status_code, resp.content)
-            return self.deny_request('InvalidURI')(environ, start_response)
+            self._logger.debug(error, resp.status_code, resp.content)
+            return self._deny_request('InvalidURI')(environ, start_response)
 
         req.headers['X-Auth-Token'] = token_id
         tenant_to_connect = force_tenant or tenant['id']
-        self.logger.debug('Connecting with tenant: %s', tenant_to_connect)
-        new_tenant_name = '%s%s' % (self.reseller_prefix, tenant_to_connect)
+        self._logger.debug('Connecting with tenant: %s', tenant_to_connect)
+        new_tenant_name = '%s%s' % (self._reseller_prefix, tenant_to_connect)
         environ['PATH_INFO'] = environ['PATH_INFO'].replace(account,
                                                             new_tenant_name)
-        return self.app(environ, start_response)
+        return self._app(environ, start_response)
 
 
 def filter_factory(global_conf, **local_conf):

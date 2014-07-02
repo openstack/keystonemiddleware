@@ -162,7 +162,7 @@ from oslo.config import cfg
 import six
 from six.moves import urllib
 
-from keystonemiddleware import memcache_crypt
+from keystonemiddleware import _memcache_crypt as memcache_crypt
 from keystonemiddleware.openstack.common import jsonutils
 from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.openstack.common import timeutils
