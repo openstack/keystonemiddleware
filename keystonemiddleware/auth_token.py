@@ -149,14 +149,16 @@ import contextlib
 import datetime
 import logging
 import os
-import requests
 import stat
 import tempfile
 import time
 
 from keystoneclient import access
+from keystoneclient.auth.identity import v2
+from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
 from keystoneclient import exceptions
+from keystoneclient import session
 import netaddr
 from oslo.config import cfg
 import six
@@ -466,34 +468,47 @@ class AuthProtocol(object):
                                      (True, 'true', 't', '1', 'on', 'yes', 'y')
                                      )
 
+        self._identity_uri = self._conf_get('identity_uri')
+
+        # NOTE(jamielennox): it does appear here that our default arguments
+        # are backwards. We need to do it this way so that we can handle the
+        # same deprecation strategy for CONF and the conf variable.
+        if not self._identity_uri:
+            self._LOG.warning('Configuring admin URI using auth fragments. '
+                              'This is deprecated, use \'identity_uri\''
+                              ' instead.')
+
+            auth_host = self._conf_get('auth_host')
+            auth_port = int(self._conf_get('auth_port'))
+            auth_protocol = self._conf_get('auth_protocol')
+            auth_admin_prefix = self._conf_get('auth_admin_prefix')
+
+            if netaddr.valid_ipv6(auth_host):
+                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
+                # with '[]' to generate a valid IPv6 URL, based on
+                # http://www.ietf.org/rfc/rfc2732.txt
+                auth_host = '[%s]' % auth_host
+
+            self._identity_uri = '%s://%s:%s' % (auth_protocol,
+                                                 auth_host,
+                                                 auth_port)
+
+            if auth_admin_prefix:
+                self._identity_uri = '%s/%s' % (self._identity_uri,
+                                                auth_admin_prefix.strip('/'))
+
+        else:
+            self._identity_uri = self._identity_uri.rstrip('/')
+
+        self._session = self._session_factory()
+
+        self._http_request_max_retries = self._conf_get(
+            'http_request_max_retries')
+
         self._include_service_catalog = self._conf_get(
             'include_service_catalog')
 
-        http_connect_timeout_cfg = self._conf_get('http_connect_timeout')
-        http_connect_timeout = (http_connect_timeout_cfg and
-                                int(http_connect_timeout_cfg))
-
-        http_request_max_retries = self._conf_get('http_request_max_retries')
-
-        self._identity_server = _IdentityServer(
-            self._LOG, include_service_catalog=self._include_service_catalog,
-            identity_uri=self._conf_get('identity_uri'),
-            auth_uri=self._conf_get('auth_uri'),
-            auth_host=self._conf_get('auth_host'),
-            auth_port=int(self._conf_get('auth_port')),
-            auth_protocol=self._conf_get('auth_protocol'),
-            auth_admin_prefix=self._conf_get('auth_admin_prefix'),
-            cert_file=self._conf_get('certfile'),
-            key_file=self._conf_get('keyfile'),
-            ssl_ca_file=self._conf_get('cafile'),
-            ssl_insecure=self._conf_get('insecure'),
-            admin_token=self._conf_get('admin_token'),
-            admin_user=self._conf_get('admin_user'),
-            admin_password=self._conf_get('admin_password'),
-            admin_tenant_name=self._conf_get('admin_tenant_name'),
-            http_connect_timeout=http_connect_timeout,
-            http_request_max_retries=http_request_max_retries,
-            auth_version=self._conf_get('auth_version'))
+        self._identity_server = self._identity_server_factory()
 
         # signing
         self._signing_dirname = self._conf_get('signing_dir')
@@ -511,18 +526,9 @@ class AuthProtocol(object):
         val = '%s/revoked.pem' % self._signing_dirname
         self._revoked_file_name = val
 
-        memcache_security_strategy = (
+        self._memcache_security_strategy = (
             self._conf_get('memcache_security_strategy'))
-
-        self._token_cache = _TokenCache(
-            self._LOG,
-            cache_time=int(self._conf_get('token_cache_time')),
-            hash_algorithms=self._conf_get('hash_algorithms'),
-            env_cache_name=self._conf_get('cache'),
-            memcached_servers=self._conf_get('memcached_servers'),
-            memcache_security_strategy=memcache_security_strategy,
-            memcache_secret_key=self._conf_get('memcache_secret_key'))
-
+        self._token_cache = self._token_cache_factory()
         self._token_revocation_list_prop = None
         self._token_revocation_list_fetched_time_prop = None
         self._token_revocation_list_cache_timeout = datetime.timedelta(
@@ -1002,6 +1008,60 @@ class AuthProtocol(object):
             self._signing_ca_file_name,
             self._identity_server.fetch_ca_cert())
 
+    # NOTE(hrybacki): This and subsequent factory functions are part of a
+    # cleanup and better organization effort of AuthProtocol.
+    def _session_factory(self):
+        sess = session.Session.construct(dict(
+            cert=self._conf_get('certfile'),
+            key=self._conf_get('keyfile'),
+            cacert=self._conf_get('cafile'),
+            insecure=self._conf_get('insecure'),
+            timeout=self._conf_get('http_connect_timeout')
+        ))
+        # FIXME(jamielennox): Yes. This is wrong. We should be determining the
+        # plugin to use based on a combination of discovery and inputs. Much
+        # of this can be changed when we get keystoneclient 0.10. For now this
+        # hardcoded path is EXACTLY the same as the original auth_token did.
+        auth_url = '%s/v2.0' % self._identity_uri
+
+        admin_token = self._conf_get('admin_token')
+        if admin_token:
+            self._LOG.warning(
+                "The admin_token option in the auth_token middleware is "
+                "deprecated and should not be used. The admin_user and "
+                "admin_password options should be used instead. The "
+                "admin_token option may be removed in a future release.")
+            sess.auth = token_endpoint.Token(auth_url, admin_token)
+        else:
+            sess.auth = v2.Password(
+                auth_url,
+                username=self._conf_get('admin_user'),
+                password=self._conf_get('admin_password'),
+                tenant_name=self._conf_get('admin_tenant_name'))
+        return sess
+
+    def _identity_server_factory(self):
+        identity_server = _IdentityServer(
+            self._LOG,
+            self._session,
+            include_service_catalog=self._include_service_catalog,
+            identity_uri=self._identity_uri,
+            auth_uri=self._conf_get('auth_uri'),
+            http_request_max_retries=self._http_request_max_retries,
+            auth_version=self._conf_get('auth_version'))
+        return identity_server
+
+    def _token_cache_factory(self):
+        token_cache = _TokenCache(
+            self._LOG,
+            cache_time=int(self._conf_get('token_cache_time')),
+            hash_algorithms=self._conf_get('hash_algorithms'),
+            env_cache_name=self._conf_get('cache'),
+            memcached_servers=self._conf_get('memcached_servers'),
+            memcache_security_strategy=self._memcache_security_strategy,
+            memcache_secret_key=self._conf_get('memcache_secret_key'))
+        return token_cache
+
 
 class _CachePool(list):
     """A lazy pool of cache references."""
@@ -1039,13 +1099,8 @@ class _IdentityServer(object):
     operations.
 
     """
-
-    def __init__(self, log, include_service_catalog=None, identity_uri=None,
-                 auth_uri=None, auth_host=None, auth_port=None,
-                 auth_protocol=None, auth_admin_prefix=None, cert_file=None,
-                 key_file=None, ssl_ca_file=None, ssl_insecure=None,
-                 admin_token=None, admin_user=None, admin_password=None,
-                 admin_tenant_name=None, http_connect_timeout=None,
+    def __init__(self, log, session, include_service_catalog=None,
+                 identity_uri=None, auth_uri=None,
                  http_request_max_retries=None, auth_version=None):
         self._LOG = log
         self._include_service_catalog = include_service_catalog
@@ -1055,27 +1110,7 @@ class _IdentityServer(object):
         self._identity_uri = identity_uri
         self.auth_uri = auth_uri
 
-        # NOTE(jamielennox): it does appear here that our defaults arguments
-        # are backwards. We need to do it this way so that we can handle the
-        # same deprecation strategy for CONF and the conf variable.
-        if not self._identity_uri:
-            self._LOG.warning('Configuring admin URI using auth fragments. '
-                              'This is deprecated, use \'identity_uri\''
-                              ' instead.')
-
-            if netaddr.valid_ipv6(auth_host):
-                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
-                # with '[]' to generate a valid IPv6 URL, based on
-                # http://www.ietf.org/rfc/rfc2732.txt
-                auth_host = '[%s]' % auth_host
-
-            self._identity_uri = '%s://%s:%s' % (auth_protocol, auth_host,
-                                                 auth_port)
-            if auth_admin_prefix:
-                self._identity_uri = '%s/%s' % (self._identity_uri,
-                                                auth_admin_prefix.strip('/'))
-        else:
-            self._identity_uri = self._identity_uri.rstrip('/')
+        self._session = session
 
         if self.auth_uri is None:
             self._LOG.warning(
@@ -1089,28 +1124,6 @@ class _IdentityServer(object):
             # this is the original behaviour.
             self.auth_uri = urllib.parse.urljoin(self._identity_uri, '/')
             self.auth_uri = self.auth_uri.rstrip('/')
-
-        # SSL
-        self._cert_file = cert_file
-        self._key_file = key_file
-        self._ssl_ca_file = ssl_ca_file
-        self._ssl_insecure = ssl_insecure
-
-        # Credentials used to verify this component with the Auth service since
-        # validating tokens is a privileged call
-        self._admin_token = admin_token
-        if self._admin_token:
-            self._LOG.warning(
-                "The admin_token option in the auth_token middleware is "
-                "deprecated and should not be used. The admin_user and "
-                "admin_password options should be used instead. The "
-                "admin_token option may be removed in a future release.")
-        self._admin_token_expiry = None
-        self._admin_user = admin_user
-        self._admin_password = admin_password
-        self._admin_tenant_name = admin_tenant_name
-
-        self._http_connect_timeout = http_connect_timeout
 
         self._auth_version = None
         self._http_request_max_retries = http_request_max_retries
@@ -1127,58 +1140,55 @@ class _IdentityServer(object):
         :raise ServiceError: if unable to authenticate token
 
         """
+        user_token = _safe_quote(user_token)
+
         # Determine the highest api version we can use.
         if not self._auth_version:
             self._auth_version = self._choose_api_version()
 
         if self._auth_version == 'v3.0':
-            headers = {'X-Auth-Token': self.get_admin_token(),
-                       'X-Subject-Token': _safe_quote(user_token)}
+            headers = {'X-Subject-Token': user_token}
             path = '/v3/auth/tokens'
             if not self._include_service_catalog:
                 # NOTE(gyee): only v3 API support this option
                 path = path + '?nocatalog'
+
+        else:
+            headers = {}
+            path = '/v2.0/tokens/%s' % user_token
+
+        try:
             response, data = self._json_request(
                 'GET',
                 path,
-                additional_headers=headers)
-        else:
-            headers = {'X-Auth-Token': self.get_admin_token()}
-            response, data = self._json_request(
-                'GET',
-                '/v2.0/tokens/%s' % _safe_quote(user_token),
-                additional_headers=headers)
-
-        if response.status_code == 200:
-            return data
-        if response.status_code == 404:
+                authenticated=True,
+                headers=headers)
+        except exceptions.NotFound as e:
             self._LOG.warn('Authorization failed for token')
-            raise InvalidUserToken('Token authorization failed')
-        if response.status_code == 401:
-            self._LOG.info(
-                'Keystone rejected admin token, resetting')
-            self._admin_token = None
-        else:
+            self._LOG.warn('Identity response: %s' % e.response.text)
+        except exceptions.Unauthorized as e:
+            self._LOG.info('Keystone rejected authorization')
+            self._LOG.warn('Identity response: %s' % e.response.text)
+            if retry:
+                self._LOG.info('Retrying validation')
+                return self.verify_token(user_token, False)
+        except exceptions.HttpError as e:
             self._LOG.error('Bad response code while validating token: %s',
-                            response.status_code)
-        if retry:
-            self._LOG.info('Retrying validation')
-            return self.verify_token(user_token, False)
+                            e.http_status)
+            self._LOG.warn('Identity response: %s' % e.response.text)
         else:
-            self._LOG.warn('Invalid user token. Keystone response: %s', data)
+            if response.status_code == 200:
+                return data
 
             raise InvalidUserToken()
 
-    def fetch_revocation_list(self, retry=True):
-        headers = {'X-Auth-Token': self.get_admin_token()}
-        response, data = self._json_request('GET', '/v2.0/tokens/revoked',
-                                            additional_headers=headers)
-        if response.status_code == 401:
-            if retry:
-                self._LOG.info(
-                    'Keystone rejected admin token, resetting admin token')
-                self._admin_token = None
-                return self.fetch_revocation_list(retry=False)
+    def fetch_revocation_list(self):
+        try:
+            response, data = self._json_request('GET', '/v2.0/tokens/revoked',
+                                                authenticated=True)
+        except exceptions.HTTPError as e:
+            raise ServiceError('Failed to fetch token revocation list: %d' %
+                               e.http_status)
         if response.status_code != 200:
             raise ServiceError('Unable to fetch token revocation list.')
         if 'signed' not in data:
@@ -1226,7 +1236,7 @@ class _IdentityServer(object):
 
     def _get_supported_versions(self):
         versions = []
-        response, data = self._json_request('GET', '/')
+        response, data = self._json_request('GET', '/', authenticated=False)
         if response.status_code == 501:
             self._LOG.warning(
                 'Old keystone installation found...assuming v2.0')
@@ -1249,27 +1259,6 @@ class _IdentityServer(object):
                         ', '.join(versions))
         return versions
 
-    def get_admin_token(self):
-        """Return admin token, possibly fetching a new one.
-
-        if self._admin_token_expiry is set from fetching an admin token, check
-        it for expiration, and request a new token is the existing token
-        is about to expire.
-
-        :return admin token id
-        :raise ServiceError when unable to retrieve token from keystone
-
-        """
-        if self._admin_token_expiry:
-            if _will_expire_soon(self._admin_token_expiry):
-                self._admin_token = None
-
-        if not self._admin_token:
-            (self._admin_token,
-             self._admin_token_expiry) = self._request_admin_token()
-
-        return self._admin_token
-
     def _http_request(self, method, path, **kwargs):
         """HTTP request helper used to make unspecified content type requests.
 
@@ -1281,23 +1270,18 @@ class _IdentityServer(object):
         """
         url = '%s/%s' % (self._identity_uri, path.lstrip('/'))
 
-        kwargs.setdefault('timeout', self._http_connect_timeout)
-        if self._cert_file and self._key_file:
-            kwargs['cert'] = (self._cert_file, self._key_file)
-        elif self._cert_file or self._key_file:
-            self._LOG.warn('Cannot use only a cert or key file. '
-                           'Please provide both. Ignoring.')
-
-        kwargs['verify'] = self._ssl_ca_file or True
-        if self._ssl_insecure:
-            kwargs['verify'] = False
-
         RETRIES = self._http_request_max_retries
         retry = 0
         while True:
             try:
-                response = requests.request(method, url, **kwargs)
+                response = self._session.request(url, method, **kwargs)
                 break
+            except exceptions.HTTPError:
+                # NOTE(hrybacki): unlike the requests library that return
+                # response object with a status code e.g. 400, http failures
+                # in session take these responses and create HTTPError
+                # exceptions to be handled at a higher level.
+                raise
             except Exception as e:
                 if retry >= RETRIES:
                     self._LOG.error('HTTP connection exception: %s', e)
@@ -1309,30 +1293,18 @@ class _IdentityServer(object):
 
         return response
 
-    def _json_request(self, method, path, body=None, additional_headers=None):
+    def _json_request(self, method, path, **kwargs):
         """HTTP request helper used to make json requests.
 
         :param method: http method
         :param path: relative request url
-        :param body: dict to encode to json as request body. Optional.
-        :param additional_headers: dict of additional headers to send with
-                                   http request. Optional.
+        :param **kwargs: additional parameters used by session or endpoint
         :return (http response object, response body parsed as json)
         :raise ServerError when unable to communicate with keystone
 
         """
-        kwargs = {
-            'headers': {
-                'Content-type': 'application/json',
-                'Accept': 'application/json',
-            },
-        }
-
-        if additional_headers:
-            kwargs['headers'].update(additional_headers)
-
-        if body:
-            kwargs['data'] = jsonutils.dumps(body)
+        headers = kwargs.setdefault('headers', {})
+        headers['Accept'] = 'application/json'
 
         response = self._http_request(method, path, **kwargs)
 
@@ -1344,48 +1316,6 @@ class _IdentityServer(object):
 
         return response, data
 
-    def _request_admin_token(self):
-        """Retrieve new token as admin user from keystone.
-
-        :return token id upon success
-        :raises ServerError when unable to communicate with keystone
-
-        Irrespective of the auth version we are going to use for the
-        user token, for simplicity we always use a v2 admin token to
-        validate the user token.
-
-        """
-        params = {
-            'auth': {
-                'passwordCredentials': {
-                    'username': self._admin_user,
-                    'password': self._admin_password,
-                },
-                'tenantName': self._admin_tenant_name,
-            }
-        }
-
-        response, data = self._json_request('POST',
-                                            '/v2.0/tokens',
-                                            body=params)
-
-        try:
-            token = data['access']['token']['id']
-            expiry = data['access']['token']['expires']
-            if not (token and expiry):
-                raise AssertionError('invalid token or expire')
-            datetime_expiry = timeutils.parse_isotime(expiry)
-            return (token, timeutils.normalize_time(datetime_expiry))
-        except (AssertionError, KeyError):
-            self._LOG.warn(
-                'Unexpected response from keystone service: %s', data)
-            raise ServiceError('invalid json response')
-        except (ValueError):
-            data['access']['token']['id'] = '<SANITIZED>'
-            self._LOG.warn(
-                'Unable to parse expiration time from token: %s', data)
-            raise ServiceError('invalid json response')
-
     def _fetch_cert_file(self, cert_type):
         if not self._auth_version:
             self._auth_version = self._choose_api_version()
@@ -1396,7 +1326,10 @@ class _IdentityServer(object):
             path = '/v3/OS-SIMPLE-CERT/' + cert_type
         else:
             path = '/v2.0/certificates/' + cert_type
-        response = self._http_request('GET', path)
+        try:
+            response = self._http_request('GET', path, authenticated=False)
+        except exceptions.HTTPError as e:
+            raise exceptions.CertificateConfigError(e.details)
         if response.status_code != 200:
             raise exceptions.CertificateConfigError(response.text)
         return response.text
