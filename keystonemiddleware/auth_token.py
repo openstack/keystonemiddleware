@@ -335,7 +335,7 @@ _OPTS = [
 CONF = cfg.CONF
 CONF.register_opts(_OPTS, group='keystone_authtoken')
 
-_LIST_OF_VERSIONS_TO_ATTEMPT = ['v2.0', 'v3.0']
+_LIST_OF_VERSIONS_TO_ATTEMPT = ['v3.0', 'v2.0']
 
 
 class _BIND_MODE:
