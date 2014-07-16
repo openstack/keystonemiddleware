@@ -29,6 +29,7 @@ from keystoneclient import access
 from keystoneclient.common import cms
 from keystoneclient import exceptions
 from keystoneclient import fixture
+from keystoneclient import session
 import mock
 import testresources
 import testtools
@@ -1255,6 +1256,25 @@ class CommonAuthTokenMiddlewareTest(object):
         # FIXME(blk-u): This should be 1 since the token shouldn't be cached
         # again.
         self.assertThat(2, matchers.Equals(cache.set.call_count))
+
+    def test_auth_plugin(self):
+        httpretty.register_uri(httpretty.GET,
+                               self.examples.SERVICE_URL,
+                               body=VERSION_LIST_v3,
+                               status_code=300)
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
+        body = self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(200, self.response_status)
+        self.assertEqual([FakeApp.SUCCESS], body)
+
+        token_auth = req.environ['keystone.token_auth']
+        endpoint_filter = {'service_type': self.examples.SERVICE_TYPE,
+                           'version': 3}
+
+        url = token_auth.get_endpoint(session.Session(), **endpoint_filter)
+        self.assertEqual('%s/v3' % BASE_URI, url)
 
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
