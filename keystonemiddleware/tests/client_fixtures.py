@@ -16,6 +16,7 @@ import os
 
 import fixtures
 from keystoneclient.common import cms
+from keystoneclient import fixture
 from keystoneclient import utils
 import six
 import testresources
@@ -222,307 +223,182 @@ class Examples(fixtures.Fixture):
             "0000000000000000000000000000000000000000000000000000000000000000")
 
         # JSON responses keyed by token ID
-        self.TOKEN_RESPONSES = {
-            self.UUID_TOKEN_DEFAULT: {
-                'access': {
-                    'token': {
-                        'id': self.UUID_TOKEN_DEFAULT,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                        'tenant': {
-                            'id': 'tenant_id1',
-                            'name': 'tenant_name1',
-                        },
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                    'serviceCatalog': {}
-                },
-            },
-            self.VALID_DIABLO_TOKEN: {
-                'access': {
-                    'token': {
-                        'id': self.VALID_DIABLO_TOKEN,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                        'tenantId': 'tenant_id1',
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                },
-            },
-            self.UUID_TOKEN_UNSCOPED: {
-                'access': {
-                    'token': {
-                        'id': self.UUID_TOKEN_UNSCOPED,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                },
-            },
-            self.UUID_TOKEN_NO_SERVICE_CATALOG: {
-                'access': {
-                    'token': {
-                        'id': 'valid-token',
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                        'tenant': {
-                            'id': 'tenant_id1',
-                            'name': 'tenant_name1',
-                        },
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    }
-                },
-            },
-            self.UUID_TOKEN_BIND: {
-                'access': {
-                    'token': {
-                        'bind': {'kerberos': self.KERBEROS_BIND},
-                        'id': self.UUID_TOKEN_BIND,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                        'tenant': {
-                            'id': 'tenant_id1',
-                            'name': 'tenant_name1',
-                        },
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                    'serviceCatalog': {}
-                },
-            },
-            self.UUID_TOKEN_UNKNOWN_BIND: {
-                'access': {
-                    'token': {
-                        'bind': {'FOO': 'BAR'},
-                        'id': self.UUID_TOKEN_UNKNOWN_BIND,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                        'tenant': {
-                            'id': 'tenant_id1',
-                            'name': 'tenant_name1',
-                        },
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                    'serviceCatalog': {}
-                },
-            },
-            self.v3_UUID_TOKEN_DEFAULT: {
+        self.TOKEN_RESPONSES = {}
+
+        # basic values
+        PROJECT_ID = 'tenant_id1'
+        PROJECT_NAME = 'tenant_name1'
+        USER_ID = 'user_id1'
+        USER_NAME = 'user_name1'
+        DOMAIN_ID = 'domain_id1'
+        DOMAIN_NAME = 'domain_name1'
+        ROLE_NAME1 = 'role1'
+        ROLE_NAME2 = 'role2'
+
+        self.SERVICE_TYPE = 'identity'
+        self.SERVICE_URL = 'http://keystone.server:5000/v2.0'
+
+        # Old Tokens
+
+        self.TOKEN_RESPONSES[self.VALID_DIABLO_TOKEN] = {
+            'access': {
                 'token': {
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'methods': ['password'],
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'project': {
-                        'id': 'tenant_id1',
-                        'name': 'tenant_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
+                    'id': self.VALID_DIABLO_TOKEN,
+                    'expires': '2020-01-01T00:00:10.000123Z',
+                    'tenantId': PROJECT_ID,
+                },
+                'user': {
+                    'id': USER_ID,
+                    'name': USER_NAME,
                     'roles': [
-                        {'name': 'role1', 'id': 'Role1'},
-                        {'name': 'role2', 'id': 'Role2'},
+                        {'name': ROLE_NAME1},
+                        {'name': ROLE_NAME2},
                     ],
-                    'catalog': {}
-                }
-            },
-            self.v3_UUID_TOKEN_UNSCOPED: {
-                'token': {
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'methods': ['password'],
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    }
-                }
-            },
-            self.v3_UUID_TOKEN_DOMAIN_SCOPED: {
-                'token': {
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'methods': ['password'],
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'domain': {
-                        'id': 'domain_id1',
-                        'name': 'domain_name1',
-                    },
-                    'roles': [
-                        {'name': 'role1', 'id': 'Role1'},
-                        {'name': 'role2', 'id': 'Role2'},
-                    ],
-                    'catalog': {}
-                }
-            },
-            self.SIGNED_TOKEN_SCOPED_KEY: {
-                'access': {
-                    'token': {
-                        'id': self.SIGNED_TOKEN_SCOPED_KEY,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'tenantId': 'tenant_id1',
-                        'tenantName': 'tenant_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
                 },
-            },
-            self.SIGNED_TOKEN_UNSCOPED_KEY: {
-                'access': {
-                    'token': {
-                        'id': self.SIGNED_TOKEN_UNSCOPED_KEY,
-                        'expires': '2020-01-01T00:00:10.000123Z',
-                    },
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'roles': [
-                            {'name': 'role1'},
-                            {'name': 'role2'},
-                        ],
-                    },
-                },
-            },
-            self.SIGNED_v3_TOKEN_SCOPED_KEY: {
-                'token': {
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'methods': ['password'],
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'project': {
-                        'id': 'tenant_id1',
-                        'name': 'tenant_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'roles': [
-                        {'name': 'role1'},
-                        {'name': 'role2'}
-                    ],
-                    'catalog': {}
-                }
-            },
-            self.v3_UUID_TOKEN_BIND: {
-                'token': {
-                    'bind': {'kerberos': self.KERBEROS_BIND},
-                    'methods': ['password'],
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'project': {
-                        'id': 'tenant_id1',
-                        'name': 'tenant_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'roles': [
-                        {'name': 'role1', 'id': 'Role1'},
-                        {'name': 'role2', 'id': 'Role2'},
-                    ],
-                    'catalog': {}
-                }
-            },
-            self.v3_UUID_TOKEN_UNKNOWN_BIND: {
-                'token': {
-                    'bind': {'FOO': 'BAR'},
-                    'expires_at': '2020-01-01T00:00:10.000123Z',
-                    'methods': ['password'],
-                    'user': {
-                        'id': 'user_id1',
-                        'name': 'user_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'project': {
-                        'id': 'tenant_id1',
-                        'name': 'tenant_name1',
-                        'domain': {
-                            'id': 'domain_id1',
-                            'name': 'domain_name1'
-                        }
-                    },
-                    'roles': [
-                        {'name': 'role1', 'id': 'Role1'},
-                        {'name': 'role2', 'id': 'Role2'},
-                    ],
-                    'catalog': {}
-                }
             },
         }
+
+        # Generated V2 Tokens
+
+        token = fixture.V2Token(token_id=self.UUID_TOKEN_DEFAULT,
+                                tenant_id=PROJECT_ID,
+                                tenant_name=PROJECT_NAME,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint(public=self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_DEFAULT] = token
+
+        token = fixture.V2Token(token_id=self.UUID_TOKEN_UNSCOPED,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNSCOPED] = token
+
+        token = fixture.V2Token(token_id='valid-token',
+                                tenant_id=PROJECT_ID,
+                                tenant_name=PROJECT_NAME,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_NO_SERVICE_CATALOG] = token
+
+        token = fixture.V2Token(token_id=self.SIGNED_TOKEN_SCOPED_KEY,
+                                tenant_id=PROJECT_ID,
+                                tenant_name=PROJECT_NAME,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_KEY] = token
+
+        token = fixture.V2Token(token_id=self.SIGNED_TOKEN_UNSCOPED_KEY,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_UNSCOPED_KEY] = token
+
+        token = fixture.V2Token(token_id=self.UUID_TOKEN_BIND,
+                                tenant_id=PROJECT_ID,
+                                tenant_name=PROJECT_NAME,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        token['access']['token']['bind'] = {'kerberos': self.KERBEROS_BIND}
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_BIND] = token
+
+        token = fixture.V2Token(token_id=self.UUID_TOKEN_UNKNOWN_BIND,
+                                tenant_id=PROJECT_ID,
+                                tenant_name=PROJECT_NAME,
+                                user_id=USER_ID,
+                                user_name=USER_NAME)
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        token['access']['token']['bind'] = {'FOO': 'BAR'}
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNKNOWN_BIND] = token
+
+        # Generated V3 Tokens
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME)
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DEFAULT] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME)
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNSCOPED] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                domain_id=DOMAIN_ID,
+                                domain_name=DOMAIN_NAME)
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DOMAIN_SCOPED] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.SIGNED_v3_TOKEN_SCOPED_KEY] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        token['token']['bind'] = {'kerberos': self.KERBEROS_BIND}
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_BIND] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        token['token']['bind'] = {'FOO': 'BAR'}
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNKNOWN_BIND] = token
+
+        # PKIZ tokens generally link to above tokens
+
         self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_PKIZ_KEY] = (
             self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_KEY])
         self.TOKEN_RESPONSES[self.SIGNED_TOKEN_UNSCOPED_PKIZ_KEY] = (
