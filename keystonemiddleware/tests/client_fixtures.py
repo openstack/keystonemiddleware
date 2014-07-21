@@ -127,6 +127,9 @@ class Examples(fixtures.Fixture):
         self.v3_UUID_TOKEN_BIND = '2f61f73e1c854cbb9534c487f9bd63c2'
         self.v3_UUID_TOKEN_UNKNOWN_BIND = '7ed9781b62cd4880b8d8c6788ab1d1e2'
 
+        self.UUID_SERVICE_TOKEN_DEFAULT = 'fe4c0710ec2f492748596c1b53ab124'
+        self.v3_UUID_SERVICE_TOKEN_DEFAULT = 'g431071bbc2f492748596c1b53cb229'
+
         revoked_token = self.REVOKED_TOKEN
         if isinstance(revoked_token, six.text_type):
             revoked_token = revoked_token.encode('utf-8')
@@ -235,6 +238,15 @@ class Examples(fixtures.Fixture):
         ROLE_NAME1 = 'role1'
         ROLE_NAME2 = 'role2'
 
+        SERVICE_PROJECT_ID = 'service_project_id1'
+        SERVICE_PROJECT_NAME = 'service_project_name1'
+        SERVICE_USER_ID = 'service_user_id1'
+        SERVICE_USER_NAME = 'service_user_name1'
+        SERVICE_DOMAIN_ID = 'service_domain_id1'
+        SERVICE_DOMAIN_NAME = 'service_domain_name1'
+        SERVICE_ROLE_NAME1 = 'service_role1'
+        SERVICE_ROLE_NAME2 = 'service_role2'
+
         self.SERVICE_TYPE = 'identity'
         self.UNVERSIONED_SERVICE_URL = 'http://keystone.server:5000/'
         self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v2.0'
@@ -320,6 +332,17 @@ class Examples(fixtures.Fixture):
         token['access']['token']['bind'] = {'FOO': 'BAR'}
         self.TOKEN_RESPONSES[self.UUID_TOKEN_UNKNOWN_BIND] = token
 
+        token = fixture.V2Token(token_id=self.UUID_SERVICE_TOKEN_DEFAULT,
+                                tenant_id=SERVICE_PROJECT_ID,
+                                tenant_name=SERVICE_PROJECT_NAME,
+                                user_id=SERVICE_USER_ID,
+                                user_name=SERVICE_USER_NAME)
+        token.add_role(name=SERVICE_ROLE_NAME1)
+        token.add_role(name=SERVICE_ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint(public=self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.UUID_SERVICE_TOKEN_DEFAULT] = token
+
         # Generated V3 Tokens
 
         token = fixture.V3Token(user_id=USER_ID,
@@ -397,6 +420,22 @@ class Examples(fixtures.Fixture):
         svc.add_endpoint('public', self.SERVICE_URL)
         token['token']['bind'] = {'FOO': 'BAR'}
         self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNKNOWN_BIND] = token
+
+        token = fixture.V3Token(user_id=SERVICE_USER_ID,
+                                user_name=SERVICE_USER_NAME,
+                                user_domain_id=SERVICE_DOMAIN_ID,
+                                user_domain_name=SERVICE_DOMAIN_NAME,
+                                project_id=SERVICE_PROJECT_ID,
+                                project_name=SERVICE_PROJECT_NAME,
+                                project_domain_id=SERVICE_DOMAIN_ID,
+                                project_domain_name=SERVICE_DOMAIN_NAME)
+        token.add_role(id=SERVICE_ROLE_NAME1,
+                       name=SERVICE_ROLE_NAME1)
+        token.add_role(id=SERVICE_ROLE_NAME2,
+                       name=SERVICE_ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_UUID_SERVICE_TOKEN_DEFAULT] = token
 
         # PKIZ tokens generally link to above tokens
 

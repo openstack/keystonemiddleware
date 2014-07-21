@@ -41,6 +41,9 @@ Coming in from initial call from client or customer
 HTTP_X_AUTH_TOKEN
     The client token being passed in.
 
+HTTP_X_SERVICE_TOKEN
+    A service token being passed in.
+
 HTTP_X_STORAGE_TOKEN
     The client token being passed in (legacy Rackspace use) to support
     swift/cloud files
@@ -55,61 +58,72 @@ WWW-Authenticate
 What we add to the request for use by the OpenStack service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+When using composite authentication (a user and service token are
+present) additional service headers relating to the service user
+will be added. They take the same form as the standard headers but add
+'_SERVICE_'. These headers will not exist in the environment if no
+service token is present.
+
 HTTP_X_IDENTITY_STATUS
     'Confirmed' or 'Invalid'
     The underlying service will only see a value of 'Invalid' if the Middleware
     is configured to run in 'delay_auth_decision' mode
 
-HTTP_X_DOMAIN_ID
+HTTP_X_DOMAIN_ID, HTTP_X_SERVICE_DOMAIN_ID
     Identity service managed unique identifier, string. Only present if
     this is a domain-scoped v3 token.
 
-HTTP_X_DOMAIN_NAME
+HTTP_X_DOMAIN_NAME, HTTP_X_SERVICE_DOMAIN_NAME
     Unique domain name, string. Only present if this is a domain-scoped
     v3 token.
 
-HTTP_X_PROJECT_ID
+HTTP_X_PROJECT_ID, HTTP_X_SERVICE_PROJECT_ID
     Identity service managed unique identifier, string. Only present if
     this is a project-scoped v3 token, or a tenant-scoped v2 token.
 
-HTTP_X_PROJECT_NAME
+HTTP_X_PROJECT_NAME, HTTP_X_SERVICE_PROJECT_NAME
     Project name, unique within owning domain, string. Only present if
     this is a project-scoped v3 token, or a tenant-scoped v2 token.
 
-HTTP_X_PROJECT_DOMAIN_ID
+HTTP_X_PROJECT_DOMAIN_ID, HTTP_X_SERVICE_PROJECT_DOMAIN_ID
     Identity service managed unique identifier of owning domain of
     project, string.  Only present if this is a project-scoped v3 token. If
     this variable is set, this indicates that the PROJECT_NAME can only
     be assumed to be unique within this domain.
 
-HTTP_X_PROJECT_DOMAIN_NAME
+HTTP_X_PROJECT_DOMAIN_NAME, HTTP_X_SERVICE_PROJECT_DOMAIN_NAME
     Name of owning domain of project, string. Only present if this is a
     project-scoped v3 token. If this variable is set, this indicates that
     the PROJECT_NAME can only be assumed to be unique within this domain.
 
-HTTP_X_USER_ID
+HTTP_X_USER_ID, HTTP_X_SERVICE_USER_ID
     Identity-service managed unique identifier, string
 
-HTTP_X_USER_NAME
+HTTP_X_USER_NAME, HTTP_X_SERVICE_USER_NAME
     User identifier, unique within owning domain, string
 
-HTTP_X_USER_DOMAIN_ID
+HTTP_X_USER_DOMAIN_ID, HTTP_X_SERVICE_USER_DOMAIN_ID
     Identity service managed unique identifier of owning domain of
     user, string. If this variable is set, this indicates that the USER_NAME
     can only be assumed to be unique within this domain.
 
-HTTP_X_USER_DOMAIN_NAME
+HTTP_X_USER_DOMAIN_NAME, HTTP_X_SERVICE_USER_DOMAIN_NAME
     Name of owning domain of user, string. If this variable is set, this
     indicates that the USER_NAME can only be assumed to be unique within
     this domain.
 
-HTTP_X_ROLES
+HTTP_X_ROLES, HTTP_X_SERVICE_ROLES
     Comma delimited list of case-sensitive role names
 
 HTTP_X_SERVICE_CATALOG
     json encoded keystone service catalog (optional).
     For compatibility reasons this catalog will always be in the V2 catalog
     format even if it is a v3 token.
+
+    Note: This is an exception in that it contains 'SERVICE' but relates to a
+          user token, not a service token. The existing user's
+          catalog can be very large; it was decided not to present a catalog
+          relating to the service token to avoid using more HTTP header space.
 
 HTTP_X_TENANT_ID
     *Deprecated* in favor of HTTP_X_PROJECT_ID
@@ -345,6 +359,26 @@ CONF.register_opts(_OPTS, group='keystone_authtoken')
 
 _LIST_OF_VERSIONS_TO_ATTEMPT = ['v3.0', 'v2.0']
 
+_HEADER_TEMPLATE = {
+    'X%s-Domain-Id': 'domain_id',
+    'X%s-Domain-Name': 'domain_name',
+    'X%s-Project-Id': 'project_id',
+    'X%s-Project-Name': 'project_name',
+    'X%s-Project-Domain-Id': 'project_domain_id',
+    'X%s-Project-Domain-Name': 'project_domain_name',
+    'X%s-User-Id': 'user_id',
+    'X%s-User-Name': 'username',
+    'X%s-User-Domain-Id': 'user_domain_id',
+    'X%s-User-Domain-Name': 'user_domain_name',
+}
+
+_DEPRECATED_HEADER_TEMPLATE = {
+    'X-User': 'username',
+    'X-Tenant-Id': 'project_id',
+    'X-Tenant-Name': 'project_name',
+    'X-Tenant': 'project_name',
+}
+
 
 class _BIND_MODE:
     DISABLED = 'disabled'
@@ -374,13 +408,13 @@ def _token_is_v3(token_info):
 
 def _get_token_expiration(data):
     if not data:
-        raise InvalidUserToken('Token authorization failed')
+        raise InvalidToken('Token authorization failed')
     if _token_is_v2(data):
         timestamp = data['access']['token']['expires']
     elif _token_is_v3(data):
         timestamp = data['token']['expires_at']
     else:
-        raise InvalidUserToken('Token authorization failed')
+        raise InvalidToken('Token authorization failed')
     expires = timeutils.parse_isotime(timestamp)
     expires = timeutils.normalize_time(expires)
     return expires
@@ -390,7 +424,7 @@ def _confirm_token_not_expired(data):
     expires = _get_token_expiration(data)
     utcnow = timeutils.utcnow()
     if utcnow >= expires:
-        raise InvalidUserToken('Token authorization failed')
+        raise InvalidToken('Token authorization failed')
     return timeutils.isotime(at=expires, subsecond=True)
 
 
@@ -456,7 +490,7 @@ def _conf_values_type_convert(conf):
     return opts
 
 
-class InvalidUserToken(Exception):
+class InvalidToken(Exception):
     pass
 
 
@@ -603,6 +637,7 @@ class AuthProtocol(object):
 
         self._check_revocations_for_cached = self._conf_get(
             'check_revocations_for_cached')
+        self._init_auth_headers()
 
     def _conf_get(self, name):
         # try config from paste-deploy first
@@ -630,29 +665,51 @@ class AuthProtocol(object):
         we can't authenticate.
 
         """
-        self._LOG.debug('Authenticating user token')
+        def _fmt_msg(env):
+            msg = ('user: user_id %s, project_id %s, roles %s '
+                   'service: user_id %s, project_id %s, roles %s' % (
+                   env.get('X_USER_ID'), env.get('X_PROJECT_ID'),
+                   env.get('X_ROLES'), env.get('X_SERVICE_USER_ID'),
+                   env.get('X_SERVICE_PROJECT_ID'),
+                   env.get('X_SERVICE_ROLES')))
+            return msg
 
         self._token_cache.initialize(env)
+        self._remove_auth_headers(env)
 
         try:
-            self._remove_auth_headers(env)
-            user_token = self._get_user_token_from_header(env)
-            token_info = self._validate_user_token(user_token, env)
-            auth_ref = access.AccessInfo.factory(body=token_info)
-            env['keystone.token_info'] = token_info
-            env['keystone.token_auth'] = _UserAuthPlugin(user_token, auth_ref)
-            user_headers = self._build_user_headers(auth_ref, token_info)
-            self._add_headers(env, user_headers)
-            return self._call_app(env, start_response)
 
-        except InvalidUserToken:
-            if self._delay_auth_decision:
-                self._LOG.info(
-                    'Invalid user token - deferring reject downstream')
-                self._add_headers(env, {'X-Identity-Status': 'Invalid'})
-                return self._call_app(env, start_response)
-            else:
-                self._LOG.info('Invalid user token - rejecting request')
+            try:
+                self._LOG.debug('Authenticating user token')
+                user_token = self._get_user_token_from_header(env)
+                token_info = self._validate_token(user_token, env)
+                auth_ref = access.AccessInfo.factory(body=token_info)
+                env['keystone.token_info'] = token_info
+                env['keystone.token_auth'] = _UserAuthPlugin(
+                    user_token, auth_ref)
+                user_headers = self._build_user_headers(auth_ref, token_info)
+                self._add_headers(env, user_headers)
+            except InvalidToken:
+                if self._delay_auth_decision:
+                    self._LOG.info(
+                        'Invalid user token - deferring reject downstream')
+                    self._add_headers(env, {'X-Identity-Status': 'Invalid'})
+                else:
+                    self._LOG.info('Invalid user token - rejecting request')
+                    return self._reject_request(env, start_response)
+
+            try:
+                self._LOG.debug('Authenticating service token')
+                serv_token = self._get_service_token_from_header(env)
+                if serv_token is not None:
+                    serv_token_info = self._validate_token(
+                        serv_token, env)
+                    serv_headers = self._build_service_headers(serv_token_info)
+                    self._add_headers(env, serv_headers)
+            except InvalidToken:
+                # Delayed auth not currently supported for service tokens.
+                # (Can be implemented if a use case is found.)
+                self._LOG.info('Invalid service token - rejecting request')
                 return self._reject_request(env, start_response)
 
         except ServiceError as e:
@@ -661,43 +718,49 @@ class AuthProtocol(object):
             start_response('503 Service Unavailable', resp.headers)
             return resp.body
 
+        self._LOG.debug("Received request from %s" % _fmt_msg(env))
+
+        return self._call_app(env, start_response)
+
+    def _init_auth_headers(self):
+        """Initialize auth header list.
+
+        Both user and service token headers are generated.
+        """
+        auth_headers = ['X-Service-Catalog',
+                        'X-Identity-Status',
+                        'X-Roles',
+                        'X-Service-Roles']
+        for key in six.iterkeys(_HEADER_TEMPLATE):
+            auth_headers.append(key % '')
+            # Service headers
+            auth_headers.append(key % '-Service')
+
+        # Deprecated headers
+        auth_headers.append('X-Role')
+        for key in six.iterkeys(_DEPRECATED_HEADER_TEMPLATE):
+            auth_headers.append(key)
+
+        self._auth_headers = auth_headers
+
     def _remove_auth_headers(self, env):
         """Remove headers so a user can't fake authentication.
+
+        Both user and service token headers are removed.
 
         :param env: wsgi request environment
 
         """
-        auth_headers = (
-            'X-Identity-Status',
-            'X-Domain-Id',
-            'X-Domain-Name',
-            'X-Project-Id',
-            'X-Project-Name',
-            'X-Project-Domain-Id',
-            'X-Project-Domain-Name',
-            'X-User-Id',
-            'X-User-Name',
-            'X-User-Domain-Id',
-            'X-User-Domain-Name',
-            'X-Roles',
-            'X-Service-Catalog',
-            # Deprecated
-            'X-User',
-            'X-Tenant-Id',
-            'X-Tenant-Name',
-            'X-Tenant',
-            'X-Role',
-        )
         self._LOG.debug('Removing headers from request environment: %s',
-                        ','.join(auth_headers))
-        self._remove_headers(env, auth_headers)
+                        ','.join(self._auth_headers))
+        self._remove_headers(env, self._auth_headers)
 
     def _get_user_token_from_header(self, env):
         """Get token id from request.
 
         :param env: wsgi request environment
         :return token id
-        :raises InvalidUserToken if no token is provided in request
+        :raises InvalidToken if no token is provided in request
 
         """
         token = self._get_header(env, 'X-Auth-Token',
@@ -709,7 +772,16 @@ class AuthProtocol(object):
                 self._LOG.warn('Unable to find authentication token'
                                ' in headers')
                 self._LOG.debug('Headers: %s', env)
-            raise InvalidUserToken('Unable to find token in headers')
+            raise InvalidToken('Unable to find token in headers')
+
+    def _get_service_token_from_header(self, env):
+        """Get service token id from request.
+
+        :param env: wsgi request environment
+        :return service token id or None if not present
+
+        """
+        return self._get_header(env, 'X-Service-Token')
 
     @property
     def _reject_auth_headers(self):
@@ -729,20 +801,20 @@ class AuthProtocol(object):
         start_response('401 Unauthorized', resp.headers)
         return resp.body
 
-    def _validate_user_token(self, user_token, env, retry=True):
+    def _validate_token(self, token, env, retry=True):
         """Authenticate user token
 
-        :param user_token: user's token id
+        :param token: token id
         :param retry: Ignored, as it is not longer relevant
         :return uncrypted body of the token if the token is valid
-        :raise InvalidUserToken if token is rejected
+        :raise InvalidToken if token is rejected
         :no longer raises ServiceError since it no longer makes RPC
 
         """
         token_id = None
 
         try:
-            token_ids, cached = self._token_cache.get(user_token)
+            token_ids, cached = self._token_cache.get(token)
             token_id = token_ids[0]
             if cached:
                 # Token was retrieved from the cache. In this case, there's no
@@ -761,22 +833,22 @@ class AuthProtocol(object):
                         if is_revoked:
                             self._LOG.debug(
                                 'Token is marked as having been revoked')
-                            raise InvalidUserToken(
+                            raise InvalidToken(
                                 'Token authorization failed')
                 self._confirm_token_bind(data, env)
             else:
                 # Token wasn't cached. In this case, the token needs to be
                 # checked that it's not expired, and also put in the cache.
-                if cms.is_pkiz(user_token):
-                    verified = self._verify_pkiz_token(user_token, token_ids)
+                if cms.is_pkiz(token):
+                    verified = self._verify_pkiz_token(token, token_ids)
                     data = jsonutils.loads(verified)
                     expires = _confirm_token_not_expired(data)
-                elif cms.is_asn1_token(user_token):
-                    verified = self._verify_signed_token(user_token, token_ids)
+                elif cms.is_asn1_token(token):
+                    verified = self._verify_signed_token(token, token_ids)
                     data = jsonutils.loads(verified)
                     expires = _confirm_token_not_expired(data)
                 else:
-                    data = self._identity_server.verify_token(user_token,
+                    data = self._identity_server.verify_token(token,
                                                               retry)
                     # No need to confirm token expiration here since
                     # verify_token fails for expired tokens.
@@ -787,13 +859,13 @@ class AuthProtocol(object):
         except NetworkError:
             self._LOG.debug('Token validation failure.', exc_info=True)
             self._LOG.warn('Authorization failed for token')
-            raise InvalidUserToken('Token authorization failed')
+            raise InvalidToken('Token authorization failed')
         except Exception:
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_id:
                 self._token_cache.store_invalid(token_id)
             self._LOG.warn('Authorization failed for token')
-            raise InvalidUserToken('Token authorization failed')
+            raise InvalidToken('Token authorization failed')
 
     def _build_user_headers(self, auth_ref, token_info):
         """Convert token object into headers.
@@ -801,45 +873,61 @@ class AuthProtocol(object):
         Build headers that represent authenticated user - see main
         doc info at start of file for details of headers to be defined.
 
-        :param token_info: token object returned by keystone on authentication
-        :raise InvalidUserToken when unable to parse token object
+        :param token_info: token object returned by identity
+                           server on authentication
+        :raise InvalidToken: when unable to parse token object
 
         """
         roles = ','.join(auth_ref.role_names)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise InvalidUserToken('Unable to determine tenancy.')
+            raise InvalidToken('Unable to determine tenancy.')
 
         rval = {
             'X-Identity-Status': 'Confirmed',
-            'X-Domain-Id': auth_ref.domain_id,
-            'X-Domain-Name': auth_ref.domain_name,
-            'X-Project-Id': auth_ref.project_id,
-            'X-Project-Name': auth_ref.project_name,
-            'X-Project-Domain-Id': auth_ref.project_domain_id,
-            'X-Project-Domain-Name': auth_ref.project_domain_name,
-            'X-User-Id': auth_ref.user_id,
-            'X-User-Name': auth_ref.username,
-            'X-User-Domain-Id': auth_ref.user_domain_id,
-            'X-User-Domain-Name': auth_ref.user_domain_name,
             'X-Roles': roles,
-            # Deprecated
-            'X-User': auth_ref.username,
-            'X-Tenant-Id': auth_ref.project_id,
-            'X-Tenant-Name': auth_ref.project_name,
-            'X-Tenant': auth_ref.project_name,
-            'X-Role': roles,
         }
 
-        self._LOG.debug('Received request from user: %s with project_id : %s'
-                        ' and roles: %s ',
-                        auth_ref.user_id, auth_ref.project_id, roles)
+        for header_tmplt, attr in six.iteritems(_HEADER_TEMPLATE):
+            rval[header_tmplt % ''] = getattr(auth_ref, attr)
+
+        # Deprecated headers
+        rval['X-Role'] = roles
+        for header_tmplt, attr in six.iteritems(_DEPRECATED_HEADER_TEMPLATE):
+            rval[header_tmplt] = getattr(auth_ref, attr)
 
         if self._include_service_catalog and auth_ref.has_service_catalog():
             catalog = auth_ref.service_catalog.get_data()
             if _token_is_v3(token_info):
                 catalog = _v3_to_v2_catalog(catalog)
             rval['X-Service-Catalog'] = jsonutils.dumps(catalog)
+
+        return rval
+
+    def _build_service_headers(self, token_info):
+        """Convert token object into service headers.
+
+        Build headers that represent authenticated user - see main
+        doc info at start of file for details of headers to be defined.
+
+        :param token_info: token object returned by identity
+                           server on authentication
+        :raise InvalidToken: when unable to parse token object
+
+        """
+        auth_ref = access.AccessInfo.factory(body=token_info)
+
+        if _token_is_v2(token_info) and not auth_ref.project_id:
+            raise InvalidToken('Unable to determine service tenancy.')
+
+        roles = ','.join(auth_ref.role_names)
+        rval = {
+            'X-Service-Roles': roles,
+        }
+
+        header_type = '-Service'
+        for header_tmplt, attr in six.iteritems(_HEADER_TEMPLATE):
+            rval[header_tmplt % header_type] = getattr(auth_ref, attr)
 
         return rval
 
@@ -877,7 +965,7 @@ class AuthProtocol(object):
         if msg is False:
             msg = 'Token authorization failed'
 
-        raise InvalidUserToken(msg)
+        raise InvalidToken(msg)
 
     def _confirm_token_bind(self, data, env):
         bind_mode = self._conf_get('enforce_token_bind')
@@ -995,7 +1083,7 @@ class AuthProtocol(object):
     def _verify_signed_token(self, signed_text, token_ids):
         """Check that the token is unrevoked and has a valid signature."""
         if self._is_signed_token_revoked(token_ids):
-            raise InvalidUserToken('Token has been revoked')
+            raise InvalidToken('Token has been revoked')
 
         formatted = cms.token_to_cms(signed_text)
         verified = self._cms_verify(formatted)
@@ -1003,14 +1091,14 @@ class AuthProtocol(object):
 
     def _verify_pkiz_token(self, signed_text, token_ids):
         if self._is_signed_token_revoked(token_ids):
-            raise InvalidUserToken('Token has been revoked')
+            raise InvalidToken('Token has been revoked')
         try:
             uncompressed = cms.pkiz_uncompress(signed_text)
             verified = self._cms_verify(uncompressed, inform=cms.PKIZ_CMS_FORM)
             return verified
         # TypeError If the signed_text is not zlib compressed
         except TypeError:
-            raise InvalidUserToken(signed_text)
+            raise InvalidToken(signed_text)
 
     def _verify_signing_dir(self):
         if os.path.exists(self._signing_dirname):
@@ -1234,7 +1322,7 @@ class _IdentityServer(object):
                       user authentication when an indeterminate
                       response is received. Optional.
         :return: token object received from keystone on success
-        :raise InvalidUserToken: if token is rejected
+        :raise InvalidToken: if token is rejected
         :raise ServiceError: if unable to authenticate token
 
         """
@@ -1278,7 +1366,7 @@ class _IdentityServer(object):
             if response.status_code == 200:
                 return data
 
-            raise InvalidUserToken()
+            raise InvalidToken()
 
     def fetch_revocation_list(self):
         try:
@@ -1490,7 +1578,7 @@ class _TokenCache(object):
         The second element is the token data from the cache if the token was
         cached, otherwise ``None``.
 
-        :raises InvalidUserToken: if the token is invalid
+        :raises InvalidToken: if the token is invalid
 
         """
 
@@ -1541,7 +1629,7 @@ class _TokenCache(object):
     def _cache_get(self, token_id):
         """Return token information from cache.
 
-        If token is invalid raise InvalidUserToken
+        If token is invalid raise InvalidToken
         return token only if fresh (not expired).
         """
 
@@ -1590,7 +1678,7 @@ class _TokenCache(object):
         cached = jsonutils.loads(serialized)
         if cached == self._INVALID_INDICATOR:
             self._LOG.debug('Cached Token is marked unauthorized')
-            raise InvalidUserToken('Token authorization failed')
+            raise InvalidToken('Token authorization failed')
 
         data, expires = cached
 
@@ -1609,7 +1697,7 @@ class _TokenCache(object):
             return data
         else:
             self._LOG.debug('Cached Token seems expired')
-            raise InvalidUserToken('Token authorization failed')
+            raise InvalidToken('Token authorization failed')
 
     def _cache_store(self, token_id, data):
         """Store value into memcache.
