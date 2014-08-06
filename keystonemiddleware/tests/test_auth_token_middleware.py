@@ -273,35 +273,6 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
                                   httpretty.core.HTTPrettyRequestEmpty)
 
 
-class MultiStepAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
-                                       testresources.ResourcedTestCase):
-
-    resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
-
-    @httpretty.activate
-    def test_fetch_revocation_list_with_expire(self):
-        self.set_middleware()
-
-        # Get a token, then try to retrieve revocation list and get a 401.
-        # Get a new token, try to retrieve revocation list and return 200.
-        httpretty.register_uri(httpretty.POST, "%s/v2.0/tokens" % BASE_URI,
-                               body=FAKE_ADMIN_TOKEN)
-
-        responses = [httpretty.Response(body='', status=401),
-                     httpretty.Response(
-                         body=self.examples.SIGNED_REVOCATION_LIST)]
-
-        httpretty.register_uri(httpretty.GET,
-                               "%s/v2.0/tokens/revoked" % BASE_URI,
-                               responses=responses)
-
-        fetched = jsonutils.loads(self.middleware._fetch_revocation_list())
-        self.assertEqual(fetched, self.examples.REVOCATION_LIST)
-
-        # Check that 4 requests have been made
-        self.assertEqual(len(httpretty.httpretty.latest_requests), 4)
-
-
 class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                     testresources.ResourcedTestCase):
 
