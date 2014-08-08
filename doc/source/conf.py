@@ -47,12 +47,13 @@ extensions = ['sphinx.ext.autodoc',
               # remove this Sphinx extension when
               # https://launchpad.net/bugs/1260495 is fixed.
               'ext.apidoc',
+              'oslosphinx'
              ]
 
 todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+#templates_path = ['_templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -123,8 +124,8 @@ man_pages = []
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
-html_theme_path = ["."]
-html_theme = '_theme'
+#html_theme_path = ["."]
+#html_theme = '_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -153,7 +154,7 @@ html_theme = '_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
+#html_static_path = ['static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
