@@ -424,6 +424,27 @@ def _safe_quote(s):
     return urllib.parse.quote(s) if s == urllib.parse.unquote(s) else s
 
 
+def _conf_values_type_convert(conf):
+    """Convert conf values into correct type."""
+    if not conf:
+        return {}
+    opts = {}
+    opt_types = dict((o.dest, o.type) for o in _OPTS)
+    for k, v in six.iteritems(conf):
+        try:
+            if v is None:
+                opts[k] = v
+            else:
+                opts[k] = opt_types[k](v)
+        except KeyError:
+            opts[k] = v
+        except ValueError as e:
+            raise ConfigurationError(
+                'Unable to convert the value of %s option into correct '
+                'type: %s' % (k, e))
+    return opts
+
+
 class InvalidUserToken(Exception):
     pass
 
@@ -459,7 +480,10 @@ class AuthProtocol(object):
     def __init__(self, app, conf):
         self._LOG = logging.getLogger(conf.get('log_name', __name__))
         self._LOG.info('Starting keystone auth_token middleware')
-        self._conf = conf
+        # NOTE(wanghong): If options are set in paste file, all the option
+        # values passed into conf are string type. So, we should convert the
+        # conf value into correct type.
+        self._conf = _conf_values_type_convert(conf)
         self._app = app
 
         # delay_auth_decision means we still allow unauthenticated requests
