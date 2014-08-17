@@ -366,7 +366,7 @@ def _token_is_v3(token_info):
     return ('token' in token_info)
 
 
-def _confirm_token_not_expired(data):
+def _get_token_expiration(data):
     if not data:
         raise InvalidUserToken('Token authorization failed')
     if _token_is_v2(data):
@@ -377,6 +377,11 @@ def _confirm_token_not_expired(data):
         raise InvalidUserToken('Token authorization failed')
     expires = timeutils.parse_isotime(timestamp)
     expires = timeutils.normalize_time(expires)
+    return expires
+
+
+def _confirm_token_not_expired(data):
+    expires = _get_token_expiration(data)
     utcnow = timeutils.utcnow()
     if utcnow >= expires:
         raise InvalidUserToken('Token authorization failed')
@@ -660,6 +665,11 @@ class AuthProtocol(object):
             token_ids, cached = self._token_cache.get(user_token)
             token_id = token_ids[0]
             if cached:
+                # Token was retrieved from the cache. In this case, there's no
+                # need to check that the token is expired because the cache
+                # fetch fails for an expired token. Also, there's no need to
+                # put the token in the cache because it's already in the cache.
+
                 data = cached
 
                 if self._check_revocations_for_cached:
@@ -673,17 +683,26 @@ class AuthProtocol(object):
                                 'Token is marked as having been revoked')
                             raise InvalidUserToken(
                                 'Token authorization failed')
-            elif cms.is_pkiz(user_token):
-                verified = self._verify_pkiz_token(user_token, token_ids)
-                data = jsonutils.loads(verified)
-            elif cms.is_asn1_token(user_token):
-                verified = self._verify_signed_token(user_token, token_ids)
-                data = jsonutils.loads(verified)
+                self._confirm_token_bind(data, env)
             else:
-                data = self._identity_server.verify_token(user_token, retry)
-            expires = _confirm_token_not_expired(data)
-            self._confirm_token_bind(data, env)
-            self._token_cache.store(token_id, data, expires)
+                # Token wasn't cached. In this case, the token needs to be
+                # checked that it's not expired, and also put in the cache.
+                if cms.is_pkiz(user_token):
+                    verified = self._verify_pkiz_token(user_token, token_ids)
+                    data = jsonutils.loads(verified)
+                    expires = _confirm_token_not_expired(data)
+                elif cms.is_asn1_token(user_token):
+                    verified = self._verify_signed_token(user_token, token_ids)
+                    data = jsonutils.loads(verified)
+                    expires = _confirm_token_not_expired(data)
+                else:
+                    data = self._identity_server.verify_token(user_token,
+                                                              retry)
+                    # No need to confirm token expiration here since
+                    # verify_token fails for expired tokens.
+                    expires = _get_token_expiration(data)
+                self._confirm_token_bind(data, env)
+                self._token_cache.store(token_id, data, expires)
             return data
         except NetworkError:
             self._LOG.debug('Token validation failure.', exc_info=True)
