@@ -642,6 +642,12 @@ class CommonAuthTokenMiddlewareTest(object):
         revoked_form = cms.cms_hash_token(token)
         self._test_cache_revoked(token, revoked_form)
 
+    def test_cached_revoked_pkiz(self):
+        # When the PKIZ token is cached and revoked, 401 is returned.
+        token = self.token_dict['signed_token_scoped_pkiz']
+        revoked_form = cms.cms_hash_token(token)
+        self._test_cache_revoked(token, revoked_form)
+
     def test_revoked_token_receives_401_md5_secondary(self):
         # When hash_algorithms has 'md5' as the secondary hash and the
         # revocation list contains the md5 hash for a token, that token is
@@ -655,7 +661,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(self.response_status, 401)
 
-    def test_revoked_hashed_pki_token(self):
+    def _test_revoked_hashed_token(self, token_name):
         # If hash_algorithms is set as ['sha256', 'md5'],
         # and check_revocations_for_cached is True,
         # and a token is in the cache because it was successfully validated
@@ -666,7 +672,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.conf['check_revocations_for_cached'] = True
         self.set_middleware()
 
-        token = self.token_dict['signed_token_scoped']
+        token = self.token_dict[token_name]
 
         # Put the token in the revocation list.
         token_hashed = cms.cms_hash_token(token)
@@ -680,12 +686,18 @@ class CommonAuthTokenMiddlewareTest(object):
         self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(200, self.response_status)
 
-        # This time use the PKI token
+        # This time use the PKI(Z) token
         req.headers['X-Auth-Token'] = token
         self.middleware(req.environ, self.start_fake_response)
 
         # Should find the token in the cache and revocation list.
         self.assertEqual(401, self.response_status)
+
+    def test_revoked_hashed_pki_token(self):
+        self._test_revoked_hashed_token('signed_token_scoped')
+
+    def test_revoked_hashed_pkiz_token(self):
+        self._test_revoked_hashed_token('signed_token_scoped_pkiz')
 
     def get_revocation_list_json(self, token_ids=None, mode=None):
         if token_ids is None:
@@ -1421,7 +1433,8 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                       self.examples.UUID_TOKEN_BIND,
                       self.examples.UUID_TOKEN_UNKNOWN_BIND,
                       self.examples.UUID_TOKEN_NO_SERVICE_CATALOG,
-                      self.examples.SIGNED_TOKEN_SCOPED_KEY,):
+                      self.examples.SIGNED_TOKEN_SCOPED_KEY,
+                      self.examples.SIGNED_TOKEN_SCOPED_PKIZ_KEY,):
             httpretty.register_uri(httpretty.GET,
                                    "%s/v2.0/tokens/%s" % (BASE_URI, token),
                                    body=
