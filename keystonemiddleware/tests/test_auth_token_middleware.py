@@ -2122,6 +2122,26 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         self.assertEqual("Keystone uri='%s'" % auth_uri,
                          self.response_headers['WWW-Authenticate'])
 
+    def test_delayed_auth_values(self):
+        fake_app = new_app('401 Unauthorized', uuid.uuid4().hex)
+        middleware = auth_token.AuthProtocol(fake_app,
+                                             {'auth_uri': 'http://local.test'})
+        self.assertFalse(middleware._delay_auth_decision)
+
+        for v in ('True', '1', 'on', 'yes'):
+            conf = {'delay_auth_decision': v,
+                    'auth_uri': 'http://local.test'}
+
+            middleware = auth_token.AuthProtocol(fake_app, conf)
+            self.assertTrue(middleware._delay_auth_decision)
+
+        for v in ('False', '0', 'no'):
+            conf = {'delay_auth_decision': v,
+                    'auth_uri': 'http://local.test'}
+
+            middleware = auth_token.AuthProtocol(fake_app, conf)
+            self.assertFalse(middleware._delay_auth_decision)
+
 
 class CommonCompositeAuthTests(object):
     """Test Composite authentication.
