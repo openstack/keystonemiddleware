@@ -22,7 +22,9 @@ import keystonemiddleware.auth_token
 
 
 auth_token_opts = [
-    ('keystone_authtoken', keystonemiddleware.auth_token._OPTS)
+    (keystonemiddleware.auth_token._AUTHTOKEN_GROUP,
+     keystonemiddleware.auth_token._OPTS +
+     keystonemiddleware.auth_token._AuthTokenPlugin.get_options())
 ]
 
 

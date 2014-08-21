@@ -169,6 +169,7 @@ import tempfile
 import time
 
 from keystoneclient import access
+from keystoneclient import auth
 from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.auth.identity import v2
 from keystoneclient.auth import token_endpoint
@@ -213,33 +214,12 @@ from keystonemiddleware.openstack.common import memorycache
 # options via CONF.
 
 _OPTS = [
-    cfg.StrOpt('auth_admin_prefix',
-               default='',
-               help='Prefix to prepend at the beginning of the path. '
-                    'Deprecated, use identity_uri.'),
-    cfg.StrOpt('auth_host',
-               default='127.0.0.1',
-               help='Host providing the admin Identity API endpoint. '
-                    'Deprecated, use identity_uri.'),
-    cfg.IntOpt('auth_port',
-               default=35357,
-               help='Port of the admin Identity API endpoint. '
-                    'Deprecated, use identity_uri.'),
-    cfg.StrOpt('auth_protocol',
-               default='https',
-               help='Protocol of the admin Identity API endpoint '
-                    '(http or https). Deprecated, use identity_uri.'),
     cfg.StrOpt('auth_uri',
                default=None,
                # FIXME(dolph): should be default='http://127.0.0.1:5000/v2.0/',
                # or (depending on client support) an unversioned, publicly
                # accessible identity endpoint (see bug 1207517)
                help='Complete public Identity API endpoint.'),
-    cfg.StrOpt('identity_uri',
-               default=None,
-               help='Complete admin Identity API endpoint. This should '
-                    'specify the unversioned root endpoint '
-                    'e.g. https://localhost:35357/'),
     cfg.StrOpt('auth_version',
                default=None,
                help='API version of the admin Identity API endpoint.'),
@@ -256,23 +236,6 @@ _OPTS = [
                default=3,
                help='How many times are we trying to reconnect when'
                ' communicating with Identity API Server.'),
-    cfg.StrOpt('admin_token',
-               secret=True,
-               help='This option is deprecated and may be removed in a future'
-               ' release. Single shared secret with the Keystone configuration'
-               ' used for bootstrapping a Keystone installation, or otherwise'
-               ' bypassing the normal authentication process. This option'
-               ' should not be used, use `admin_user` and `admin_password`'
-               ' instead.'),
-    cfg.StrOpt('admin_user',
-               help='Keystone account username.'),
-    cfg.StrOpt('admin_password',
-               secret=True,
-               help='Keystone account password.'),
-    cfg.StrOpt('admin_tenant_name',
-               default='admin',
-               help='Keystone service account tenant name to validate'
-               ' user tokens.'),
     cfg.StrOpt('cache',
                default=None,
                help='Env key for the swift cache.'),
@@ -376,9 +339,9 @@ _OPTS = [
                 ' should be set to a single value for better performance.'),
 ]
 
+_AUTHTOKEN_GROUP = 'keystone_authtoken'
 CONF = cfg.CONF
-CONF.register_opts(_OPTS, group='keystone_authtoken')
-
+CONF.register_opts(_OPTS, group=_AUTHTOKEN_GROUP)
 _LIST_OF_VERSIONS_TO_ATTEMPT = ['v3.0', 'v2.0']
 
 _HEADER_TEMPLATE = {
@@ -541,6 +504,121 @@ class _MiniResp(object):
         self.headers.append(('Content-type', 'text/plain'))
 
 
+class _AuthTokenPlugin(auth.BaseAuthPlugin):
+
+    def __init__(self, auth_host, auth_port, auth_protocol, auth_admin_prefix,
+                 admin_user, admin_password, admin_tenant_name, admin_token,
+                 identity_uri, log):
+        # NOTE(jamielennox): it does appear here that our default arguments
+        # are backwards. We need to do it this way so that we can handle the
+        # same deprecation strategy for CONF and the conf variable.
+        if not identity_uri:
+            log.warning('Configuring admin URI using auth fragments. '
+                        'This is deprecated, use \'identity_uri\''
+                        ' instead.')
+
+            if ':' in auth_host:
+                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
+                # with '[]' to generate a valid IPv6 URL, based on
+                # http://www.ietf.org/rfc/rfc2732.txt
+                auth_host = '[%s]' % auth_host
+
+            identity_uri = '%s://%s:%s' % (auth_protocol,
+                                           auth_host,
+                                           auth_port)
+
+            if auth_admin_prefix:
+                identity_uri = '%s/%s' % (identity_uri,
+                                          auth_admin_prefix.strip('/'))
+
+        self._identity_uri = identity_uri.rstrip('/')
+
+        # FIXME(jamielennox): Yes. This is wrong. We should be determining the
+        # plugin to use based on a combination of discovery and inputs. Much
+        # of this can be changed when we get keystoneclient 0.10. For now this
+        # hardcoded path is EXACTLY the same as the original auth_token did.
+        auth_url = '%s/v2.0' % self._identity_uri
+
+        if admin_token:
+            log.warning(
+                "The admin_token option in the auth_token middleware is "
+                "deprecated and should not be used. The admin_user and "
+                "admin_password options should be used instead. The "
+                "admin_token option may be removed in a future release.")
+            self._plugin = token_endpoint.Token(auth_url, admin_token)
+        else:
+            self._plugin = v2.Password(auth_url,
+                                       username=admin_user,
+                                       password=admin_password,
+                                       tenant_name=admin_tenant_name)
+
+        self._LOG = log
+
+    def get_token(self, *args, **kwargs):
+        return self._plugin.get_token(*args, **kwargs)
+
+    def get_endpoint(self, session, interface=None, **kwargs):
+        # FIXME(jamielennox) for now the paths are always set up such that they
+        # expect the unversioned endpoint to be returned as the base. This will
+        # change shortly.
+
+        return self._identity_uri
+
+    def invalidate(self):
+        return self._plugin.invalidate()
+
+    @classmethod
+    def get_options(cls):
+        options = super(_AuthTokenPlugin, cls).get_options()
+
+        options.extend([
+            cfg.StrOpt('auth_admin_prefix',
+                       default='',
+                       help='Prefix to prepend at the beginning of the path. '
+                            'Deprecated, use identity_uri.'),
+            cfg.StrOpt('auth_host',
+                       default='127.0.0.1',
+                       help='Host providing the admin Identity API endpoint. '
+                            'Deprecated, use identity_uri.'),
+            cfg.IntOpt('auth_port',
+                       default=35357,
+                       help='Port of the admin Identity API endpoint. '
+                            'Deprecated, use identity_uri.'),
+            cfg.StrOpt('auth_protocol',
+                       default='https',
+                       help='Protocol of the admin Identity API endpoint '
+                            '(http or https). Deprecated, use identity_uri.'),
+            cfg.StrOpt('identity_uri',
+                       default=None,
+                       help='Complete admin Identity API endpoint. This '
+                            'should specify the unversioned root endpoint '
+                            'e.g. https://localhost:35357/'),
+            cfg.StrOpt('admin_token',
+                       secret=True,
+                       help='This option is deprecated and may be removed in '
+                            'a future release. Single shared secret with the '
+                            'Keystone configuration used for bootstrapping a '
+                            'Keystone installation, or otherwise bypassing '
+                            'the normal authentication process. This option '
+                            'should not be used, use `admin_user` and '
+                            '`admin_password` instead.'),
+            cfg.StrOpt('admin_user',
+                       help='Keystone account username.'),
+            cfg.StrOpt('admin_password',
+                       secret=True,
+                       help='Keystone account password.'),
+            cfg.StrOpt('admin_tenant_name',
+                       default='admin',
+                       help='Keystone service account tenant name to validate'
+                       ' user tokens.'),
+        ])
+
+        return options
+
+
+_AuthTokenPlugin.register_conf_options(CONF, _AUTHTOKEN_GROUP)
+
+
 class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
     """The incoming authentication credentials.
 
@@ -590,38 +668,6 @@ class AuthProtocol(object):
         self._delay_auth_decision = (self._conf_get('delay_auth_decision') in
                                      (True, 'true', 't', '1', 'on', 'yes', 'y')
                                      )
-
-        self._identity_uri = self._conf_get('identity_uri')
-
-        # NOTE(jamielennox): it does appear here that our default arguments
-        # are backwards. We need to do it this way so that we can handle the
-        # same deprecation strategy for CONF and the conf variable.
-        if not self._identity_uri:
-            self._LOG.warning('Configuring admin URI using auth fragments. '
-                              'This is deprecated, use \'identity_uri\''
-                              ' instead.')
-
-            auth_host = self._conf_get('auth_host')
-            auth_port = int(self._conf_get('auth_port'))
-            auth_protocol = self._conf_get('auth_protocol')
-            auth_admin_prefix = self._conf_get('auth_admin_prefix')
-
-            if ':' in auth_host:
-                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
-                # with '[]' to generate a valid IPv6 URL, based on
-                # http://www.ietf.org/rfc/rfc2732.txt
-                auth_host = '[%s]' % auth_host
-
-            self._identity_uri = '%s://%s:%s' % (auth_protocol,
-                                                 auth_host,
-                                                 auth_port)
-
-            if auth_admin_prefix:
-                self._identity_uri = '%s/%s' % (self._identity_uri,
-                                                auth_admin_prefix.strip('/'))
-
-        else:
-            self._identity_uri = self._identity_uri.rstrip('/')
 
         self._session = self._session_factory()
 
@@ -1217,6 +1263,10 @@ class AuthProtocol(object):
     # NOTE(hrybacki): This and subsequent factory functions are part of a
     # cleanup and better organization effort of AuthProtocol.
     def _session_factory(self):
+        # NOTE(jamielennox): Loading Session here should be exactly the
+        # same as calling Session.load_from_conf_options(CONF, GROUP)
+        # however we can't do that because we have to use _conf_get to support
+        # the paste.ini options.
         sess = session.Session.construct(dict(
             cert=self._conf_get('certfile'),
             key=self._conf_get('keyfile'),
@@ -1224,26 +1274,23 @@ class AuthProtocol(object):
             insecure=self._conf_get('insecure'),
             timeout=self._conf_get('http_connect_timeout')
         ))
-        # FIXME(jamielennox): Yes. This is wrong. We should be determining the
-        # plugin to use based on a combination of discovery and inputs. Much
-        # of this can be changed when we get keystoneclient 0.10. For now this
-        # hardcoded path is EXACTLY the same as the original auth_token did.
-        auth_url = '%s/v2.0' % self._identity_uri
 
-        admin_token = self._conf_get('admin_token')
-        if admin_token:
-            self._LOG.warning(
-                "The admin_token option in the auth_token middleware is "
-                "deprecated and should not be used. The admin_user and "
-                "admin_password options should be used instead. The "
-                "admin_token option may be removed in a future release.")
-            sess.auth = token_endpoint.Token(auth_url, admin_token)
-        else:
-            sess.auth = v2.Password(
-                auth_url,
-                username=self._conf_get('admin_user'),
-                password=self._conf_get('admin_password'),
-                tenant_name=self._conf_get('admin_tenant_name'))
+        # NOTE(jamielennox): Loading AuthTokenPlugin here should be exactly the
+        # same as calling _AuthTokenPlugin.load_from_conf_options(CONF, GROUP)
+        # however we can't do that because we have to use _conf_get to support
+        # the paste.ini options.
+        sess.auth = _AuthTokenPlugin.load_from_options(
+            auth_host=self._conf_get('auth_host'),
+            auth_port=int(self._conf_get('auth_port')),
+            auth_protocol=self._conf_get('auth_protocol'),
+            auth_admin_prefix=self._conf_get('auth_admin_prefix'),
+            admin_user=self._conf_get('admin_user'),
+            admin_password=self._conf_get('admin_password'),
+            admin_tenant_name=self._conf_get('admin_tenant_name'),
+            admin_token=self._conf_get('admin_token'),
+            identity_uri=self._conf_get('identity_uri'),
+            log=self._LOG)
+
         return sess
 
     def _identity_server_factory(self):
@@ -1251,7 +1298,6 @@ class AuthProtocol(object):
             self._LOG,
             self._session,
             include_service_catalog=self._include_service_catalog,
-            identity_uri=self._identity_uri,
             auth_uri=self._conf_get('auth_uri'),
             http_request_max_retries=self._http_request_max_retries,
             auth_version=self._conf_get('auth_version'))
@@ -1351,19 +1397,14 @@ class _IdentityServer(object):
 
     """
     def __init__(self, log, session, include_service_catalog=None,
-                 identity_uri=None, auth_uri=None,
-                 http_request_max_retries=None, auth_version=None):
+                 auth_uri=None, http_request_max_retries=None,
+                 auth_version=None):
         self._LOG = log
         self._include_service_catalog = include_service_catalog
         self._req_auth_version = auth_version
-
-        # where to find the auth service (we use this to validate tokens)
-        self._identity_uri = identity_uri
-        self.auth_uri = auth_uri
-
         self._session = session
 
-        if self.auth_uri is None:
+        if auth_uri is None:
             self._LOG.warning(
                 'Configuring auth_uri to point to the public identity '
                 'endpoint is required; clients may not be able to '
@@ -1371,11 +1412,15 @@ class _IdentityServer(object):
 
             # FIXME(dolph): drop support for this fallback behavior as
             # documented in bug 1207517.
-            # NOTE(jamielennox): we urljoin '/' to get just the base URI as
-            # this is the original behaviour.
-            self.auth_uri = urllib.parse.urljoin(self._identity_uri, '/')
-            self.auth_uri = self.auth_uri.rstrip('/')
+            auth_uri = session.get_endpoint(interface=auth.AUTH_INTERFACE)
 
+            # NOTE(jamielennox): This weird stripping of the prefix hack is
+            # only relevant to the legacy case. We urljoin '/' to get just the
+            # base URI as this is the original behaviour.
+            if isinstance(session.auth, _AuthTokenPlugin):
+                auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
+
+        self.auth_uri = auth_uri
         self._auth_version = None
         self._http_request_max_retries = http_request_max_retries
 
@@ -1519,13 +1564,16 @@ class _IdentityServer(object):
         :raise ServerError when unable to communicate with keystone
 
         """
-        url = '%s/%s' % (self._identity_uri, path.lstrip('/'))
-
         RETRIES = self._http_request_max_retries
         retry = 0
+
+        endpoint_filter = kwargs.setdefault('endpoint_filter', {})
+        endpoint_filter.setdefault('service_type', 'identity')
+        endpoint_filter.setdefault('interface', 'admin')
+
         while True:
             try:
-                response = self._session.request(url, method, **kwargs)
+                response = self._session.request(path, method, **kwargs)
                 break
             except exceptions.HTTPError:
                 # NOTE(hrybacki): unlike the requests library that return
