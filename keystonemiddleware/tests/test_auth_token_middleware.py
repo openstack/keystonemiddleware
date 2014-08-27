@@ -1225,9 +1225,7 @@ class CommonAuthTokenMiddlewareTest(object):
                                       success=False)
 
     def test_caching_token_on_verify(self):
-        # When the token is cached, it's cached again when it's verified.
-        # NOTE(blk-u): This behavior is incorrect and inefficient, see
-        # bug 1289075.
+        # When the token is cached it isn't cached again when it's verified.
 
         # The token cache has to be initialized with our cache instance.
         self.middleware._token_cache._env_cache_name = 'cache'
@@ -1252,9 +1250,8 @@ class CommonAuthTokenMiddlewareTest(object):
         self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(200, self.response_status)
 
-        # FIXME(blk-u): This should be 1 since the token shouldn't be cached
-        # again.
-        self.assertThat(2, matchers.Equals(cache.set.call_count))
+        # Assert that the token wasn't cached again.
+        self.assertThat(1, matchers.Equals(cache.set.call_count))
 
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
