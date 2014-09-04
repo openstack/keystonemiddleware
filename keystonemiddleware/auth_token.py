@@ -549,6 +549,18 @@ class AuthProtocol(object):
         else:
             return CONF.keystone_authtoken[name]
 
+    def _call_app(self, env, start_response):
+        # NOTE(jamielennox): We wrap the given start response so that if an
+        # application with a 'delay_auth_decision' setting fails, or otherwise
+        # raises Unauthorized that we include the Authentication URL headers.
+        def _fake_start_response(status, response_headers, exc_info=None):
+            if status.startswith('401'):
+                response_headers.extend(self._reject_auth_headers)
+
+            return start_response(status, response_headers, exc_info)
+
+        return self._app(env, _fake_start_response)
+
     def __call__(self, env, start_response):
         """Handle incoming request.
 
@@ -567,14 +579,14 @@ class AuthProtocol(object):
             env['keystone.token_info'] = token_info
             user_headers = self._build_user_headers(token_info)
             self._add_headers(env, user_headers)
-            return self._app(env, start_response)
+            return self._call_app(env, start_response)
 
         except InvalidUserToken:
             if self._delay_auth_decision:
                 self._LOG.info(
                     'Invalid user token - deferring reject downstream')
                 self._add_headers(env, {'X-Identity-Status': 'Invalid'})
-                return self._app(env, start_response)
+                return self._call_app(env, start_response)
             else:
                 self._LOG.info('Invalid user token - rejecting request')
                 return self._reject_request(env, start_response)
@@ -635,6 +647,11 @@ class AuthProtocol(object):
                 self._LOG.debug('Headers: %s', env)
             raise InvalidUserToken('Unable to find token in headers')
 
+    @property
+    def _reject_auth_headers(self):
+        header_val = 'Keystone uri=\'%s\'' % self._identity_server.auth_uri
+        return [('WWW-Authenticate', header_val)]
+
     def _reject_request(self, env, start_response):
         """Redirect client to auth server.
 
@@ -643,9 +660,8 @@ class AuthProtocol(object):
         :returns HTTPUnauthorized http response
 
         """
-        header_val = 'Keystone uri=\'%s\'' % self._identity_server.auth_uri
-        headers = [('WWW-Authenticate', header_val)]
-        resp = _MiniResp('Authentication required', env, headers)
+        resp = _MiniResp('Authentication required',
+                         env, self._reject_auth_headers)
         start_response('401 Unauthorized', resp.headers)
         return resp.body
 

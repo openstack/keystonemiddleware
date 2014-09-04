@@ -17,6 +17,7 @@ import datetime
 import json
 import os
 import shutil
+import six
 import stat
 import tempfile
 import time
@@ -34,6 +35,7 @@ import testresources
 import testtools
 from testtools import matchers
 import webob
+import webob.dec
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.openstack.common import jsonutils
@@ -201,6 +203,22 @@ class v3FakeApp(FakeApp):
         super(v3FakeApp, self).__init__(v3_default_env_additions)
 
 
+def new_app(status, body, headers={}):
+
+    class _App(object):
+
+        def __init__(self, expected_env=None):
+            self.expected_env = expected_env
+
+        @webob.dec.wsgify
+        def __call__(self, req):
+            resp = webob.Response(body, status)
+            resp.headers.update(headers)
+            return resp
+
+    return _App
+
+
 class BaseAuthTokenMiddlewareTest(testtools.TestCase):
     """Base test class for auth_token middleware.
 
@@ -261,7 +279,7 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.middleware._token_revocation_list = jsonutils.dumps(
             {"revoked": [], "extra": "success"})
 
-    def start_fake_response(self, status, headers):
+    def start_fake_response(self, status, headers, exc_info=None):
         self.response_status = int(status.split(' ', 1)[0])
         self.response_headers = dict(headers)
 
@@ -2014,6 +2032,26 @@ class CatalogConversionTests(BaseAuthTokenMiddlewareTest):
         self.assertEqual(3, len(service['endpoints']))
         for e in expected:
             self.assertIn(e, expected)
+
+
+class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
+
+    def test_header_in_401(self):
+        body = uuid.uuid4().hex
+        auth_uri = 'http://local.test'
+        conf = {'delay_auth_decision': True, 'auth_uri': auth_uri}
+
+        self.fake_app = new_app('401 Unauthorized', body)
+        self.set_middleware(conf=conf)
+
+        req = webob.Request.blank('/')
+        resp = self.middleware(req.environ, self.start_fake_response)
+
+        self.assertEqual([six.b(body)], resp)
+
+        self.assertEqual(401, self.response_status)
+        self.assertEqual("Keystone uri='%s'" % auth_uri,
+                         self.response_headers['WWW-Authenticate'])
 
 
 def load_tests(loader, tests, pattern):
