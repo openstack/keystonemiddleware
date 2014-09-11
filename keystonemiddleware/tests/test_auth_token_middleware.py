@@ -226,6 +226,7 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
             'signing_dir': client_fixtures.CERTDIR,
             'auth_version': auth_version,
             'auth_uri': 'https://keystone.example.com:1234',
+            'admin_user': uuid.uuid4().hex,
         }
 
         self.auth_version = auth_version
@@ -526,6 +527,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         conf = {
             'revocation_cache_time': 24,
             'auth_uri': 'https://keystone.example.com:1234',
+            'admin_user': uuid.uuid4().hex
         }
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
         self.assertEqual(middleware._token_revocation_list_cache_timeout,
