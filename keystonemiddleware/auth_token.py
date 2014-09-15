@@ -143,6 +143,11 @@ keystone.token_info
     Keystone token validation call, as well as basic information about
     the tenant and user.
 
+keystone.token_auth
+    A keystoneclient auth plugin that may be used with a
+    :py:class:`keystoneclient.session.Session`. This plugin will load the
+    authentication data provided to auth_token middleware.
+
 """
 
 import contextlib
@@ -154,6 +159,7 @@ import tempfile
 import time
 
 from keystoneclient import access
+from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.auth.identity import v2
 from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
@@ -479,6 +485,38 @@ class _MiniResp(object):
         self.headers.append(('Content-type', 'text/plain'))
 
 
+class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
+    """The incoming authentication credentials.
+
+    A plugin that represents the incoming user credentials. This can be
+    consumed by applications.
+
+    This object is not expected to be constructed directly by users. It is
+    created and passed by auth_token middleware and then can be used as the
+    authentication plugin when communicating via a session.
+    """
+
+    def __init__(self, user_token, auth_ref):
+        # FIXME(jamielennox): set reauthenticate=False here when keystoneclient
+        # 0.11 is released to prevent trying to refetch authentication.
+        super(_UserAuthPlugin, self).__init__()
+        self._user_token = user_token
+        self._stored_auth_ref = auth_ref
+
+    def get_token(self, session, **kwargs):
+        # NOTE(jamielennox): This is needed partially because the AccessInfo
+        # factory is so bad that we don't always get the correct token data.
+        # Override and always return the token that was provided in the req.
+        return self._user_token
+
+    def get_auth_ref(self, session, **kwargs):
+        # NOTE(jamielennox): We can't go out and fetch this auth_ref, we've
+        # got it already so always return it. In the event it tries to
+        # re-authenticate it will get the same old auth_ref which is not
+        # perfect, but the best we can do for now.
+        return self._stored_auth_ref
+
+
 class AuthProtocol(object):
     """Auth Middleware that handles authenticating client calls."""
 
@@ -600,8 +638,10 @@ class AuthProtocol(object):
             self._remove_auth_headers(env)
             user_token = self._get_user_token_from_header(env)
             token_info = self._validate_user_token(user_token, env)
+            auth_ref = access.AccessInfo.factory(body=token_info)
             env['keystone.token_info'] = token_info
-            user_headers = self._build_user_headers(token_info)
+            env['keystone.token_auth'] = _UserAuthPlugin(user_token, auth_ref)
+            user_headers = self._build_user_headers(auth_ref, token_info)
             self._add_headers(env, user_headers)
             return self._call_app(env, start_response)
 
@@ -755,7 +795,7 @@ class AuthProtocol(object):
             self._LOG.warn('Authorization failed for token')
             raise InvalidUserToken('Token authorization failed')
 
-    def _build_user_headers(self, token_info):
+    def _build_user_headers(self, auth_ref, token_info):
         """Convert token object into headers.
 
         Build headers that represent authenticated user - see main
@@ -765,7 +805,6 @@ class AuthProtocol(object):
         :raise InvalidUserToken when unable to parse token object
 
         """
-        auth_ref = access.AccessInfo.factory(body=token_info)
         roles = ','.join(auth_ref.role_names)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
