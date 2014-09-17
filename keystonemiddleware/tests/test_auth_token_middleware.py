@@ -898,32 +898,22 @@ class CommonAuthTokenMiddlewareTest(object):
              self.token_dict['signed_token_scoped_hash']])
         self.assertIsValidJSON(text)
 
-    def test_verify_signing_dir_create_while_missing(self):
-        tmp_name = uuid.uuid4().hex
-        test_parent_signing_dir = "/tmp/%s" % tmp_name
-        self.middleware._signing_dirname = "/tmp/%s/%s" % ((tmp_name,) * 2)
-        self.middleware._signing_cert_file_name = (
-            "%s/test.pem" % self.middleware._signing_dirname)
-        self.middleware._verify_signing_dir()
-        # NOTE(wu_wenxiang): Verify if the signing dir was created as expected.
-        self.assertTrue(os.path.isdir(self.middleware._signing_dirname))
-        self.assertTrue(os.access(self.middleware._signing_dirname, os.W_OK))
-        self.assertEqual(os.stat(self.middleware._signing_dirname).st_uid,
-                         os.getuid())
-        self.assertEqual(
-            stat.S_IMODE(os.stat(self.middleware._signing_dirname).st_mode),
-            stat.S_IRWXU)
-        shutil.rmtree(test_parent_signing_dir)
-
     def test_get_token_revocation_list_fetched_time_returns_min(self):
         self.middleware._token_revocation_list_fetched_time = None
-        self.middleware._revoked_file_name = ''
+
+        # Get rid of the revoked file
+        revoked_path = self.middleware._signing_directory.calc_path(
+            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+        os.remove(revoked_path)
+
         self.assertEqual(self.middleware._token_revocation_list_fetched_time,
                          datetime.datetime.min)
 
     def test_get_token_revocation_list_fetched_time_returns_mtime(self):
         self.middleware._token_revocation_list_fetched_time = None
-        mtime = os.path.getmtime(self.middleware._revoked_file_name)
+        revoked_path = self.middleware._signing_directory.calc_path(
+            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+        mtime = os.path.getmtime(revoked_path)
         fetched_time = datetime.datetime.utcfromtimestamp(mtime)
         self.assertEqual(fetched_time,
                          self.middleware._token_revocation_list_fetched_time)
@@ -947,7 +937,12 @@ class CommonAuthTokenMiddlewareTest(object):
         # auth_token uses v2 to fetch this, so don't allow the v3
         # tests to override the fake http connection
         self.middleware._token_revocation_list_fetched_time = None
-        os.remove(self.middleware._revoked_file_name)
+
+        # Get rid of the revoked file
+        revoked_path = self.middleware._signing_directory.calc_path(
+            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+        os.remove(revoked_path)
+
         self.assertEqual(self.middleware._token_revocation_list,
                          self.examples.REVOCATION_LIST)
 
@@ -1427,7 +1422,9 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.requests.get(url, text=data)
         self.middleware._fetch_signing_cert()
 
-        with open(self.middleware._signing_cert_file_name, 'r') as f:
+        signing_cert_path = self.middleware._signing_directory.calc_path(
+            self.middleware._SIGNING_CERT_FILE_NAME)
+        with open(signing_cert_path, 'r') as f:
             self.assertEqual(f.read(), data)
 
         self.assertEqual(url, self.requests.last_request.url)
@@ -1438,7 +1435,9 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.requests.get(url, text=data)
         self.middleware._fetch_ca_cert()
 
-        with open(self.middleware._signing_ca_file_name, 'r') as f:
+        ca_file_path = self.middleware._signing_directory.calc_path(
+            self.middleware._SIGNING_CA_FILE_NAME)
+        with open(ca_file_path, 'r') as f:
             self.assertEqual(f.read(), data)
 
         self.assertEqual(url, self.requests.last_request.url)
