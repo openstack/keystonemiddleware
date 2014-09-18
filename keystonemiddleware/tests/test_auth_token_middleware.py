@@ -279,9 +279,11 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.middleware = None
         self.requests = self.useFixture(rm_fixture.Fixture())
 
+        signing_dir = self._setup_signing_directory()
+
         self.conf = {
             'identity_uri': 'https://keystone.example.com:1234/testadmin/',
-            'signing_dir': client_fixtures.CERTDIR,
+            'signing_dir': signing_dir,
             'auth_version': auth_version,
             'auth_uri': 'https://keystone.example.com:1234',
             'admin_user': uuid.uuid4().hex,
@@ -290,6 +292,16 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.auth_version = auth_version
         self.response_status = None
         self.response_headers = None
+
+    def _setup_signing_directory(self):
+        directory_name = self.useFixture(fixtures.TempDir()).path
+
+        # Copy the sample certificate files into the temporary directory.
+        for filename in ['cacert.pem', 'signing_cert.pem', ]:
+            shutil.copy2(os.path.join(client_fixtures.CERTDIR, filename),
+                         os.path.join(directory_name, filename))
+
+        return directory_name
 
     def set_middleware(self, expected_env=None, conf=None):
         """Configure the class ready to call the auth_token middleware.
@@ -307,14 +319,6 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
 
         self.middleware = auth_token.AuthProtocol(
             self.fake_app(self.expected_env), self.conf)
-
-        with tempfile.NamedTemporaryFile(dir=self.middleware._signing_dirname,
-                                         delete=False) as f:
-            pass
-        self.middleware._revoked_file_name = f.name
-
-        self.addCleanup(cleanup_revoked_file,
-                        self.middleware._revoked_file_name)
 
         self.middleware._token_revocation_list = jsonutils.dumps(
             {"revoked": [], "extra": "success"})
@@ -1087,7 +1091,6 @@ class CommonAuthTokenMiddlewareTest(object):
         token_cache_time = 10
         conf = {
             'token_cache_time': '%s' % token_cache_time,
-            'signing_dir': client_fixtures.CERTDIR,
         }
         conf.update(extra_conf)
         self.set_middleware(conf=conf)
@@ -1641,7 +1644,6 @@ class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         """
         conf = {
-            'signing_dir': client_fixtures.CERTDIR,
             'auth_version': 'v2.0'
         }
 
