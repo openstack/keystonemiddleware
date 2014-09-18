@@ -25,7 +25,6 @@ import uuid
 
 import fixtures
 import httpretty
-import iso8601
 from keystoneclient import access
 from keystoneclient.common import cms
 from keystoneclient import exceptions
@@ -268,7 +267,6 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
 
         self.middleware = auth_token.AuthProtocol(
             self.fake_app(self.expected_env), self.conf)
-        self.middleware._iso8601 = iso8601
 
         with tempfile.NamedTemporaryFile(dir=self.middleware._signing_dirname,
                                          delete=False) as f:
