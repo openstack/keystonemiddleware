@@ -234,7 +234,7 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
 
     """
     def setUp(self, expected_env=None, auth_version=None, fake_app=None):
-        testtools.TestCase.setUp(self)
+        super(BaseAuthTokenMiddlewareTest, self).setUp()
 
         self.expected_env = expected_env or dict()
         self.fake_app = fake_app or FakeApp
