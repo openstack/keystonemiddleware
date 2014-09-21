@@ -1298,10 +1298,13 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertThat(1, matchers.Equals(cache.set.call_count))
 
     def test_auth_plugin(self):
-        httpretty.register_uri(httpretty.GET,
-                               self.examples.SERVICE_URL,
-                               body=VERSION_LIST_v3,
-                               status_code=300)
+
+        for service_url in (self.examples.UNVERSIONED_SERVICE_URL,
+                            self.examples.SERVICE_URL):
+            httpretty.register_uri(httpretty.GET,
+                                   service_url,
+                                   body=VERSION_LIST_v3,
+                                   status_code=300)
 
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']

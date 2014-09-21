@@ -236,7 +236,8 @@ class Examples(fixtures.Fixture):
         ROLE_NAME2 = 'role2'
 
         self.SERVICE_TYPE = 'identity'
-        self.SERVICE_URL = 'http://keystone.server:5000/v2.0'
+        self.UNVERSIONED_SERVICE_URL = 'http://keystone.server:5000/'
+        self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v2.0'
 
         # Old Tokens
 
