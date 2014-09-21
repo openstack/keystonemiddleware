@@ -575,6 +575,44 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertRaises(auth_token.ConfigurationError,
                           auth_token.AuthProtocol, self.fake_app, conf)
 
+    def test_service_auth_domain_name(self):
+        # When the service user and project domain name is configured, the V3
+        # password plugin is used.
+
+        user_domain_name = uuid.uuid4().hex
+        project_domain_name = uuid.uuid4().hex
+
+        conf = {
+            'admin_user_domain_name': user_domain_name,
+            'admin_project_domain_name': project_domain_name,
+        }
+        self.set_middleware(conf=conf)
+
+        auth_plugin = self.middleware._session.auth
+        self.assertEqual(project_domain_name, auth_plugin.project_domain_name)
+
+        auth_method = auth_plugin.auth_methods[0]
+        self.assertEqual(user_domain_name, auth_method.user_domain_name)
+
+    def test_service_user_domain_id(self):
+        # When the service user and project domain ID is configured, the V3
+        # password plugin is used.
+
+        user_domain_id = uuid.uuid4().hex
+        project_domain_id = uuid.uuid4().hex
+
+        conf = {
+            'admin_user_domain_id': user_domain_id,
+            'admin_project_domain_id': project_domain_id,
+        }
+        self.set_middleware(conf=conf)
+
+        auth_plugin = self.middleware._session.auth
+        self.assertEqual(project_domain_id, auth_plugin.project_domain_id)
+
+        auth_method = auth_plugin.auth_methods[0]
+        self.assertEqual(user_domain_id, auth_method.user_domain_id)
+
 
 class CommonAuthTokenMiddlewareTest(object):
     """These tests are run once using v2 tokens and again using v3 tokens."""
