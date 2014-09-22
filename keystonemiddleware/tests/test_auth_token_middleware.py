@@ -337,7 +337,7 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.middleware = auth_token.AuthProtocol(
             self.fake_app(self.expected_env), self.conf)
 
-        self.middleware._token_revocation_list = jsonutils.dumps(
+        self.middleware._revocations._list = jsonutils.dumps(
             {"revoked": [], "extra": "success"})
 
     def update_expected_env(self, expected_env={}):
@@ -600,7 +600,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             'admin_user': uuid.uuid4().hex
         }
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
-        self.assertEqual(middleware._token_revocation_list_cache_timeout,
+        self.assertEqual(middleware._revocations._cache_timeout,
                          datetime.timedelta(seconds=24))
 
     def test_conf_values_type_convert(self):
@@ -613,7 +613,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
         self.assertEqual(datetime.timedelta(seconds=24),
-                         middleware._token_revocation_list_cache_timeout)
+                         middleware._revocations._cache_timeout)
         self.assertEqual(False, middleware._include_service_catalog)
         self.assertEqual('0', middleware._conf['nonexsit_option'])
 
@@ -706,7 +706,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertEqual(200, self.response_status)
 
         # Put it in revocation list.
-        self.middleware._token_revocation_list = self.get_revocation_list_json(
+        self.middleware._revocations._list = self.get_revocation_list_json(
             token_ids=[revoked_form or token])
         self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
@@ -729,7 +729,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertLastPath(None)
 
     def test_revoked_token_receives_401(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
@@ -739,7 +739,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_revoked_token_receives_401_sha256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
@@ -764,7 +764,7 @@ class CommonAuthTokenMiddlewareTest(object):
         # considered revoked so returns 401.
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
@@ -786,7 +786,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # Put the token in the revocation list.
         token_hashed = cms.cms_hash_token(token)
-        self.middleware._token_revocation_list = self.get_revocation_list_json(
+        self.middleware._revocations._list = self.get_revocation_list_json(
             token_ids=[token_hashed])
 
         # First, request is using the hashed token, is valid so goes in
@@ -819,30 +819,30 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_is_signed_token_revoked_returns_false(self):
         # explicitly setting an empty revocation list here to document intent
-        self.middleware._token_revocation_list = jsonutils.dumps(
+        self.middleware._revocations._list = jsonutils.dumps(
             {"revoked": [], "extra": "success"})
-        result = self.middleware._is_signed_token_revoked(
+        result = self.middleware._revocations._any_revoked(
             [self.token_dict['revoked_token_hash']])
         self.assertFalse(result)
 
     def test_is_signed_token_revoked_returns_true(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        result = self.middleware._is_signed_token_revoked(
+        result = self.middleware._revocations._any_revoked(
             [self.token_dict['revoked_token_hash']])
         self.assertTrue(result)
 
     def test_is_signed_token_revoked_returns_true_sha256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
-        result = self.middleware._is_signed_token_revoked(
+        result = self.middleware._revocations._any_revoked(
             [self.token_dict['revoked_token_hash_sha256']])
         self.assertTrue(result)
 
     def test_verify_signed_token_raises_exception_for_revoked_token(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
         self.assertRaises(auth_token.InvalidToken,
                           self.middleware._verify_signed_token,
@@ -852,7 +852,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_raises_exception_for_revoked_token_s256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
         self.assertRaises(auth_token.InvalidToken,
                           self.middleware._verify_signed_token,
@@ -861,7 +861,7 @@ class CommonAuthTokenMiddlewareTest(object):
                            self.token_dict['revoked_token_hash']])
 
     def test_verify_signed_token_raises_exception_for_revoked_pkiz_token(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.examples.REVOKED_TOKEN_PKIZ_LIST_JSON)
         self.assertRaises(auth_token.InvalidToken,
                           self.middleware._verify_pkiz_token,
@@ -872,7 +872,7 @@ class CommonAuthTokenMiddlewareTest(object):
         json.loads(text)
 
     def test_verify_signed_token_succeeds_for_unrevoked_token(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
         text = self.middleware._verify_signed_token(
             self.token_dict['signed_token_scoped'],
@@ -880,7 +880,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertIsValidJSON(text)
 
     def test_verify_signed_compressed_token_succeeds_for_unrevoked_token(self):
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json())
         text = self.middleware._verify_pkiz_token(
             self.token_dict['signed_token_scoped_pkiz'],
@@ -890,7 +890,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_succeeds_for_unrevoked_token_sha256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
-        self.middleware._token_revocation_list = (
+        self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
         text = self.middleware._verify_signed_token(
             self.token_dict['signed_token_scoped'],
@@ -899,73 +899,74 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertIsValidJSON(text)
 
     def test_get_token_revocation_list_fetched_time_returns_min(self):
-        self.middleware._token_revocation_list_fetched_time = None
+        self.middleware._revocations._fetched_time = None
 
         # Get rid of the revoked file
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+            auth_token._Revocations._FILE_NAME)
         os.remove(revoked_path)
 
-        self.assertEqual(self.middleware._token_revocation_list_fetched_time,
+        self.assertEqual(self.middleware._revocations._fetched_time,
                          datetime.datetime.min)
 
+    # FIXME(blk-u): move the unit tests into unit/test_auth_token.py
     def test_get_token_revocation_list_fetched_time_returns_mtime(self):
-        self.middleware._token_revocation_list_fetched_time = None
+        self.middleware._revocations._fetched_time = None
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+            auth_token._Revocations._FILE_NAME)
         mtime = os.path.getmtime(revoked_path)
         fetched_time = datetime.datetime.utcfromtimestamp(mtime)
         self.assertEqual(fetched_time,
-                         self.middleware._token_revocation_list_fetched_time)
+                         self.middleware._revocations._fetched_time)
 
     @testtools.skipUnless(TimezoneFixture.supported(),
                           'TimezoneFixture not supported')
     def test_get_token_revocation_list_fetched_time_returns_utc(self):
         with TimezoneFixture('UTC-1'):
-            self.middleware._token_revocation_list = jsonutils.dumps(
+            self.middleware._revocations._list = jsonutils.dumps(
                 self.examples.REVOCATION_LIST)
-            self.middleware._token_revocation_list_fetched_time = None
-            fetched_time = self.middleware._token_revocation_list_fetched_time
+            self.middleware._revocations._fetched_time = None
+            fetched_time = self.middleware._revocations._fetched_time
             self.assertTrue(timeutils.is_soon(fetched_time, 1))
 
     def test_get_token_revocation_list_fetched_time_returns_value(self):
-        expected = self.middleware._token_revocation_list_fetched_time
-        self.assertEqual(self.middleware._token_revocation_list_fetched_time,
+        expected = self.middleware._revocations._fetched_time
+        self.assertEqual(self.middleware._revocations._fetched_time,
                          expected)
 
     def test_get_revocation_list_returns_fetched_list(self):
         # auth_token uses v2 to fetch this, so don't allow the v3
         # tests to override the fake http connection
-        self.middleware._token_revocation_list_fetched_time = None
+        self.middleware._revocations._fetched_time = None
 
         # Get rid of the revoked file
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token.AuthProtocol._REVOKED_FILE_NAME)
+            auth_token._Revocations._FILE_NAME)
         os.remove(revoked_path)
 
-        self.assertEqual(self.middleware._token_revocation_list,
+        self.assertEqual(self.middleware._revocations._list,
                          self.examples.REVOCATION_LIST)
 
     def test_get_revocation_list_returns_current_list_from_memory(self):
-        self.assertEqual(self.middleware._token_revocation_list,
-                         self.middleware._token_revocation_list_prop)
+        self.assertEqual(self.middleware._revocations._list,
+                         self.middleware._revocations._list_prop)
 
     def test_get_revocation_list_returns_current_list_from_disk(self):
-        in_memory_list = self.middleware._token_revocation_list
-        self.middleware._token_revocation_list_prop = None
-        self.assertEqual(self.middleware._token_revocation_list,
+        in_memory_list = self.middleware._revocations._list
+        self.middleware._revocations._list_prop = None
+        self.assertEqual(self.middleware._revocations._list,
                          in_memory_list)
 
     def test_invalid_revocation_list_raises_error(self):
         self.requests.get('%s/v2.0/tokens/revoked' % BASE_URI, json={})
 
         self.assertRaises(auth_token.RevocationListError,
-                          self.middleware._fetch_revocation_list)
+                          self.middleware._revocations._fetch)
 
     def test_fetch_revocation_list(self):
         # auth_token uses v2 to fetch this, so don't allow the v3
         # tests to override the fake http connection
-        fetched = jsonutils.loads(self.middleware._fetch_revocation_list())
+        fetched = jsonutils.loads(self.middleware._revocations._fetch())
         self.assertEqual(fetched, self.examples.REVOCATION_LIST)
 
     def test_request_invalid_uuid_token(self):
