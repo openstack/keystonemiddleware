@@ -1921,6 +1921,19 @@ class TokenEncodingTest(testtools.TestCase):
     def test_quoted_token(self):
         self.assertEqual('foo%20bar', auth_token._safe_quote('foo%20bar'))
 
+    def test_messages_encoded_as_bytes(self):
+        """Test that string are passed around as bytes for PY3."""
+        msg = "This is an error"
+
+        class FakeResp(auth_token._MiniResp):
+            def __init__(self, error, env):
+                super(FakeResp, self).__init__(error, env)
+
+        fake_resp = FakeResp(msg, dict(REQUEST_METHOD='GET'))
+        # On Py2 .encode() don't do much but that's better than to
+        # have a ifdef with six.PY3
+        self.assertEqual(msg.encode(), fake_resp.body[0])
+
 
 class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def setUp(self):
@@ -2240,7 +2253,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Service-Token'] = service_token
         body = self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
-        self.assertEqual(['Authentication required'], body)
+        self.assertEqual([b'Authentication required'], body)
 
     def test_composite_auth_no_service_token(self):
         self.purge_service_token_expected_env()
@@ -2269,7 +2282,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Service-Token'] = service_token
         body = self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
-        self.assertEqual(['Authentication required'], body)
+        self.assertEqual([b'Authentication required'], body)
 
     def test_composite_auth_no_user_token(self):
         req = webob.Request.blank('/')
@@ -2277,7 +2290,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Service-Token'] = service_token
         body = self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
-        self.assertEqual(['Authentication required'], body)
+        self.assertEqual([b'Authentication required'], body)
 
     def test_composite_auth_delay_ok(self):
         self.middleware._delay_auth_decision = True
@@ -2299,7 +2312,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Service-Token'] = service_token
         body = self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
-        self.assertEqual(['Authentication required'], body)
+        self.assertEqual([b'Authentication required'], body)
 
     def test_composite_auth_delay_no_service_token(self):
         self.middleware._delay_auth_decision = True

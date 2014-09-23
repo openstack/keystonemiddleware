@@ -548,7 +548,7 @@ class _MiniResp(object):
         if env['REQUEST_METHOD'] == 'HEAD':
             self.body = ['']
         else:
-            self.body = [error_message]
+            self.body = [error_message.encode()]
         self.headers = list(headers)
         self.headers.append(('Content-type', 'text/plain'))
 
