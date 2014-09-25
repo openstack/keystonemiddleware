@@ -322,6 +322,31 @@ _OPTS = [
                secret=True,
                help='(optional, mandatory if memcache_security_strategy is'
                ' defined) this string is used for key derivation.'),
+    cfg.IntOpt('memcache_pool_dead_retry',
+               default=5 * 60,
+               help='(optional) number of seconds memcached server is'
+               ' considered dead before it is tried again.'),
+    cfg.IntOpt('memcache_pool_maxsize',
+               default=10,
+               help='(optional) max total number of open connections to'
+               ' every memcached server.'),
+    cfg.IntOpt('memcache_pool_socket_timeout',
+               default=3,
+               help='(optional) socket timeout in seconds for communicating '
+                    'with a memcache server.'),
+    cfg.IntOpt('memcache_pool_unused_timeout',
+               default=60,
+               help='(optional) number of seconds a connection to memcached'
+               ' is held unused in the pool before it is closed.'),
+    cfg.IntOpt('memcache_pool_conn_get_timeout',
+               default=10,
+               help='(optional) number of seconds that an operation will wait '
+                    'to get a memcache client connection from the pool.'),
+    cfg.BoolOpt('memcache_use_advanced_pool',
+                default=False,
+                help='(optional) use the advanced (eventlet safe) memcache '
+                     'client pool. The advanced pool will only work under '
+                     'python 2.x.'),
     cfg.BoolOpt('include_service_catalog',
                 default=True,
                 help='(optional) indicate whether to set the X-Service-Catalog'
@@ -1245,7 +1270,17 @@ class AuthProtocol(object):
             env_cache_name=self._conf_get('cache'),
             memcached_servers=self._conf_get('memcached_servers'),
             memcache_security_strategy=self._memcache_security_strategy,
-            memcache_secret_key=self._conf_get('memcache_secret_key'))
+            memcache_secret_key=self._conf_get('memcache_secret_key'),
+            use_advanced_pool=self._conf_get('memcache_use_advanced_pool'),
+            memcache_pool_dead_retry=self._conf_get(
+                'memcache_pool_dead_retry'),
+            memcache_pool_maxsize=self._conf_get('memcache_pool_maxsize'),
+            memcache_pool_unused_timeout=self._conf_get(
+                'memcache_pool_unused_timeout'),
+            memcache_pool_conn_get_timeout=self._conf_get(
+                'memcache_pool_conn_get_timeout'),
+            memcache_pool_socket_timeout=self._conf_get(
+                'memcache_pool_socket_timeout'))
         return token_cache
 
 
@@ -1274,6 +1309,34 @@ class _CachePool(list):
             yield c
         finally:
             self.append(c)
+
+
+class _MemcacheClientPool(object):
+    """An advanced memcached client pool that is eventlet safe."""
+    def __init__(self, memcache_servers, memcache_dead_retry=None,
+                 memcache_pool_maxsize=None, memcache_pool_unused_timeout=None,
+                 memcache_pool_conn_get_timeout=None,
+                 memcache_pool_socket_timeout=None):
+        # NOTE(morganfainberg): import here to avoid hard dependency on
+        # python-memcache library.
+        global _memcache_pool
+        from keystonemiddleware import _memcache_pool
+
+        self._pool = _memcache_pool.MemcacheClientPool(
+            memcache_servers,
+            arguments={
+                'dead_retry': memcache_dead_retry,
+                'socket_timeout': memcache_pool_socket_timeout,
+            },
+            maxsize=memcache_pool_maxsize,
+            unused_timeout=memcache_pool_unused_timeout,
+            conn_get_timeout=memcache_pool_conn_get_timeout,
+        )
+
+    @contextlib.contextmanager
+    def reserve(self):
+        with self._pool.get() as client:
+            yield client
 
 
 class _IdentityServer(object):
@@ -1542,12 +1605,22 @@ class _TokenCache(object):
 
     def __init__(self, log, cache_time=None, hash_algorithms=None,
                  env_cache_name=None, memcached_servers=None,
-                 memcache_security_strategy=None, memcache_secret_key=None):
+                 memcache_security_strategy=None, memcache_secret_key=None,
+                 use_advanced_pool=False, memcache_pool_dead_retry=None,
+                 memcache_pool_maxsize=None, memcache_pool_unused_timeout=None,
+                 memcache_pool_conn_get_timeout=None,
+                 memcache_pool_socket_timeout=None):
         self._LOG = log
         self._cache_time = cache_time
         self._hash_algorithms = hash_algorithms
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
+        self._use_advanced_pool = use_advanced_pool
+        self._memcache_pool_dead_retry = memcache_pool_dead_retry,
+        self._memcache_pool_maxsize = memcache_pool_maxsize,
+        self._memcache_pool_unused_timeout = memcache_pool_unused_timeout
+        self._memcache_pool_conn_get_timeout = memcache_pool_conn_get_timeout
+        self._memcache_pool_socket_timeout = memcache_pool_socket_timeout
 
         # memcache value treatment, ENCRYPT or MAC
         self._memcache_security_strategy = memcache_security_strategy
@@ -1561,12 +1634,36 @@ class _TokenCache(object):
 
         self._assert_valid_memcache_protection_config()
 
+    def _get_cache_pool(self, cache, memcache_servers, use_advanced_pool=False,
+                        memcache_dead_retry=None, memcache_pool_maxsize=None,
+                        memcache_pool_unused_timeout=None,
+                        memcache_pool_conn_get_timeout=None,
+                        memcache_pool_socket_timeout=None):
+        if use_advanced_pool is True and memcache_servers and cache is None:
+            return _MemcacheClientPool(
+                memcache_servers,
+                memcache_dead_retry=memcache_dead_retry,
+                memcache_pool_maxsize=memcache_pool_maxsize,
+                memcache_pool_unused_timeout=memcache_pool_unused_timeout,
+                memcache_pool_conn_get_timeout=memcache_pool_conn_get_timeout,
+                memcache_pool_socket_timeout=memcache_pool_socket_timeout)
+        else:
+            return _CachePool(cache, memcache_servers)
+
     def initialize(self, env):
         if self._initialized:
             return
 
-        self._cache_pool = _CachePool(env.get(self._env_cache_name),
-                                      self._memcached_servers)
+        self._cache_pool = self._get_cache_pool(
+            env.get(self._env_cache_name),
+            self._memcached_servers,
+            use_advanced_pool=self._use_advanced_pool,
+            memcache_dead_retry=self._memcache_pool_dead_retry,
+            memcache_pool_maxsize=self._memcache_pool_maxsize,
+            memcache_pool_unused_timeout=self._memcache_pool_unused_timeout,
+            memcache_pool_conn_get_timeout=self._memcache_pool_conn_get_timeout
+        )
+
         self._initialized = True
 
     def get(self, user_token):
