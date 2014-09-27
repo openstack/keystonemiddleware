@@ -175,6 +175,7 @@ import time
 from keystoneclient import access
 from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.auth.identity import v2
+from keystoneclient.auth.identity import v3
 from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
 from keystoneclient import exceptions
@@ -271,6 +272,10 @@ _OPTS = [
                ' instead.'),
     cfg.StrOpt('admin_user',
                help='Keystone account username'),
+    cfg.StrOpt('admin_user_domain_id',
+               help='Keystone service account user domain ID.'),
+    cfg.StrOpt('admin_user_domain_name',
+               help='Keystone service account user domain name.'),
     cfg.StrOpt('admin_password',
                secret=True,
                help='Keystone account password'),
@@ -278,6 +283,10 @@ _OPTS = [
                default='admin',
                help='Keystone service account tenant name to validate'
                ' user tokens'),
+    cfg.StrOpt('admin_project_domain_id',
+               help='Keystone service account project domain ID.'),
+    cfg.StrOpt('admin_project_domain_name',
+               help='Keystone service account project domain name.'),
     cfg.StrOpt('cache',
                default=None,
                help='Env key for the swift cache'),
@@ -1234,21 +1243,37 @@ class AuthProtocol(object):
         # of this can be changed when we get keystoneclient 0.10. For now this
         # hardcoded path is EXACTLY the same as the original auth_token did.
         auth_url = '%s/v2.0' % self._identity_uri
+        auth_plugin = None
 
         admin_token = self._conf_get('admin_token')
+        admin_user_domain_id = self._conf_get('admin_user_domain_id')
+        admin_user_domain_name = self._conf_get('admin_user_domain_name')
         if admin_token:
             self._LOG.warning(
                 "The admin_token option in the auth_token middleware is "
                 "deprecated and should not be used. The admin_user and "
                 "admin_password options should be used instead. The "
                 "admin_token option may be removed in a future release.")
-            sess.auth = token_endpoint.Token(auth_url, admin_token)
+            auth_plugin = token_endpoint.Token(auth_url, admin_token)
+        elif admin_user_domain_id or admin_user_domain_name:
+            auth_url = '%s/v3' % self._identity_uri
+            project_domain_name = self._conf_get('admin_project_domain_name')
+            auth_plugin = v3.Password(
+                auth_url,
+                username=self._conf_get('admin_user'),
+                user_domain_id=admin_user_domain_id,
+                user_domain_name=admin_user_domain_name,
+                password=self._conf_get('admin_password'),
+                project_name=self._conf_get('admin_tenant_name'),
+                project_domain_id=self._conf_get('admin_project_domain_id'),
+                project_domain_name=project_domain_name)
         else:
-            sess.auth = v2.Password(
+            auth_plugin = v2.Password(
                 auth_url,
                 username=self._conf_get('admin_user'),
                 password=self._conf_get('admin_password'),
                 tenant_name=self._conf_get('admin_tenant_name'))
+        sess.auth = auth_plugin
         return sess
 
     def _identity_server_factory(self):
