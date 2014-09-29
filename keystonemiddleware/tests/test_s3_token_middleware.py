@@ -14,12 +14,12 @@
 
 import httpretty
 import mock
+from oslo.serialization import jsonutils
 import requests
 import six
 import testtools
 import webob
 
-from keystonemiddleware.openstack.common import jsonutils
 from keystonemiddleware import s3_token
 from keystonemiddleware.tests import utils
 

@@ -17,13 +17,12 @@ import time
 import fixtures
 import httpretty
 import mock
+from oslo.serialization import jsonutils
 import requests
 import six
 from six.moves.urllib import parse as urlparse
 import testtools
 import uuid
-
-from keystonemiddleware.openstack.common import jsonutils
 
 
 class TestCase(testtools.TestCase):

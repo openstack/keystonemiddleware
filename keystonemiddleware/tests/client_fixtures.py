@@ -18,11 +18,10 @@ import fixtures
 from keystoneclient.common import cms
 from keystoneclient import fixture
 from keystoneclient import utils
+from oslo.serialization import jsonutils
+from oslo.utils import timeutils
 import six
 import testresources
-
-from keystonemiddleware.openstack.common import jsonutils
-from keystonemiddleware.openstack.common import timeutils
 
 
 TESTDIR = os.path.dirname(os.path.abspath(__file__))

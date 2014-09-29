@@ -34,11 +34,10 @@ This WSGI component:
 import logging
 import webob
 
+from oslo.serialization import jsonutils
 import requests
 import six
 from six.moves import urllib
-
-from keystonemiddleware.openstack.common import jsonutils
 
 
 PROTOCOL_NAME = 'S3 Token Authentication'

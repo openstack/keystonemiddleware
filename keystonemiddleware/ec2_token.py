@@ -21,11 +21,10 @@ Starting point for routing EC2 requests.
 """
 
 from oslo.config import cfg
+from oslo.serialization import jsonutils
 import requests
 import webob.dec
 import webob.exc
-
-from keystonemiddleware.openstack.common import jsonutils
 
 keystone_ec2_opts = [
     cfg.StrOpt('url',
