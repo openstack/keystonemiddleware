@@ -111,7 +111,9 @@ Configuration
 -------------
 
 The middleware is configured within the config file of the main application as
-a WSGI component. Example for the auth_token middleware::
+a WSGI component. Example for the auth_token middleware:
+
+.. code-block:: ini
 
     [app:myService]
     paste.app_factory = myService:app_factory
@@ -255,15 +257,18 @@ a WSGI component. Example for the auth_token middleware::
 For services which have a separate paste-deploy ini file, auth_token middleware
 can be alternatively configured in [keystone_authtoken] section in the main
 config file. For example in Nova, all middleware parameters can be removed
-from api-paste.ini::
+from ``api-paste.ini``:
+
+.. code-block:: ini
 
     [filter:authtoken]
     paste.filter_factory = keystonemiddleware.auth_token:filter_factory
 
-and set in nova.conf::
+and set in ``nova.conf``:
+
+.. code-block:: ini
 
     [DEFAULT]
-    ...
     auth_strategy=keystone
 
     [keystone_authtoken]
