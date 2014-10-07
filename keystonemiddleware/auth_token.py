@@ -254,10 +254,10 @@ _OPTS = [
                 help='Do not handle authorization requests within the'
                 ' middleware, but delegate the authorization decision to'
                 ' downstream WSGI components'),
-    cfg.BoolOpt('http_connect_timeout',
-                default=None,
-                help='Request timeout value for communicating with Identity'
-                ' API server.'),
+    cfg.IntOpt('http_connect_timeout',
+               default=None,
+               help='Request timeout value for communicating with Identity'
+               ' API server.'),
     cfg.IntOpt('http_request_max_retries',
                default=3,
                help='How many times are we trying to reconnect when'
