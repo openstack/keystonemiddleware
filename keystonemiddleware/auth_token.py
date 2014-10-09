@@ -44,10 +44,6 @@ HTTP_X_AUTH_TOKEN
 HTTP_X_SERVICE_TOKEN
     A service token being passed in.
 
-HTTP_X_STORAGE_TOKEN
-    The client token being passed in (legacy Rackspace use) to support
-    swift/cloud files
-
 Used for communication between components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
