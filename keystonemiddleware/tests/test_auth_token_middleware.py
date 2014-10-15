@@ -395,8 +395,8 @@ class NoMemcacheAuthToken(BaseAuthTokenMiddlewareTest):
         conf = {
             'admin_token': 'admin_token1',
             'auth_host': 'keystone.example.com',
-            'auth_port': 1234,
-            'memcached_servers': MEMCACHED_SERVERS,
+            'auth_port': '1234',
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'auth_uri': 'https://keystone.example.com:1234',
         }
 
@@ -498,7 +498,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_encrypt_cache_data(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'encrypt',
             'memcache_secret_key': 'mysecret'
         }
@@ -515,7 +515,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_sign_cache_data(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mac',
             'memcache_secret_key': 'mysecret'
         }
@@ -532,7 +532,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_no_memcache_protection(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_secret_key': 'mysecret'
         }
         self.set_middleware(conf=conf)
@@ -548,34 +548,34 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def test_assert_valid_memcache_protection_config(self):
         # test missing memcache_secret_key
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt'
         }
         self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
                           conf=conf)
         # test invalue memcache_security_strategy
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'whatever'
         }
         self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
                           conf=conf)
         # test missing memcache_secret_key
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mac'
         }
         self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
                           conf=conf)
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt',
             'memcache_secret_key': ''
         }
         self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
                           conf=conf)
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mAc',
             'memcache_secret_key': ''
         }
@@ -584,7 +584,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     def test_config_revocation_cache_timeout(self):
         conf = {
-            'revocation_cache_time': 24,
+            'revocation_cache_time': '24',
             'auth_uri': 'https://keystone.example.com:1234',
             'admin_user': uuid.uuid4().hex
         }
@@ -619,7 +619,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_init_does_not_call_http(self):
         conf = {
-            'revocation_cache_time': 1
+            'revocation_cache_time': '1'
         }
         self.set_middleware(conf=conf)
         self.assertLastPath(None)
@@ -628,7 +628,7 @@ class CommonAuthTokenMiddlewareTest(object):
         del self.conf['identity_uri']
         conf = {
             'auth_host': '2001:2013:1:f101::1',
-            'auth_port': 1234,
+            'auth_port': '1234',
             'auth_protocol': 'http',
             'auth_uri': None,
         }
@@ -660,7 +660,7 @@ class CommonAuthTokenMiddlewareTest(object):
         del self.conf['identity_uri']
         self.conf['auth_protocol'] = 'https'
         self.conf['auth_host'] = 'keystone.example.com'
-        self.conf['auth_port'] = 1234
+        self.conf['auth_port'] = '1234'
         self.conf['auth_admin_prefix'] = '/testadmin'
         self.set_middleware()
         self.assert_valid_request_200(self.token_dict['uuid_token_default'])
@@ -709,7 +709,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertEqual(self.response_status, 401)
 
     def test_revoked_token_receives_401_sha256(self):
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._token_revocation_list = (
             self.get_revocation_list_json(mode='sha256'))
@@ -734,7 +734,7 @@ class CommonAuthTokenMiddlewareTest(object):
         # When hash_algorithms has 'md5' as the secondary hash and the
         # revocation list contains the md5 hash for a token, that token is
         # considered revoked so returns 401.
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._token_revocation_list = (
             self.get_revocation_list_json())
@@ -750,8 +750,8 @@ class CommonAuthTokenMiddlewareTest(object):
         # using the md5 hash, then
         # if the token is in the revocation list by md5 hash, it'll be
         # rejected and auth_token returns 401.
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
-        self.conf['check_revocations_for_cached'] = True
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
+        self.conf['check_revocations_for_cached'] = 'true'
         self.set_middleware()
 
         token = self.token_dict[token_name]
@@ -805,7 +805,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertTrue(result)
 
     def test_is_signed_token_revoked_returns_true_sha256(self):
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._token_revocation_list = (
             self.get_revocation_list_json(mode='sha256'))
@@ -822,7 +822,7 @@ class CommonAuthTokenMiddlewareTest(object):
                           [self.token_dict['revoked_token_hash']])
 
     def test_verify_signed_token_raises_exception_for_revoked_token_s256(self):
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._token_revocation_list = (
             self.get_revocation_list_json(mode='sha256'))
@@ -860,7 +860,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertIsValidJSON(text)
 
     def test_verify_signed_token_succeeds_for_unrevoked_token_sha256(self):
-        self.conf['hash_algorithms'] = ['sha256', 'md5']
+        self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._token_revocation_list = (
             self.get_revocation_list_json(mode='sha256'))
@@ -1054,7 +1054,7 @@ class CommonAuthTokenMiddlewareTest(object):
         token = self.token_dict['signed_token_scoped_expired']
         req.headers['X-Auth-Token'] = token
         if hash_algorithms:
-            self.conf['hash_algorithms'] = hash_algorithms
+            self.conf['hash_algorithms'] = ','.join(hash_algorithms)
             self.set_middleware()
         self.middleware(req.environ, self.start_fake_response)
         self.assertRaises(auth_token.InvalidToken,
@@ -1076,7 +1076,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
         token_cache_time = 10
         conf = {
-            'token_cache_time': token_cache_time,
+            'token_cache_time': '%s' % token_cache_time,
             'signing_dir': client_fixtures.CERTDIR,
         }
         conf.update(extra_conf)
@@ -1120,7 +1120,7 @@ class CommonAuthTokenMiddlewareTest(object):
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = ERROR_TOKEN
 
-        conf = {'http_request_max_retries': times_retry}
+        conf = {'http_request_max_retries': '%s' % times_retry}
         self.set_middleware(conf=conf)
 
         with mock.patch('time.sleep') as mock_obj:
@@ -1130,7 +1130,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_nocatalog(self):
         conf = {
-            'include_service_catalog': False
+            'include_service_catalog': 'False'
         }
         self.set_middleware(conf=conf)
         self.assert_valid_request_200(self.token_dict['uuid_token_default'],
@@ -1421,7 +1421,7 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         del self.conf['identity_uri']
         self.conf['auth_protocol'] = 'https'
         self.conf['auth_host'] = 'keystone.example.com'
-        self.conf['auth_port'] = 1234
+        self.conf['auth_port'] = '1234'
         self.conf['auth_admin_prefix'] = '/newadmin/'
 
         ca_url = "%s/newadmin%s" % (BASE_HOST, self.ca_path)
@@ -1442,7 +1442,7 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         del self.conf['identity_uri']
         self.conf['auth_protocol'] = 'https'
         self.conf['auth_host'] = 'keystone.example.com'
-        self.conf['auth_port'] = 1234
+        self.conf['auth_port'] = '1234'
         self.conf['auth_admin_prefix'] = ''
 
         ca_url = "%s%s" % (BASE_HOST, self.ca_path)
@@ -2094,7 +2094,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
     def test_header_in_401(self):
         body = uuid.uuid4().hex
         auth_uri = 'http://local.test'
-        conf = {'delay_auth_decision': True, 'auth_uri': auth_uri}
+        conf = {'delay_auth_decision': 'True', 'auth_uri': auth_uri}
 
         self.fake_app = new_app('401 Unauthorized', body)
         self.set_middleware(conf=conf)
