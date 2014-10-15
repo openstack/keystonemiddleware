@@ -456,20 +456,30 @@ def _conf_values_type_convert(conf):
     """Convert conf values into correct type."""
     if not conf:
         return {}
+
+    opt_types = {}
+    for o in _OPTS:
+        type_dest = (getattr(o, 'type', str), o.dest)
+        opt_types[o.dest] = type_dest
+        # Also add the deprecated name with the same type and dest.
+        for d_o in o.deprecated_opts:
+            opt_types[d_o.name] = type_dest
+
     opts = {}
-    opt_types = dict((o.dest, getattr(o, 'type', str)) for o in _OPTS)
     for k, v in six.iteritems(conf):
+        dest = k
         try:
-            if v is None:
-                opts[k] = v
-            else:
-                opts[k] = opt_types[k](v)
+            if v is not None:
+                type_, dest = opt_types[k]
+                v = type_(v)
         except KeyError:
-            opts[k] = v
+            # This option is not known to auth_token.
+            pass
         except ValueError as e:
             raise ConfigurationError(
                 _('Unable to convert the value of %(key)s option into correct '
                   'type: %(ex)s') % {'key': k, 'ex': e})
+        opts[dest] = v
     return opts
 
 
