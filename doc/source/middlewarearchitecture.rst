@@ -167,24 +167,12 @@ a WSGI component. Example for the auth_token middleware:
     # Keystone account username (string value)
     #admin_user=<None>
 
-    # Keystone service account user domain ID. (string value)
-    #admin_user_domain_id=<None>
-
-    # Keystone service account user domain name. (string value)
-    #admin_user_domain_name=<None>
-
     # Keystone account password (string value)
     admin_password=SuperSekretPassword
 
     # Keystone service account tenant name to validate user tokens
     # (string value)
     #admin_tenant_name=admin
-
-    # Keystone service account project domain ID. (string value)
-    #admin_project_domain_id=<None>
-
-    # Keystone service account project domain name. (string value)
-    #admin_project_domain_name=<None>
 
     # Env key for the swift cache (string value)
     #cache=<None>
@@ -309,15 +297,10 @@ Configuration Options
 * ``admin_token``: either this or the following three options are required. If
   set, this is a single shared secret with the keystone configuration used to
   validate tokens.
-* ``admin_user``, ``admin_user_domain_name``, ``admin_user_domain_id``,
-  ``admin_password``, ``admin_tenant_name``, ``admin_project_domain_id``,
-  ``admin_project_domain_name``: if ``admin_token``
-  is not set, or invalid, then ``admin_user``, ``admin_password``, and
-  ``admin_tenant_name`` are defined as a service account which is expected to
-  have been previously configured in Keystone to validate user tokens. If the
-  service user isn't in the default domain, set ``admin_user_domain_name`` or
-  ``admin_user_domain_id``. If the service project isn't in the default domain,
-  set ``admin_project_domain_id`` or ``admin_project_domain_name``.
+* ``admin_user``, ``admin_password``, ``admin_tenant_name``: if ``admin_token``
+  is not set, or invalid, then admin_user, admin_password, and
+  admin_tenant_name are defined as a service account which is expected to have
+  been previously configured in Keystone to validate user tokens.
 
 * ``cache``: (optional) Env key for the swift cache
 
