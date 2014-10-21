@@ -1502,7 +1502,7 @@ class V3CertDownloadMiddlewareTest(V2CertDownloadMiddlewareTest):
 
 
 def network_error_response(request, context):
-    raise auth_token.NetworkError("Network connection error.")
+    raise exceptions.ConnectionError("Network connection error.")
 
 
 class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
@@ -1762,7 +1762,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertEqual(auth_id, FAKE_ADMIN_TOKEN_ID)
 
         if token_id == ERROR_TOKEN:
-            raise auth_token.NetworkError("Network connection error.")
+            raise exceptions.ConnectionError("Network connection error.")
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -2398,7 +2398,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         response = ""
 
         if token_id == ERROR_TOKEN:
-            raise auth_token.NetworkError("Network connection error.")
+            raise exceptions.ConnectionError("Network connection error.")
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]

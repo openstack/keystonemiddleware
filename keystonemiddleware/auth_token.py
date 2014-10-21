@@ -166,7 +166,6 @@ import logging
 import os
 import stat
 import tempfile
-import time
 
 from keystoneclient import access
 from keystoneclient import auth
@@ -484,10 +483,6 @@ class ServiceError(Exception):
 
 
 class ConfigurationError(Exception):
-    pass
-
-
-class NetworkError(Exception):
     pass
 
 
@@ -922,7 +917,7 @@ class AuthProtocol(object):
                 self._confirm_token_bind(data, env)
                 self._token_cache.store(token_id, data, expires)
             return data
-        except NetworkError:
+        except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
             self._LOG.warn('Authorization failed for token')
             raise InvalidToken('Token authorization failed')
@@ -1564,33 +1559,13 @@ class _IdentityServer(object):
         :raise ServerError when unable to communicate with keystone
 
         """
-        RETRIES = self._http_request_max_retries
-        retry = 0
+        kwargs.setdefault('connect_retries', self._http_request_max_retries)
 
         endpoint_filter = kwargs.setdefault('endpoint_filter', {})
         endpoint_filter.setdefault('service_type', 'identity')
         endpoint_filter.setdefault('interface', 'admin')
 
-        while True:
-            try:
-                response = self._session.request(path, method, **kwargs)
-                break
-            except exceptions.HTTPError:
-                # NOTE(hrybacki): unlike the requests library that return
-                # response object with a status code e.g. 400, http failures
-                # in session take these responses and create HTTPError
-                # exceptions to be handled at a higher level.
-                raise
-            except Exception as e:
-                if retry >= RETRIES:
-                    self._LOG.error('HTTP connection exception: %s', e)
-                    raise NetworkError('Unable to communicate with keystone')
-                # NOTE(vish): sleep 0.5, 1, 2
-                self._LOG.warn('Retrying on HTTP connection exception: %s', e)
-                time.sleep(2.0 ** retry / 2)
-                retry += 1
-
-        return response
+        return self._session.request(path, method, **kwargs)
 
     def _json_request(self, method, path, **kwargs):
         """HTTP request helper used to make json requests.
