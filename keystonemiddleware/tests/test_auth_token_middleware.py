@@ -89,38 +89,8 @@ FAKE_ADMIN_TOKEN = jsonutils.dumps(
     {'access': {'token': {'id': FAKE_ADMIN_TOKEN_ID,
                           'expires': '2022-10-03T16:58:01Z'}}})
 
-
-VERSION_LIST_v3 = jsonutils.dumps({
-    "versions": {
-        "values": [
-            {
-                "id": "v3.0",
-                "status": "stable",
-                "updated": "2013-03-06T00:00:00Z",
-                "links": [{'href': '%s/v3' % BASE_URI, 'rel': 'self'}]
-            },
-            {
-                "id": "v2.0",
-                "status": "stable",
-                "updated": "2011-11-19T00:00:00Z",
-                "links": [{'href': '%s/v2.0' % BASE_URI, 'rel': 'self'}]
-            }
-        ]
-    }
-})
-
-VERSION_LIST_v2 = jsonutils.dumps({
-    "versions": {
-        "values": [
-            {
-                "id": "v2.0",
-                "status": "stable",
-                "updated": "2011-11-19T00:00:00Z",
-                "links": []
-            }
-        ]
-    }
-})
+VERSION_LIST_v3 = fixture.DiscoveryList(href=BASE_URI)
+VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
 
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
 MEMCACHED_SERVERS = ['localhost:11211']
@@ -391,7 +361,7 @@ class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    "%s/" % BASE_URI,
-                                   text=VERSION_LIST_v2,
+                                   json=VERSION_LIST_v2,
                                    status_code=300)
 
         self.requests.register_uri('POST',
@@ -1365,7 +1335,7 @@ class CommonAuthTokenMiddlewareTest(object):
                             self.examples.SERVICE_URL):
             self.requests.register_uri('GET',
                                        service_url,
-                                       text=VERSION_LIST_v3,
+                                       json=VERSION_LIST_v3,
                                        status_code=300)
 
         req = webob.Request.blank('/')
@@ -1550,7 +1520,7 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    "%s/" % BASE_URI,
-                                   text=VERSION_LIST_v2,
+                                   json=VERSION_LIST_v2,
                                    status_code=300)
 
         self.requests.register_uri('POST',
@@ -1651,7 +1621,7 @@ class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    BASE_URI,
-                                   text=VERSION_LIST_v3,
+                                   json=VERSION_LIST_v3,
                                    status_code=300)
 
         self.requests.register_uri('POST',
@@ -1734,7 +1704,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    BASE_URI,
-                                   text=VERSION_LIST_v3,
+                                   json=VERSION_LIST_v3,
                                    status_code=300)
 
         # TODO(jamielennox): auth_token middleware uses a v2 admin token
@@ -2304,7 +2274,7 @@ class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    "%s/" % BASE_URI,
-                                   text=VERSION_LIST_v2,
+                                   json=VERSION_LIST_v2,
                                    status_code=300)
 
         self.requests.register_uri('POST',
@@ -2361,7 +2331,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         self.requests.register_uri('GET',
                                    "%s" % BASE_URI,
-                                   text=VERSION_LIST_v3,
+                                   json=VERSION_LIST_v3,
                                    status_code=300)
 
         # TODO(jamielennox): auth_token middleware uses a v2 admin token
