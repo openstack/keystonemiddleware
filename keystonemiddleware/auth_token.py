@@ -553,12 +553,20 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
     def get_token(self, *args, **kwargs):
         return self._plugin.get_token(*args, **kwargs)
 
-    def get_endpoint(self, session, interface=None, **kwargs):
-        # FIXME(jamielennox) for now the paths are always set up such that they
-        # expect the unversioned endpoint to be returned as the base. This will
-        # change shortly.
+    def get_endpoint(self, session, interface=None, version=None, **kwargs):
+        if interface == auth.AUTH_INTERFACE:
+            return self._identity_uri
 
-        return self._identity_uri
+        url = self._identity_uri
+
+        if version and version[0] == 2:
+            url += '/v2.0'
+        elif version and version[0] == 3:
+            url += '/v3'
+        else:
+            raise exceptions.EndpointNotFound()
+
+        return url
 
     def invalidate(self):
         return self._plugin.invalidate()
@@ -1431,22 +1439,26 @@ class _IdentityServer(object):
         if not self._auth_version:
             self._auth_version = self._choose_api_version()
 
+        headers = {}
+
         if self._auth_version == 'v3.0':
-            headers = {'X-Subject-Token': user_token}
-            path = '/v3/auth/tokens'
+            headers['X-Subject-Token'] = user_token
+            version = (3, 0)
+            path = '/auth/tokens'
             if not self._include_service_catalog:
                 # NOTE(gyee): only v3 API support this option
                 path = path + '?nocatalog'
 
         else:
-            headers = {}
-            path = '/v2.0/tokens/%s' % user_token
+            version = (2, 0)
+            path = '/tokens/%s' % user_token
 
         try:
             response, data = self._json_request(
                 'GET',
                 path,
                 authenticated=True,
+                endpoint_filter={'version': version},
                 headers=headers)
         except exceptions.NotFound as e:
             self._LOG.warn('Authorization failed for token')
@@ -1469,8 +1481,10 @@ class _IdentityServer(object):
 
     def fetch_revocation_list(self):
         try:
-            response, data = self._json_request('GET', '/v2.0/tokens/revoked',
-                                                authenticated=True)
+            response, data = self._json_request(
+                'GET', '/tokens/revoked',
+                authenticated=True,
+                endpoint_filter={'version': (2, 0)})
         except exceptions.HTTPError as e:
             raise ServiceError('Failed to fetch token revocation list: %d' %
                                e.http_status)
@@ -1521,7 +1535,10 @@ class _IdentityServer(object):
 
     def _get_supported_versions(self):
         versions = []
-        response, data = self._json_request('GET', '/', authenticated=False)
+        response, data = self._json_request(
+            'GET', '/',
+            authenticated=False,
+            endpoint_filter={'interface': auth.AUTH_INTERFACE})
         if response.status_code == 501:
             self._LOG.warning(
                 'Old keystone installation found...assuming v2.0')
@@ -1571,14 +1588,21 @@ class _IdentityServer(object):
         if not self._auth_version:
             self._auth_version = self._choose_api_version()
 
+        version = None
+
         if self._auth_version == 'v3.0':
             if cert_type == 'signing':
                 cert_type = 'certificates'
-            path = '/v3/OS-SIMPLE-CERT/' + cert_type
+            path = '/OS-SIMPLE-CERT/' + cert_type
+            version = (3, 0)
         else:
-            path = '/v2.0/certificates/' + cert_type
+            path = '/certificates/' + cert_type
+            version = (2, 0)
+
         try:
-            response = self._adapter.get(path, authenticated=False)
+            response = self._adapter.get(
+                path, authenticated=False,
+                endpoint_filter={'version': version})
         except exceptions.HTTPError as e:
             raise exceptions.CertificateConfigError(e.details)
         if response.status_code != 200:
