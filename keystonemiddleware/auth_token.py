@@ -168,6 +168,7 @@ import stat
 import tempfile
 
 from keystoneclient import access
+from keystoneclient import adapter
 from keystoneclient import auth
 from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.auth.identity import v2
@@ -663,11 +664,6 @@ class AuthProtocol(object):
         self._delay_auth_decision = (self._conf_get('delay_auth_decision') in
                                      (True, 'true', 't', '1', 'on', 'yes', 'y')
                                      )
-
-        self._session = self._session_factory()
-
-        self._http_request_max_retries = self._conf_get(
-            'http_request_max_retries')
 
         self._include_service_catalog = self._conf_get(
             'include_service_catalog')
@@ -1255,9 +1251,7 @@ class AuthProtocol(object):
             self._signing_ca_file_name,
             self._identity_server.fetch_ca_cert())
 
-    # NOTE(hrybacki): This and subsequent factory functions are part of a
-    # cleanup and better organization effort of AuthProtocol.
-    def _session_factory(self):
+    def _identity_server_factory(self):
         # NOTE(jamielennox): Loading Session here should be exactly the
         # same as calling Session.load_from_conf_options(CONF, GROUP)
         # however we can't do that because we have to use _conf_get to support
@@ -1274,7 +1268,7 @@ class AuthProtocol(object):
         # same as calling _AuthTokenPlugin.load_from_conf_options(CONF, GROUP)
         # however we can't do that because we have to use _conf_get to support
         # the paste.ini options.
-        sess.auth = _AuthTokenPlugin.load_from_options(
+        auth_plugin = _AuthTokenPlugin.load_from_options(
             auth_host=self._conf_get('auth_host'),
             auth_port=int(self._conf_get('auth_port')),
             auth_protocol=self._conf_get('auth_protocol'),
@@ -1286,17 +1280,19 @@ class AuthProtocol(object):
             identity_uri=self._conf_get('identity_uri'),
             log=self._LOG)
 
-        return sess
+        adap = adapter.Adapter(
+            sess,
+            auth=auth_plugin,
+            service_type='identity',
+            interface='admin',
+            connect_retries=self._conf_get('http_request_max_retries'))
 
-    def _identity_server_factory(self):
-        identity_server = _IdentityServer(
+        return _IdentityServer(
             self._LOG,
-            self._session,
+            adap,
             include_service_catalog=self._include_service_catalog,
             auth_uri=self._conf_get('auth_uri'),
-            http_request_max_retries=self._http_request_max_retries,
             auth_version=self._conf_get('auth_version'))
-        return identity_server
 
     def _token_cache_factory(self):
         security_strategy = self._conf_get('memcache_security_strategy')
@@ -1391,13 +1387,12 @@ class _IdentityServer(object):
     operations.
 
     """
-    def __init__(self, log, session, include_service_catalog=None,
-                 auth_uri=None, http_request_max_retries=None,
-                 auth_version=None):
+    def __init__(self, log, adap, include_service_catalog=None,
+                 auth_uri=None, auth_version=None):
         self._LOG = log
+        self._adapter = adap
         self._include_service_catalog = include_service_catalog
         self._req_auth_version = auth_version
-        self._session = session
 
         if auth_uri is None:
             self._LOG.warning(
@@ -1407,17 +1402,16 @@ class _IdentityServer(object):
 
             # FIXME(dolph): drop support for this fallback behavior as
             # documented in bug 1207517.
-            auth_uri = session.get_endpoint(interface=auth.AUTH_INTERFACE)
+            auth_uri = adap.get_endpoint(interface=auth.AUTH_INTERFACE)
 
             # NOTE(jamielennox): This weird stripping of the prefix hack is
             # only relevant to the legacy case. We urljoin '/' to get just the
             # base URI as this is the original behaviour.
-            if isinstance(session.auth, _AuthTokenPlugin):
+            if isinstance(adap.auth, _AuthTokenPlugin):
                 auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
 
         self.auth_uri = auth_uri
         self._auth_version = None
-        self._http_request_max_retries = http_request_max_retries
 
     def verify_token(self, user_token, retry=True):
         """Authenticate user token with keystone.
@@ -1550,23 +1544,6 @@ class _IdentityServer(object):
                         ', '.join(versions))
         return versions
 
-    def _http_request(self, method, path, **kwargs):
-        """HTTP request helper used to make unspecified content type requests.
-
-        :param method: http method
-        :param path: relative request url
-        :return (http response object, response body)
-        :raise ServerError when unable to communicate with keystone
-
-        """
-        kwargs.setdefault('connect_retries', self._http_request_max_retries)
-
-        endpoint_filter = kwargs.setdefault('endpoint_filter', {})
-        endpoint_filter.setdefault('service_type', 'identity')
-        endpoint_filter.setdefault('interface', 'admin')
-
-        return self._session.request(path, method, **kwargs)
-
     def _json_request(self, method, path, **kwargs):
         """HTTP request helper used to make json requests.
 
@@ -1580,7 +1557,7 @@ class _IdentityServer(object):
         headers = kwargs.setdefault('headers', {})
         headers['Accept'] = 'application/json'
 
-        response = self._http_request(method, path, **kwargs)
+        response = self._adapter.request(path, method, **kwargs)
 
         try:
             data = jsonutils.loads(response.text)
@@ -1601,7 +1578,7 @@ class _IdentityServer(object):
         else:
             path = '/v2.0/certificates/' + cert_type
         try:
-            response = self._http_request('GET', path, authenticated=False)
+            response = self._adapter.get(path, authenticated=False)
         except exceptions.HTTPError as e:
             raise exceptions.CertificateConfigError(e.details)
         if response.status_code != 200:

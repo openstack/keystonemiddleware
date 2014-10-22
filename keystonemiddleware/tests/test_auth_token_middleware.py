@@ -634,8 +634,6 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertEqual(datetime.timedelta(seconds=24),
                          middleware._token_revocation_list_cache_timeout)
         self.assertEqual(False, middleware._include_service_catalog)
-        self.assertEqual('https://keystone.example.com:1234',
-                         middleware._session.auth._identity_uri)
         self.assertEqual('0', middleware._conf['nonexsit_option'])
 
     def test_conf_values_type_convert_with_wrong_value(self):
