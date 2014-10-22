@@ -640,6 +640,7 @@ class CommonAuthTokenMiddlewareTest(object):
             'auth_port': '1234',
             'auth_protocol': 'http',
             'auth_uri': None,
+            'auth_version': 'v3.0',
         }
         self.set_middleware(conf=conf)
         expected_auth_uri = 'http://[2001:2013:1:f101::1]:1234'
@@ -2119,7 +2120,9 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
     def test_header_in_401(self):
         body = uuid.uuid4().hex
         auth_uri = 'http://local.test'
-        conf = {'delay_auth_decision': 'True', 'auth_uri': auth_uri}
+        conf = {'delay_auth_decision': 'True',
+                'auth_version': 'v3.0',
+                'auth_uri': auth_uri}
 
         self.fake_app = new_app('401 Unauthorized', body)
         self.set_middleware(conf=conf)
