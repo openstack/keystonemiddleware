@@ -31,6 +31,7 @@ from keystoneclient import exceptions
 from keystoneclient import fixture
 from keystoneclient import session
 import mock
+from oslo.config import fixture as cfg_fixture
 from oslo.serialization import jsonutils
 from oslo.utils import timeutils
 from requests_mock.contrib import fixture as rm_fixture
@@ -2503,6 +2504,94 @@ class DefaultAuthPluginTests(testtools.TestCase):
                                  admin_tenant_name=admin_tenant_name)
 
         self.assertEqual(token.token_id, plugin.get_token(self.session))
+
+
+class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
+
+    AUTH_URL = 'http://auth.url/prefix'
+    DISC_URL = 'http://disc.url/prefix'
+    KEYSTONE_BASE_URL = 'http://keystone.url/prefix'
+    CRUD_URL = 'http://crud.url/prefix'
+
+    # NOTE(jamielennox): use the /v2.0 prefix here because this is what's most
+    # likely to be in the service catalog and we should be able to ignore it.
+    KEYSTONE_URL = KEYSTONE_BASE_URL + '/v2.0'
+
+    def setUp(self):
+        super(AuthProtocolLoadingTests, self).setUp()
+        self.cfg = self.useFixture(cfg_fixture.Config())
+
+    def test_loading_password_plugin(self):
+        # the password options aren't set on config until loading time, but we
+        # need them set so we can override the values for testing, so force it
+        opts = auth.get_plugin_options('password')
+        self.cfg.register_opts(opts, group=auth_token._AUTHTOKEN_GROUP)
+
+        project_id = uuid.uuid4().hex
+
+        # configure the authentication options
+        self.cfg.config(auth_plugin='password',
+                        username='testuser',
+                        password='testpass',
+                        auth_url=self.AUTH_URL,
+                        project_id=project_id,
+                        user_domain_id='userdomainid',
+                        group=auth_token._AUTHTOKEN_GROUP)
+
+        # admin_token is the token that the service will get back from auth
+        admin_token_id = uuid.uuid4().hex
+        admin_token = fixture.V3Token(project_id=project_id)
+        s = admin_token.add_service('identity', name='keystone')
+        s.add_standard_endpoints(admin=self.KEYSTONE_URL)
+
+        # user_token is the data from the user's inputted token
+        user_token_id = uuid.uuid4().hex
+        user_token = fixture.V3Token()
+        user_token.set_project_scope()
+
+        # first touch is to discover the available versions at the auth_url
+        self.requests.get(self.AUTH_URL,
+                          json=fixture.DiscoveryList(href=self.DISC_URL),
+                          status_code=300)
+
+        # then we use the url returned from discovery to actually auth
+        self.requests.post(self.DISC_URL + '/v3/auth/tokens',
+                           json=admin_token,
+                           headers={'X-Subject-Token': admin_token_id})
+
+        # then we do discovery on the URL from the service catalog. In practice
+        # this is mostly the same URL as before but test the full range.
+        self.requests.get(self.KEYSTONE_BASE_URL + '/',
+                          json=fixture.DiscoveryList(href=self.CRUD_URL),
+                          status_code=300)
+
+        # actually authenticating the user will then use the base url that was
+        # retrieved from discovery from the service catalog.
+        self.requests.get(self.CRUD_URL + '/v3/auth/tokens',
+                          request_headers={'X-Subject-Token': user_token_id,
+                                           'X-Auth-Token': admin_token_id},
+                          json=user_token)
+
+        body = uuid.uuid4().hex
+        app = auth_token.AuthProtocol(new_app('200 OK', body)(), {})
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = user_token_id
+        resp = app(req.environ, self.start_fake_response)
+
+        self.assertEqual(200, self.response_status)
+        self.assertEqual(six.b(body), resp[0])
+
+    def test_invalid_plugin_503(self):
+        self.cfg.config(auth_plugin=uuid.uuid4().hex,
+                        group=auth_token._AUTHTOKEN_GROUP)
+        app = auth_token.AuthProtocol(new_app('200 OK', '')(), {})
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = uuid.uuid4().hex
+        app(req.environ, self.start_fake_response)
+
+        self.assertEqual(503, self.response_status)
 
 
 def load_tests(loader, tests, pattern):
