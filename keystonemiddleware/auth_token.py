@@ -175,7 +175,6 @@ from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
 from keystoneclient import exceptions
 from keystoneclient import session
-import netaddr
 from oslo.config import cfg
 from oslo.serialization import jsonutils
 from oslo.utils import timeutils
@@ -605,7 +604,7 @@ class AuthProtocol(object):
             auth_protocol = self._conf_get('auth_protocol')
             auth_admin_prefix = self._conf_get('auth_admin_prefix')
 
-            if netaddr.valid_ipv6(auth_host):
+            if ':' in auth_host:
                 # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
                 # with '[]' to generate a valid IPv6 URL, based on
                 # http://www.ietf.org/rfc/rfc2732.txt
