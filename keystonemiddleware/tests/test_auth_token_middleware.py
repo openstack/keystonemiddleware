@@ -2395,6 +2395,37 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
 
         self.assertIn('versions [v3.0, v2.0]', self.logger.output)
 
+    def _assert_auth_version(self, conf_version, identity_server_version):
+        self.set_middleware(conf={'auth_version': conf_version})
+        identity_server = self.middleware._create_identity_server()
+        self.assertEqual(identity_server_version,
+                         identity_server.auth_version)
+
+    def test_micro_version(self):
+        self._assert_auth_version('v2', (2, 0))
+        self._assert_auth_version('v2.0', (2, 0))
+        self._assert_auth_version('v3', (3, 0))
+        self._assert_auth_version('v3.0', (3, 0))
+        self._assert_auth_version('v3.1', (3, 0))
+        self._assert_auth_version('v3.2', (3, 0))
+        self._assert_auth_version('v3.9', (3, 0))
+        self._assert_auth_version('v3.3.1', (3, 0))
+        self._assert_auth_version('v3.3.5', (3, 0))
+
+    def test_default_auth_version(self):
+        # VERSION_LIST_v3 contains both v2 and v3 version elements
+        self.requests.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
+        self._assert_auth_version(None, (3, 0))
+
+        # VERSION_LIST_v2 contains only v2 version elements
+        self.requests.get(BASE_URI, json=VERSION_LIST_v2, status_code=300)
+        self._assert_auth_version(None, (2, 0))
+
+    def test_unsupported_auth_version(self):
+        # If the requested version isn't supported we will use v2
+        self._assert_auth_version('v1', (2, 0))
+        self._assert_auth_version('v10', (2, 0))
+
 
 class DefaultAuthPluginTests(testtools.TestCase):
 
