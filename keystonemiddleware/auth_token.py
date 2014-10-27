@@ -235,7 +235,7 @@ _OPTS = [
                # FIXME(dolph): should be default='http://127.0.0.1:5000/v2.0/',
                # or (depending on client support) an unversioned, publicly
                # accessible identity endpoint (see bug 1207517)
-               help='Complete public Identity API endpoint'),
+               help='Complete public Identity API endpoint.'),
     cfg.StrOpt('identity_uri',
                default=None,
                help='Complete admin Identity API endpoint. This should '
@@ -243,12 +243,12 @@ _OPTS = [
                     'e.g. https://localhost:35357/'),
     cfg.StrOpt('auth_version',
                default=None,
-               help='API version of the admin Identity API endpoint'),
+               help='API version of the admin Identity API endpoint.'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,
                 help='Do not handle authorization requests within the'
                 ' middleware, but delegate the authorization decision to'
-                ' downstream WSGI components'),
+                ' downstream WSGI components.'),
     cfg.IntOpt('http_connect_timeout',
                default=None,
                help='Request timeout value for communicating with Identity'
@@ -266,27 +266,29 @@ _OPTS = [
                ' should not be used, use `admin_user` and `admin_password`'
                ' instead.'),
     cfg.StrOpt('admin_user',
-               help='Keystone account username'),
+               help='Keystone account username.'),
     cfg.StrOpt('admin_password',
                secret=True,
-               help='Keystone account password'),
+               help='Keystone account password.'),
     cfg.StrOpt('admin_tenant_name',
                default='admin',
                help='Keystone service account tenant name to validate'
-               ' user tokens'),
+               ' user tokens.'),
     cfg.StrOpt('cache',
                default=None,
-               help='Env key for the swift cache'),
+               help='Env key for the swift cache.'),
     cfg.StrOpt('certfile',
-               help='Required if Keystone server requires client certificate'),
+               help='Required if Keystone server requires client '
+                    'certificate.'),
     cfg.StrOpt('keyfile',
-               help='Required if Keystone server requires client certificate'),
+               help='Required if Keystone server requires client '
+                    'certificate.'),
     cfg.StrOpt('cafile', default=None,
                help='A PEM encoded Certificate Authority to use when '
                     'verifying HTTPs connections. Defaults to system CAs.'),
     cfg.BoolOpt('insecure', default=False, help='Verify HTTPS connections.'),
     cfg.StrOpt('signing_dir',
-               help='Directory used to cache files related to PKI tokens'),
+               help='Directory used to cache files related to PKI tokens.'),
     cfg.ListOpt('memcached_servers',
                 deprecated_name='memcache_servers',
                 help='Optionally specify a list of memcached server(s) to'
@@ -306,7 +308,7 @@ _OPTS = [
                ' duration may significantly reduce performance.'),
     cfg.StrOpt('memcache_security_strategy',
                default=None,
-               help='(optional) if defined, indicate whether token data'
+               help='(Optional) If defined, indicate whether token data'
                ' should be authenticated or authenticated and encrypted.'
                ' Acceptable values are MAC or ENCRYPT.  If MAC, token data is'
                ' authenticated (with HMAC) in the cache. If ENCRYPT, token'
@@ -316,36 +318,36 @@ _OPTS = [
     cfg.StrOpt('memcache_secret_key',
                default=None,
                secret=True,
-               help='(optional, mandatory if memcache_security_strategy is'
-               ' defined) this string is used for key derivation.'),
+               help='(Optional, mandatory if memcache_security_strategy is'
+               ' defined) This string is used for key derivation.'),
     cfg.IntOpt('memcache_pool_dead_retry',
                default=5 * 60,
-               help='(optional) number of seconds memcached server is'
+               help='(Optional) Number of seconds memcached server is'
                ' considered dead before it is tried again.'),
     cfg.IntOpt('memcache_pool_maxsize',
                default=10,
-               help='(optional) max total number of open connections to'
+               help='(Optional) Maximum total number of open connections to'
                ' every memcached server.'),
     cfg.IntOpt('memcache_pool_socket_timeout',
                default=3,
-               help='(optional) socket timeout in seconds for communicating '
+               help='(Optional) Socket timeout in seconds for communicating '
                     'with a memcache server.'),
     cfg.IntOpt('memcache_pool_unused_timeout',
                default=60,
-               help='(optional) number of seconds a connection to memcached'
+               help='(Optional) Number of seconds a connection to memcached'
                ' is held unused in the pool before it is closed.'),
     cfg.IntOpt('memcache_pool_conn_get_timeout',
                default=10,
-               help='(optional) number of seconds that an operation will wait '
+               help='(Optional) Number of seconds that an operation will wait '
                     'to get a memcache client connection from the pool.'),
     cfg.BoolOpt('memcache_use_advanced_pool',
                 default=False,
-                help='(optional) use the advanced (eventlet safe) memcache '
+                help='(Optional) Use the advanced (eventlet safe) memcache '
                      'client pool. The advanced pool will only work under '
                      'python 2.x.'),
     cfg.BoolOpt('include_service_catalog',
                 default=True,
-                help='(optional) indicate whether to set the X-Service-Catalog'
+                help='(Optional) Indicate whether to set the X-Service-Catalog'
                 ' header. If False, middleware will not ask for service'
                 ' catalog on token validation and will not set the'
                 ' X-Service-Catalog header.'),
