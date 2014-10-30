@@ -458,7 +458,7 @@ def _conf_values_type_convert(conf):
         return {}
 
     opt_types = {}
-    for o in _OPTS:
+    for o in (_OPTS + _AuthTokenPlugin.get_options()):
         type_dest = (getattr(o, 'type', str), o.dest)
         opt_types[o.dest] = type_dest
         # Also add the deprecated name with the same type and dest.
