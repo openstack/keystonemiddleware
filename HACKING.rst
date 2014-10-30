@@ -15,7 +15,7 @@ exceptions to an instance or subclass of ClientException.
 Testing
 =======
 
-python-keystoneclient uses testtools and testr for its unittest suite
+Keystone Middleware uses testtools and testr for its unittest suite
 and its test runner. Basic workflow around our use of tox and testr can
 be found at http://wiki.openstack.org/testr. If you'd like to learn more
 in depth:
