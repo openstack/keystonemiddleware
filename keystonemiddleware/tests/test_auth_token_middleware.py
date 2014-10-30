@@ -691,7 +691,7 @@ class CommonAuthTokenMiddlewareTest(object):
         for _ in range(2):  # Do it twice because first result was cached.
             self.assert_valid_request_200(
                 self.token_dict['signed_token_scoped'])
-            #ensure that signed requests do not generate HTTP traffic
+            # ensure that signed requests do not generate HTTP traffic
             self.assertLastPath(None)
 
     def test_valid_signed_compressed_request(self):
@@ -790,7 +790,7 @@ class CommonAuthTokenMiddlewareTest(object):
         return jsonutils.dumps(revocation_list)
 
     def test_is_signed_token_revoked_returns_false(self):
-        #explicitly setting an empty revocation list here to document intent
+        # explicitly setting an empty revocation list here to document intent
         self.middleware._token_revocation_list = jsonutils.dumps(
             {"revoked": [], "extra": "success"})
         result = self.middleware._is_signed_token_revoked(
