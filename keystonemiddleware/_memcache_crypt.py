@@ -36,6 +36,8 @@ import os
 import six
 import sys
 
+from keystonemiddleware.i18n import _
+
 # make sure pycrypto is available
 try:
     from Crypto.Cipher import AES
@@ -150,7 +152,7 @@ def decrypt_data(key, data):
     try:
         result = cipher.decrypt(data[16:])
     except Exception:
-        raise DecryptError('Encrypted data appears to be corrupted.')
+        raise DecryptError(_('Encrypted data appears to be corrupted.'))
 
     # Strip the last n padding bytes where n is the last value in
     # the plaintext
@@ -189,7 +191,7 @@ def unprotect_data(keys, signed_data):
 
     # Then verify that it matches the provided value
     if not constant_time_compare(provided_mac, calculated_mac):
-        raise InvalidMacError('Invalid MAC; data appears to be corrupted.')
+        raise InvalidMacError(_('Invalid MAC; data appears to be corrupted.'))
 
     data = base64.b64decode(signed_data[DIGEST_LENGTH_B64:])
 

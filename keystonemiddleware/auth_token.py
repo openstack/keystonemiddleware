@@ -183,6 +183,7 @@ import six
 from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
+from keystonemiddleware.i18n import _, _LE, _LI, _LW
 from keystonemiddleware.openstack.common import memorycache
 
 
@@ -393,13 +394,13 @@ def _token_is_v3(token_info):
 
 def _get_token_expiration(data):
     if not data:
-        raise InvalidToken('Token authorization failed')
+        raise InvalidToken(_('Token authorization failed'))
     if _token_is_v2(data):
         timestamp = data['access']['token']['expires']
     elif _token_is_v3(data):
         timestamp = data['token']['expires_at']
     else:
-        raise InvalidToken('Token authorization failed')
+        raise InvalidToken(_('Token authorization failed'))
     expires = timeutils.parse_isotime(timestamp)
     expires = timeutils.normalize_time(expires)
     return expires
@@ -409,7 +410,7 @@ def _confirm_token_not_expired(data):
     expires = _get_token_expiration(data)
     utcnow = timeutils.utcnow()
     if utcnow >= expires:
-        raise InvalidToken('Token authorization failed')
+        raise InvalidToken(_('Token authorization failed'))
     return timeutils.isotime(at=expires, subsecond=True)
 
 
@@ -470,8 +471,8 @@ def _conf_values_type_convert(conf):
             opts[k] = v
         except ValueError as e:
             raise ConfigurationError(
-                'Unable to convert the value of %s option into correct '
-                'type: %s' % (k, e))
+                _('Unable to convert the value of %(key)s option into correct '
+                  'type: %(ex)s') % {'key': k, 'ex': e})
     return opts
 
 
@@ -509,9 +510,9 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
         # are backwards. We need to do it this way so that we can handle the
         # same deprecation strategy for CONF and the conf variable.
         if not identity_uri:
-            log.warning('Configuring admin URI using auth fragments. '
-                        'This is deprecated, use \'identity_uri\''
-                        ' instead.')
+            log.warning(_LW('Configuring admin URI using auth fragments. '
+                            'This is deprecated, use \'identity_uri\''
+                            ' instead.'))
 
             if ':' in auth_host:
                 # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
@@ -536,11 +537,11 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
         auth_url = '%s/v2.0' % self._identity_uri
 
         if admin_token:
-            log.warning(
+            log.warning(_LW(
                 "The admin_token option in the auth_token middleware is "
                 "deprecated and should not be used. The admin_user and "
                 "admin_password options should be used instead. The "
-                "admin_token option may be removed in a future release.")
+                "admin_token option may be removed in a future release."))
             self._plugin = token_endpoint.Token(auth_url, admin_token)
         else:
             self._plugin = v2.Password(auth_url,
@@ -660,7 +661,7 @@ class AuthProtocol(object):
 
     def __init__(self, app, conf):
         self._LOG = logging.getLogger(conf.get('log_name', __name__))
-        self._LOG.info('Starting keystone auth_token middleware')
+        self._LOG.info(_LI('Starting keystone auth_token middleware'))
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
@@ -683,8 +684,9 @@ class AuthProtocol(object):
         if self._signing_dirname is None:
             self._signing_dirname = tempfile.mkdtemp(
                 prefix='keystone-signing-')
-        self._LOG.info('Using %s as cache directory for signing certificate',
-                       self._signing_dirname)
+        self._LOG.info(
+            _LI('Using %s as cache directory for signing certificate'),
+            self._signing_dirname)
         self._verify_signing_dir()
 
         val = '%s/signing_cert.pem' % self._signing_dirname
@@ -757,10 +759,12 @@ class AuthProtocol(object):
             except InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
-                        'Invalid user token - deferring reject downstream')
+                        _LI('Invalid user token - deferring reject '
+                            'downstream'))
                     self._add_headers(env, {'X-Identity-Status': 'Invalid'})
                 else:
-                    self._LOG.info('Invalid user token - rejecting request')
+                    self._LOG.info(
+                        _LI('Invalid user token - rejecting request'))
                     return self._reject_request(env, start_response)
 
             try:
@@ -774,11 +778,12 @@ class AuthProtocol(object):
             except InvalidToken:
                 # Delayed auth not currently supported for service tokens.
                 # (Can be implemented if a use case is found.)
-                self._LOG.info('Invalid service token - rejecting request')
+                self._LOG.info(
+                    _LI('Invalid service token - rejecting request'))
                 return self._reject_request(env, start_response)
 
         except ServiceError as e:
-            self._LOG.critical('Unable to obtain admin token: %s', e)
+            self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
             resp = _MiniResp('Service unavailable', env)
             start_response('503 Service Unavailable', resp.headers)
             return resp.body
@@ -834,10 +839,10 @@ class AuthProtocol(object):
             return token
         else:
             if not self._delay_auth_decision:
-                self._LOG.warn('Unable to find authentication token'
-                               ' in headers')
+                self._LOG.warn(_LW('Unable to find authentication token'
+                                   ' in headers'))
                 self._LOG.debug('Headers: %s', env)
-            raise InvalidToken('Unable to find token in headers')
+            raise InvalidToken(_('Unable to find token in headers'))
 
     def _get_service_token_from_header(self, env):
         """Get service token id from request.
@@ -899,7 +904,7 @@ class AuthProtocol(object):
                             self._LOG.debug(
                                 'Token is marked as having been revoked')
                             raise InvalidToken(
-                                'Token authorization failed')
+                                _('Token authorization failed'))
                 self._confirm_token_bind(data, env)
             else:
                 # Token wasn't cached. In this case, the token needs to be
@@ -923,14 +928,14 @@ class AuthProtocol(object):
             return data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
-            self._LOG.warn('Authorization failed for token')
-            raise InvalidToken('Token authorization failed')
+            self._LOG.warn(_LW('Authorization failed for token'))
+            raise InvalidToken(_('Token authorization failed'))
         except Exception:
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_id:
                 self._token_cache.store_invalid(token_id)
-            self._LOG.warn('Authorization failed for token')
-            raise InvalidToken('Token authorization failed')
+            self._LOG.warn(_LW('Authorization failed for token'))
+            raise InvalidToken(_('Token authorization failed'))
 
     def _build_user_headers(self, auth_ref, token_info):
         """Convert token object into headers.
@@ -946,7 +951,7 @@ class AuthProtocol(object):
         roles = ','.join(auth_ref.role_names)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise InvalidToken('Unable to determine tenancy.')
+            raise InvalidToken(_('Unable to determine tenancy.'))
 
         rval = {
             'X-Identity-Status': 'Confirmed',
@@ -983,7 +988,7 @@ class AuthProtocol(object):
         auth_ref = access.AccessInfo.factory(body=token_info)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise InvalidToken('Unable to determine service tenancy.')
+            raise InvalidToken(_('Unable to determine service tenancy.'))
 
         roles = ','.join(auth_ref.role_names)
         rval = {
@@ -1028,7 +1033,7 @@ class AuthProtocol(object):
     def _invalid_user_token(self, msg=False):
         # NOTE(jamielennox): use False as the default so that None is valid
         if msg is False:
-            msg = 'Token authorization failed'
+            msg = _('Token authorization failed')
 
         raise InvalidToken(msg)
 
@@ -1056,7 +1061,7 @@ class AuthProtocol(object):
                 # no bind provided and none required
                 return
             else:
-                self._LOG.info('No bind information present in token.')
+                self._LOG.info(_LI('No bind information present in token.'))
                 self._invalid_user_token()
 
         # get the named mode if bind_mode is not one of the predefined
@@ -1066,19 +1071,20 @@ class AuthProtocol(object):
             name = bind_mode
 
         if name and name not in bind:
-            self._LOG.info('Named bind mode %s not in bind information', name)
+            self._LOG.info(_LI('Named bind mode %s not in bind information'),
+                           name)
             self._invalid_user_token()
 
         for bind_type, identifier in six.iteritems(bind):
             if bind_type == _BIND_MODE.KERBEROS:
                 if not env.get('AUTH_TYPE', '').lower() == 'negotiate':
-                    self._LOG.info('Kerberos credentials required and '
-                                   'not present.')
+                    self._LOG.info(_LI('Kerberos credentials required and '
+                                       'not present.'))
                     self._invalid_user_token()
 
                 if not env.get('REMOTE_USER') == identifier:
-                    self._LOG.info('Kerberos credentials do not match '
-                                   'those in bind.')
+                    self._LOG.info(_LI('Kerberos credentials do not match '
+                                       'those in bind.'))
                     self._invalid_user_token()
 
                 self._LOG.debug('Kerberos bind authentication successful.')
@@ -1090,10 +1096,10 @@ class AuthProtocol(object):
                                  'identifier': identifier})
 
             else:
-                self._LOG.info('Couldn`t verify unknown bind: %(bind_type)s: '
-                               '%(identifier)s.',
-                               {'bind_type': bind_type,
-                                'identifier': identifier})
+                self._LOG.info(
+                    _LI('Couldn`t verify unknown bind: %(bind_type)s: '
+                        '%(identifier)s.'),
+                    {'bind_type': bind_type, 'identifier': identifier})
                 self._invalid_user_token()
 
     def _is_signed_token_revoked(self, token_ids):
@@ -1126,7 +1132,7 @@ class AuthProtocol(object):
                                       self._signing_ca_file_name,
                                       inform=inform).decode('utf-8')
             except cms.subprocess.CalledProcessError as err:
-                self._LOG.warning('Verify error: %s', err)
+                self._LOG.warning(_LW('Verify error: %s'), err)
                 raise
 
         try:
@@ -1142,13 +1148,13 @@ class AuthProtocol(object):
             except exceptions.CertificateConfigError as err:
                 # if this is still occurring, something else is wrong and we
                 # need err.output to identify the problem
-                self._LOG.error('CMS Verify output: %s', err.output)
+                self._LOG.error(_LE('CMS Verify output: %s'), err.output)
                 raise
 
     def _verify_signed_token(self, signed_text, token_ids):
         """Check that the token is unrevoked and has a valid signature."""
         if self._is_signed_token_revoked(token_ids):
-            raise InvalidToken('Token has been revoked')
+            raise InvalidToken(_('Token has been revoked'))
 
         formatted = cms.token_to_cms(signed_text)
         verified = self._cms_verify(formatted)
@@ -1156,7 +1162,7 @@ class AuthProtocol(object):
 
     def _verify_pkiz_token(self, signed_text, token_ids):
         if self._is_signed_token_revoked(token_ids):
-            raise InvalidToken('Token has been revoked')
+            raise InvalidToken(_('Token has been revoked'))
         try:
             uncompressed = cms.pkiz_uncompress(signed_text)
             verified = self._cms_verify(uncompressed, inform=cms.PKIZ_CMS_FORM)
@@ -1169,14 +1175,15 @@ class AuthProtocol(object):
         if os.path.exists(self._signing_dirname):
             if not os.access(self._signing_dirname, os.W_OK):
                 raise ConfigurationError(
-                    'unable to access signing_dir %s' % self._signing_dirname)
+                    _('unable to access signing_dir %s') %
+                    self._signing_dirname)
             uid = os.getuid()
             if os.stat(self._signing_dirname).st_uid != uid:
-                self._LOG.warning('signing_dir is not owned by %s', uid)
+                self._LOG.warning(_LW('signing_dir is not owned by %s'), uid)
             current_mode = stat.S_IMODE(os.stat(self._signing_dirname).st_mode)
             if current_mode != stat.S_IRWXU:
                 self._LOG.warning(
-                    'signing_dir mode is %s instead of %s',
+                    _LW('signing_dir mode is %s instead of %s'),
                     oct(current_mode), oct(stat.S_IRWXU))
         else:
             os.makedirs(self._signing_dirname, stat.S_IRWXU)
@@ -1404,9 +1411,9 @@ class _IdentityServer(object):
 
         if auth_uri is None:
             self._LOG.warning(
-                'Configuring auth_uri to point to the public identity '
-                'endpoint is required; clients may not be able to '
-                'authenticate against an admin endpoint')
+                _LW('Configuring auth_uri to point to the public identity '
+                    'endpoint is required; clients may not be able to '
+                    'authenticate against an admin endpoint'))
 
             # FIXME(dolph): drop support for this fallback behavior as
             # documented in bug 1207517.
@@ -1461,18 +1468,19 @@ class _IdentityServer(object):
                 endpoint_filter={'version': version},
                 headers=headers)
         except exceptions.NotFound as e:
-            self._LOG.warn('Authorization failed for token')
-            self._LOG.warn('Identity response: %s' % e.response.text)
+            self._LOG.warn(_LW('Authorization failed for token'))
+            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
         except exceptions.Unauthorized as e:
-            self._LOG.info('Keystone rejected authorization')
-            self._LOG.warn('Identity response: %s' % e.response.text)
+            self._LOG.info(_LI('Keystone rejected authorization'))
+            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
             if retry:
-                self._LOG.info('Retrying validation')
+                self._LOG.info(_LI('Retrying validation'))
                 return self.verify_token(user_token, False)
         except exceptions.HttpError as e:
-            self._LOG.error('Bad response code while validating token: %s',
-                            e.http_status)
-            self._LOG.warn('Identity response: %s' % e.response.text)
+            self._LOG.error(
+                _LE('Bad response code while validating token: %s'),
+                e.http_status)
+            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
         else:
             if response.status_code == 200:
                 return data
@@ -1486,12 +1494,12 @@ class _IdentityServer(object):
                 authenticated=True,
                 endpoint_filter={'version': (2, 0)})
         except exceptions.HTTPError as e:
-            raise ServiceError('Failed to fetch token revocation list: %d' %
+            raise ServiceError(_('Failed to fetch token revocation list: %d') %
                                e.http_status)
         if response.status_code != 200:
-            raise ServiceError('Unable to fetch token revocation list.')
+            raise ServiceError(_('Unable to fetch token revocation list.'))
         if 'signed' not in data:
-            raise ServiceError('Revocation list improperly formatted.')
+            raise ServiceError(_('Revocation list improperly formatted.'))
         return data['signed']
 
     def fetch_signing_cert(self):
@@ -1511,7 +1519,7 @@ class _IdentityServer(object):
         # server.
         if self._req_auth_version:
             version_to_use = self._req_auth_version
-            self._LOG.info('Auth Token proceeding with requested %s apis',
+            self._LOG.info(_LI('Auth Token proceeding with requested %s apis'),
                            version_to_use)
         else:
             version_to_use = None
@@ -1522,15 +1530,15 @@ class _IdentityServer(object):
                         version_to_use = version
                         break
             if version_to_use:
-                self._LOG.info('Auth Token confirmed use of %s apis',
+                self._LOG.info(_LI('Auth Token confirmed use of %s apis'),
                                version_to_use)
             else:
                 self._LOG.error(
-                    'Attempted versions [%s] not in list supported by '
-                    'server [%s]',
-                    ', '.join(_LIST_OF_VERSIONS_TO_ATTEMPT),
-                    ', '.join(versions_supported_by_server))
-                raise ServiceError('No compatible apis supported by server')
+                    _LE('Attempted versions [%(attempt)s] not in list '
+                        'supported by server [%(supported)s]'),
+                    {'attempt': ', '.join(_LIST_OF_VERSIONS_TO_ATTEMPT),
+                     'supported': ', '.join(versions_supported_by_server)})
+                raise ServiceError(_('No compatible apis supported by server'))
         return version_to_use
 
     def _get_supported_versions(self):
@@ -1541,21 +1549,22 @@ class _IdentityServer(object):
             endpoint_filter={'interface': auth.AUTH_INTERFACE})
         if response.status_code == 501:
             self._LOG.warning(
-                'Old keystone installation found...assuming v2.0')
+                _LW('Old keystone installation found...assuming v2.0'))
             versions.append('v2.0')
         elif response.status_code != 300:
-            self._LOG.error('Unable to get version info from keystone: %s',
-                            response.status_code)
-            raise ServiceError('Unable to get version info from keystone')
+            self._LOG.error(
+                _LE('Unable to get version info from keystone: %s'),
+                response.status_code)
+            raise ServiceError(_('Unable to get version info from keystone'))
         else:
             try:
                 for version in data['versions']['values']:
                     versions.append(version['id'])
             except KeyError:
                 self._LOG.error(
-                    'Invalid version response format from server')
-                raise ServiceError('Unable to parse version response '
-                                   'from keystone')
+                    _LE('Invalid version response format from server'))
+                raise ServiceError(_('Unable to parse version response '
+                                     'from keystone'))
 
         self._LOG.debug('Server reports support for api versions: %s',
                         ', '.join(versions))
@@ -1810,7 +1819,7 @@ class _TokenCache(object):
         cached = jsonutils.loads(data)
         if cached == self._INVALID_INDICATOR:
             self._LOG.debug('Cached Token is marked unauthorized')
-            raise InvalidToken('Token authorization failed')
+            raise InvalidToken(_('Token authorization failed'))
 
         data, expires = cached
 
@@ -1829,7 +1838,7 @@ class _TokenCache(object):
             return data
         else:
             self._LOG.debug('Cached Token seems expired')
-            raise InvalidToken('Token authorization failed')
+            raise InvalidToken(_('Token authorization failed'))
 
     def _cache_store(self, token_id, data):
         """Store value into memcache.
@@ -1861,12 +1870,12 @@ class _SecureTokenCache(_TokenCache):
         security_strategy = security_strategy.upper()
 
         if security_strategy not in ('MAC', 'ENCRYPT'):
-            raise ConfigurationError('memcache_security_strategy must be '
-                                     'ENCRYPT or MAC')
+            raise ConfigurationError(_('memcache_security_strategy must be '
+                                       'ENCRYPT or MAC'))
         if not secret_key:
-            raise ConfigurationError('memcache_secret_key must be defined '
-                                     'when a memcache_security_strategy '
-                                     'is defined')
+            raise ConfigurationError(_('memcache_secret_key must be defined '
+                                       'when a memcache_security_strategy '
+                                       'is defined'))
 
         if isinstance(security_strategy, six.string_types):
             security_strategy = security_strategy.encode('utf-8')
@@ -1888,7 +1897,7 @@ class _SecureTokenCache(_TokenCache):
             # unprotect_data will return None if raw_cached is None
             return memcache_crypt.unprotect_data(context, data)
         except Exception:
-            msg = 'Failed to decrypt/verify cache data'
+            msg = _LE('Failed to decrypt/verify cache data')
             self._LOG.exception(msg)
 
         # this should have the same effect as data not
