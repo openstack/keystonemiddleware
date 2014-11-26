@@ -20,14 +20,14 @@
 # See them for their copyright.
 
 """
-S3 TOKEN MIDDLEWARE
+S3 Token Middleware
 
 This WSGI component:
 
-* Get a request from the swift3 middleware with an S3 Authorization
+* Gets a request from the swift3 middleware with an S3 Authorization
   access key.
-* Validate s3 token in Keystone.
-* Transform the account name to AUTH_%(tenant_name).
+* Validates s3 token in Keystone.
+* Transforms the account name to AUTH_%(tenant_name).
 
 """
 
@@ -98,7 +98,7 @@ class ServiceError(Exception):
 
 
 class S3Token(object):
-    """Auth Middleware that handles S3 authenticating client calls."""
+    """Middleware that handles S3 authentication."""
 
     def __init__(self, app, conf):
         """Common initialization code."""

@@ -14,26 +14,35 @@
 # limitations under the License.
 
 """
-TOKEN-BASED AUTH MIDDLEWARE
+Token-based Authentication Middleware
 
 This WSGI component:
 
 * Verifies that incoming client requests have valid tokens by validating
   tokens with the auth service.
-* Rejects unauthenticated requests UNLESS it is in 'delay_auth_decision'
-  mode, which means the final decision is delegated to the downstream WSGI
-  component (usually the OpenStack service)
+* Rejects unauthenticated requests unless the auth_token middleware is in
+  'delay_auth_decision' mode, which means the final decision is delegated to
+  the downstream WSGI component (usually the OpenStack service).
 * Collects and forwards identity information based on a valid token
   such as user name, tenant, etc
 
 Refer to: http://docs.openstack.org/developer/keystonemiddleware/\
 middlewarearchitecture.html
 
-HEADERS
+Run this module directly to start a protected echo service on port 8000::
+
+ $ python -m keystonemiddleware.auth_token
+
+When the ``auth_token`` module authenticates a request, the echo service
+will respond with all the environment variables presented to it by this
+module.
+
+
+Headers
 -------
 
-* Headers starting with HTTP\_ is a standard http header
-* Headers starting with HTTP_X is an extended http header
+The auth_token middleware uses headers sent in by the client on the request
+and sets headers and environment variables for the downstream WSGI component.
 
 Coming in from initial call from client or customer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -51,8 +60,8 @@ WWW-Authenticate
     HTTP header returned to a user indicating which endpoint to use
     to retrieve a new token
 
-What we add to the request for use by the OpenStack service
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What auth_token adds to the request for use by the OpenStack service
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When using composite authentication (a user and service token are
 present) additional service headers relating to the service user
@@ -144,8 +153,11 @@ HTTP_X_ROLE
     *Deprecated* in favor of HTTP_X_ROLES
     Will contain the same values as HTTP_X_ROLES.
 
-OTHER ENVIRONMENT VARIABLES
----------------------------
+Environment Variables
+^^^^^^^^^^^^^^^^^^^^^
+
+These variables are set in the request environment for use by the downstream
+WSGI component.
 
 keystone.token_info
     Information about the token discovered in the process of
@@ -657,7 +669,7 @@ class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
 
 
 class AuthProtocol(object):
-    """Auth Middleware that handles authenticating client calls."""
+    """Middleware that handles authenticating client calls."""
 
     def __init__(self, app, conf):
         self._LOG = logging.getLogger(conf.get('log_name', __name__))
@@ -1925,15 +1937,6 @@ def app_factory(global_conf, **local_conf):
 
 
 if __name__ == '__main__':
-    """Run this module directly to start a protected echo service::
-
-        $ python -m keystonemiddleware.auth_token
-
-    When the ``auth_token`` module authenticates a request, the echo service
-    will respond with all the environment variables presented to it by this
-    module.
-
-    """
     def echo_app(environ, start_response):
         """A WSGI application that echoes the CGI environment to the user."""
         start_response('200 OK', [('Content-Type', 'application/json')])
