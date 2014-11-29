@@ -121,7 +121,7 @@ HTTP_X_ROLES, HTTP_X_SERVICE_ROLES
     Comma delimited list of case-sensitive role names
 
 HTTP_X_SERVICE_CATALOG
-    json encoded keystone service catalog (optional).
+    json encoded service catalog (optional).
     For compatibility reasons this catalog will always be in the V2 catalog
     format even if it is a v3 token.
 
@@ -142,7 +142,7 @@ HTTP_X_TENANT_NAME
 
 HTTP_X_TENANT
     *Deprecated* in favor of HTTP_X_TENANT_ID and HTTP_X_TENANT_NAME
-    Keystone-assigned unique identifier, string. For v3 tokens, this
+    identity server-assigned unique identifier, string. For v3 tokens, this
     will be set to the same value as HTTP_X_PROJECT_ID
 
 HTTP_X_USER
@@ -160,10 +160,9 @@ These variables are set in the request environment for use by the downstream
 WSGI component.
 
 keystone.token_info
-    Information about the token discovered in the process of
-    validation.  This may include extended information returned by the
-    Keystone token validation call, as well as basic information about
-    the tenant and user.
+    Information about the token discovered in the process of validation.  This
+    may include extended information returned by the token validation call, as
+    well as basic information about the tenant and user.
 
 keystone.token_auth
     A keystoneclient auth plugin that may be used with a
@@ -210,8 +209,8 @@ from keystonemiddleware.openstack.common import memorycache
 # admin_password = badpassword
 
 # when deploy Keystone auth_token middleware with Swift, user may elect
-# to use Swift memcache instead of the local Keystone memcache. Swift memcache
-# is passed in from the request environment and its identified by the
+# to use Swift memcache instead of the local auth_token memcache. Swift
+# memcache is passed in from the request environment and its identified by the
 # 'swift.cache' key. However it could be different, depending on deployment.
 # To use Swift memcache, you must set the 'cache' option to the environment
 # key where the Swift cache object is stored.
@@ -253,11 +252,9 @@ _OPTS = [
                default=None,
                help='Env key for the swift cache.'),
     cfg.StrOpt('certfile',
-               help='Required if Keystone server requires client '
-                    'certificate.'),
+               help='Required if identity server requires client certificate'),
     cfg.StrOpt('keyfile',
-               help='Required if Keystone server requires client '
-                    'certificate.'),
+               help='Required if identity server requires client certificate'),
     cfg.StrOpt('cafile', default=None,
                help='A PEM encoded Certificate Authority to use when '
                     'verifying HTTPs connections. Defaults to system CAs.'),
@@ -339,7 +336,7 @@ _OPTS = [
     cfg.BoolOpt('check_revocations_for_cached', default=False,
                 help='If true, the revocation list will be checked for cached'
                 ' tokens. This requires that PKI tokens are configured on the'
-                ' Keystone server.'),
+                ' identity server.'),
     cfg.ListOpt('hash_algorithms', default=['md5'],
                 help='Hash algorithms to use for hashing PKI tokens. This may'
                 ' be a single algorithm or multiple. The algorithms are those'
@@ -620,14 +617,13 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
                             'should not be used, use `admin_user` and '
                             '`admin_password` instead.'),
             cfg.StrOpt('admin_user',
-                       help='Keystone account username.'),
+                       help='Service username.'),
             cfg.StrOpt('admin_password',
                        secret=True,
-                       help='Keystone account password.'),
+                       help='Service user password.'),
             cfg.StrOpt('admin_tenant_name',
                        default='admin',
-                       help='Keystone service account tenant name to validate'
-                       ' user tokens.'),
+                       help='Service tenant name.'),
         ])
 
         return options
@@ -673,7 +669,7 @@ class AuthProtocol(object):
 
     def __init__(self, app, conf):
         self._LOG = logging.getLogger(conf.get('log_name', __name__))
-        self._LOG.info(_LI('Starting keystone auth_token middleware'))
+        self._LOG.info(_LI('Starting Keystone auth_token middleware'))
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
@@ -1441,13 +1437,13 @@ class _IdentityServer(object):
         self._auth_version = None
 
     def verify_token(self, user_token, retry=True):
-        """Authenticate user token with keystone.
+        """Authenticate user token with identity server.
 
         :param user_token: user's token id
         :param retry: flag that forces the middleware to retry
                       user authentication when an indeterminate
                       response is received. Optional.
-        :return: token object received from keystone on success
+        :return: token object received from identity server on success
         :raise InvalidToken: if token is rejected
         :raise ServiceError: if unable to authenticate token
 
@@ -1483,7 +1479,7 @@ class _IdentityServer(object):
             self._LOG.warn(_LW('Authorization failed for token'))
             self._LOG.warn(_LW('Identity response: %s') % e.response.text)
         except exceptions.Unauthorized as e:
-            self._LOG.info(_LI('Keystone rejected authorization'))
+            self._LOG.info(_LI('Identity server rejected authorization'))
             self._LOG.warn(_LW('Identity response: %s') % e.response.text)
             if retry:
                 self._LOG.info(_LI('Retrying validation'))
@@ -1560,14 +1556,14 @@ class _IdentityServer(object):
             authenticated=False,
             endpoint_filter={'interface': auth.AUTH_INTERFACE})
         if response.status_code == 501:
-            self._LOG.warning(
-                _LW('Old keystone installation found...assuming v2.0'))
+            self._LOG.warning(_LW('Old identity server found...assuming v2.0'))
             versions.append('v2.0')
         elif response.status_code != 300:
             self._LOG.error(
-                _LE('Unable to get version info from keystone: %s'),
+                _LE('Unable to get version info from identity server: %s'),
                 response.status_code)
-            raise ServiceError(_('Unable to get version info from keystone'))
+            raise ServiceError(
+                _('Unable to get version info from identity server'))
         else:
             try:
                 for version in data['versions']['values']:
@@ -1576,7 +1572,7 @@ class _IdentityServer(object):
                 self._LOG.error(
                     _LE('Invalid version response format from server'))
                 raise ServiceError(_('Unable to parse version response '
-                                     'from keystone'))
+                                     'from identity server.'))
 
         self._LOG.debug('Server reports support for api versions: %s',
                         ', '.join(versions))
@@ -1589,7 +1585,7 @@ class _IdentityServer(object):
         :param path: relative request url
         :param **kwargs: additional parameters used by session or endpoint
         :return (http response object, response body parsed as json)
-        :raise ServerError when unable to communicate with keystone
+        :raise ServerError when unable to communicate with identity server.
 
         """
         headers = kwargs.setdefault('headers', {})
@@ -1600,7 +1596,7 @@ class _IdentityServer(object):
         try:
             data = jsonutils.loads(response.text)
         except ValueError:
-            self._LOG.debug('Keystone did not return json-encoded body')
+            self._LOG.debug('Identity server did not return json-encoded body')
             data = {}
 
         return response, data
