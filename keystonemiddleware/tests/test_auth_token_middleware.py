@@ -606,6 +606,15 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertEqual(False, middleware._include_service_catalog)
         self.assertEqual('0', middleware._conf['nonexsit_option'])
 
+    def test_deprecated_conf_values(self):
+        conf = {
+            'memcache_servers': ','.join(MEMCACHED_SERVERS),
+        }
+
+        middleware = auth_token.AuthProtocol(self.fake_app, conf)
+        self.assertEqual(MEMCACHED_SERVERS,
+                         middleware._conf_get('memcached_servers'))
+
     def test_conf_values_type_convert_with_wrong_value(self):
         conf = {
             'include_service_catalog': '123',
