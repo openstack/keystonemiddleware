@@ -132,7 +132,7 @@ class AuditMiddlewareTest(testtools.TestCase):
                                   environ=self._get_environ_header('GET'))
         with mock.patch('oslo.messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
-            middleware.process_request(req)
+            middleware._process_request(req)
             self.assertTrue(notify.called)
 
     def test_process_response_fail(self):
@@ -144,7 +144,7 @@ class AuditMiddlewareTest(testtools.TestCase):
                                   environ=self._get_environ_header('GET'))
         with mock.patch('oslo.messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
-            middleware.process_response(req, webob.response.Response())
+            middleware._process_response(req, webob.response.Response())
             self.assertTrue(notify.called)
 
     def test_ignore_req_opt(self):
@@ -182,7 +182,7 @@ class AuditMiddlewareTest(testtools.TestCase):
         req = webob.Request.blank('/foo/bar',
                                   environ=self._get_environ_header('GET'))
         with mock.patch('keystonemiddleware.audit.messaging', None):
-            with mock.patch('keystonemiddleware.audit.LOG.info') as log:
+            with mock.patch('keystonemiddleware.audit._LOG.info') as log:
                 middleware(req)
                 # Check first notification with only 'request'
                 call_args = log.call_args_list[0][0]

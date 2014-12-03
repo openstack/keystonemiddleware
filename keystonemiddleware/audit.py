@@ -38,17 +38,17 @@ from keystonemiddleware.i18n import _LE, _LI
 from keystonemiddleware.openstack.common import context
 
 
-LOG = None
+_LOG = None
 
 
-def log_and_ignore_error(fn):
+def _log_and_ignore_error(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
         except Exception as e:
-            LOG.exception(_LE('An exception occurred processing '
-                              'the API call: %s '), e)
+            _LOG.exception(_LE('An exception occurred processing '
+                               'the API call: %s '), e)
     return wrapper
 
 
@@ -71,18 +71,18 @@ class AuditMiddleware(object):
         return aliases
 
     def __init__(self, app, **conf):
-        self.application = app
-        global LOG
-        LOG = logging.getLogger(conf.get('log_name', __name__))
-        self.service_name = conf.get('service_name')
-        self.ignore_req_list = [x.upper().strip() for x in
-                                conf.get('ignore_req_list', '').split(',')]
-        self.cadf_audit = api.OpenStackAuditApi(
+        self._application = app
+        global _LOG
+        _LOG = logging.getLogger(conf.get('log_name', __name__))
+        self._service_name = conf.get('service_name')
+        self._ignore_req_list = [x.upper().strip() for x in
+                                 conf.get('ignore_req_list', '').split(',')]
+        self._cadf_audit = api.OpenStackAuditApi(
             conf.get('audit_map_file'))
 
-        transport_aliases = AuditMiddleware._get_aliases(cfg.CONF.project)
+        transport_aliases = self._get_aliases(cfg.CONF.project)
         if messaging:
-            self.notifier = oslo.messaging.Notifier(
+            self._notifier = oslo.messaging.Notifier(
                 oslo.messaging.get_transport(cfg.CONF,
                                              aliases=transport_aliases),
                 os.path.basename(sys.argv[0]))
@@ -94,61 +94,62 @@ class AuditMiddleware(object):
         """
 
         if messaging:
-            self.notifier.info(context, event_type, payload)
+            self._notifier.info(context, event_type, payload)
         else:
-            LOG.info(_LI('Event type: %(event_type)s, Context: %(context)s, '
-                         'Payload: %(payload)s'), {'context': context,
-                                                   'event_type': event_type,
-                                                   'payload': payload})
+            _LOG.info(_LI('Event type: %(event_type)s, Context: %(context)s, '
+                          'Payload: %(payload)s'), {'context': context,
+                                                    'event_type': event_type,
+                                                    'payload': payload})
 
-    @log_and_ignore_error
-    def process_request(self, request):
+    @_log_and_ignore_error
+    def _process_request(self, request):
         correlation_id = pycadf.identifier.generate_uuid()
-        self.event = self.cadf_audit.create_event(request, correlation_id)
+        self._event = self._cadf_audit.create_event(request, correlation_id)
 
         self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.request', self.event.as_dict())
+                         'audit.http.request', self._event.as_dict())
 
-    @log_and_ignore_error
-    def process_response(self, request, response=None):
+    @_log_and_ignore_error
+    def _process_response(self, request, response=None):
         if not hasattr(self, 'event'):
             # NOTE(gordc): handle case where error processing request
             correlation_id = pycadf.identifier.generate_uuid()
-            self.event = self.cadf_audit.create_event(request, correlation_id)
+            self._event = self._cadf_audit.create_event(request,
+                                                        correlation_id)
 
         if response:
             if response.status_int >= 200 and response.status_int < 400:
                 result = pycadf.cadftaxonomy.OUTCOME_SUCCESS
             else:
                 result = pycadf.cadftaxonomy.OUTCOME_FAILURE
-            self.event.reason = pycadf.reason.Reason(
+            self._event.reason = pycadf.reason.Reason(
                 reasonType='HTTP', reasonCode=str(response.status_int))
         else:
             result = pycadf.cadftaxonomy.UNKNOWN
 
-        self.event.outcome = result
-        self.event.add_reporterstep(
+        self._event.outcome = result
+        self._event.add_reporterstep(
             pycadf.reporterstep.Reporterstep(
                 role=pycadf.cadftype.REPORTER_ROLE_MODIFIER,
                 reporter=pycadf.resource.Resource(id='target'),
                 reporterTime=pycadf.timestamp.get_utc_now()))
 
         self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.response', self.event.as_dict())
+                         'audit.http.response', self._event.as_dict())
 
     @webob.dec.wsgify
     def __call__(self, req):
-        if req.method in self.ignore_req_list:
-            return req.get_response(self.application)
+        if req.method in self._ignore_req_list:
+            return req.get_response(self._application)
 
-        self.process_request(req)
+        self._process_request(req)
         try:
-            response = req.get_response(self.application)
+            response = req.get_response(self._application)
         except Exception:
-            self.process_response(req)
+            self._process_response(req)
             raise
         else:
-            self.process_response(req, response)
+            self._process_response(req, response)
         return response
 
 
