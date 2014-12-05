@@ -185,6 +185,7 @@ from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.auth.identity import v2
 from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
+from keystoneclient import discover
 from keystoneclient import exceptions
 from keystoneclient import session
 from oslo.config import cfg
@@ -569,24 +570,60 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
                                        tenant_name=admin_tenant_name)
 
         self._LOG = log
+        self._discover = None
 
     def get_token(self, *args, **kwargs):
         return self._plugin.get_token(*args, **kwargs)
 
     def get_endpoint(self, session, interface=None, version=None, **kwargs):
+        """Return an endpoint for the client.
+
+        There are no required keyword arguments to ``get_endpoint`` as a plugin
+        implementation should use best effort with the information available to
+        determine the endpoint.
+
+        :param Session session: The session object that the auth_plugin
+                                belongs to.
+        :param tuple version: The version number required for this endpoint.
+        :param str interface: what visibility the endpoint should have.
+
+        :returns: The base URL that will be used to talk to the required
+                  service or None if not available.
+        :rtype: string
+        """
         if interface == auth.AUTH_INTERFACE:
             return self._identity_uri
 
-        url = self._identity_uri
+        if not version:
+            # NOTE(jamielennox): This plugin can only be used within auth_token
+            # and auth_token will always provide version= with requests.
+            return None
 
-        if version and version[0] == 2:
-            url += '/v2.0'
-        elif version and version[0] == 3:
-            url += '/v3'
-        else:
-            raise exceptions.EndpointNotFound()
+        if not self._discover:
+            self._discover = discover.Discover(session,
+                                               auth_url=self._identity_uri,
+                                               authenticated=False)
 
-        return url
+        if not self._discover.url_for(version):
+            # NOTE(jamielennox): The requested version is not supported by the
+            # identity server.
+            return None
+
+        # NOTE(jamielennox): for backwards compatibility here we don't
+        # actually use the URL from discovery we hack it up instead. :(
+        # NOTE(jamielennox): matching the string version here matches the value
+        # from _LIST_OF_VERSIONS_TO_ATTEMPT. We can use the tuple only match
+        # in the future.
+        if version == 'v2.0' or version[0] == 2:
+            return '%s/v2.0' % self._identity_uri
+        elif version == 'v3.0' or version[0] == 3:
+            return '%s/v3' % self._identity_uri
+
+        # NOTE(jamielennox): This plugin will only get called from auth_token
+        # middleware. The middleware should never request a version that the
+        # plugin doesn't know how to handle.
+        msg = _('Invalid version asked for in auth_token plugin')
+        raise NotImplementedError(msg)
 
     def invalidate(self):
         return self._plugin.invalidate()
@@ -1536,57 +1573,20 @@ class _IdentityServer(object):
         # as possible in the way of letting auth_token talk to the
         # server.
         if self._req_auth_version:
-            version_to_use = self._req_auth_version
             self._LOG.info(_LI('Auth Token proceeding with requested %s apis'),
-                           version_to_use)
-        else:
-            version_to_use = None
-            versions_supported_by_server = self._get_supported_versions()
-            if versions_supported_by_server:
-                for version in _LIST_OF_VERSIONS_TO_ATTEMPT:
-                    if version in versions_supported_by_server:
-                        version_to_use = version
-                        break
-            if version_to_use:
+                           self._req_auth_version)
+            return self._req_auth_version
+
+        for auth_version in _LIST_OF_VERSIONS_TO_ATTEMPT:
+            if self._adapter.get_endpoint(version=auth_version):
                 self._LOG.info(_LI('Auth Token confirmed use of %s apis'),
-                               version_to_use)
-            else:
-                self._LOG.error(
-                    _LE('Attempted versions [%(attempt)s] not in list '
-                        'supported by server [%(supported)s]'),
-                    {'attempt': ', '.join(_LIST_OF_VERSIONS_TO_ATTEMPT),
-                     'supported': ', '.join(versions_supported_by_server)})
-                raise ServiceError(_('No compatible apis supported by server'))
-        return version_to_use
+                               auth_version)
+                return auth_version
 
-    def _get_supported_versions(self):
-        versions = []
-        response, data = self._json_request(
-            'GET', '/',
-            authenticated=False,
-            endpoint_filter={'interface': auth.AUTH_INTERFACE})
-        if response.status_code == 501:
-            self._LOG.warning(_LW('Old identity server found...assuming v2.0'))
-            versions.append('v2.0')
-        elif response.status_code != 300:
-            self._LOG.error(
-                _LE('Unable to get version info from identity server: %s'),
-                response.status_code)
-            raise ServiceError(
-                _('Unable to get version info from identity server'))
-        else:
-            try:
-                for version in data['versions']['values']:
-                    versions.append(version['id'])
-            except KeyError:
-                self._LOG.error(
-                    _LE('Invalid version response format from server'))
-                raise ServiceError(_('Unable to parse version response '
-                                     'from identity server.'))
-
-        self._LOG.debug('Server reports support for api versions: %s',
-                        ', '.join(versions))
-        return versions
+        self._LOG.error(_LE('No attempted versions [%s] supported by server') %
+                        ', '.join(_LIST_OF_VERSIONS_TO_ATTEMPT))
+        msg = _('No compatible apis supported by server')
+        raise ServiceError(msg)
 
     def _json_request(self, method, path, **kwargs):
         """HTTP request helper used to make json requests.

@@ -360,7 +360,7 @@ class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             expected_env=expected_env)
 
         self.requests.register_uri('GET',
-                                   "%s/" % BASE_URI,
+                                   BASE_URI,
                                    json=VERSION_LIST_v2,
                                    status_code=300)
 
@@ -1385,6 +1385,12 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
             'signing_dir': self.cert_dir,
             'auth_version': self.auth_version,
         }
+
+        self.requests.register_uri('GET',
+                                   BASE_URI,
+                                   json=VERSION_LIST_v3,
+                                   status_code=300)
+
         self.set_middleware(conf=conf)
 
     # Usually we supply a signed_dir with pre-installed certificates,
@@ -1433,9 +1439,14 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.conf['auth_port'] = '1234'
         self.conf['auth_admin_prefix'] = '/newadmin/'
 
-        ca_url = "%s/newadmin%s" % (BASE_HOST, self.ca_path)
-        signing_url = "%s/newadmin%s" % (BASE_HOST, self.signing_path)
+        base_url = '%s/newadmin' % BASE_HOST
+        ca_url = "%s%s" % (base_url, self.ca_path)
+        signing_url = "%s%s" % (base_url, self.signing_path)
 
+        self.requests.register_uri('GET',
+                                   base_url,
+                                   json=VERSION_LIST_v3,
+                                   status_code=300)
         self.requests.register_uri('GET', ca_url, text='FAKECA')
         self.requests.register_uri('GET', signing_url, text='FAKECERT')
 
@@ -1456,6 +1467,11 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         ca_url = "%s%s" % (BASE_HOST, self.ca_path)
         signing_url = "%s%s" % (BASE_HOST, self.signing_path)
+
+        self.requests.register_uri('GET',
+                                   BASE_HOST,
+                                   json=VERSION_LIST_v3,
+                                   status_code=300)
         self.requests.register_uri('GET', ca_url, text='FAKECA')
         self.requests.register_uri('GET', signing_url, text='FAKECERT')
 
@@ -1528,7 +1544,7 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         }
 
         self.requests.register_uri('GET',
-                                   "%s/" % BASE_URI,
+                                   BASE_URI,
                                    json=VERSION_LIST_v2,
                                    status_code=300)
 
@@ -2282,7 +2298,7 @@ class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         }
 
         self.requests.register_uri('GET',
-                                   "%s/" % BASE_URI,
+                                   BASE_URI,
                                    json=VERSION_LIST_v2,
                                    status_code=300)
 
@@ -2339,7 +2355,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         }
 
         self.requests.register_uri('GET',
-                                   "%s" % BASE_URI,
+                                   BASE_URI,
                                    json=VERSION_LIST_v3,
                                    status_code=300)
 
