@@ -628,6 +628,13 @@ class CommonAuthTokenMiddlewareTest(object):
         self.set_middleware(conf=conf)
         self.assertLastPath(None)
 
+    def test_auth_with_no_token_does_not_call_http(self):
+        self.set_middleware()
+        req = webob.Request.blank('/')
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertLastPath(None)
+        self.assertEqual(401, self.response_status)
+
     def test_init_by_ipv6Addr_auth_host(self):
         del self.conf['identity_uri']
         conf = {
@@ -2544,16 +2551,13 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         self.assertEqual(200, self.response_status)
         self.assertEqual(six.b(body), resp[0])
 
-    def test_invalid_plugin_503(self):
+    def test_invalid_plugin_fails_to_intialize(self):
         self.cfg.config(auth_plugin=uuid.uuid4().hex,
                         group=auth_token._AUTHTOKEN_GROUP)
-        app = auth_token.AuthProtocol(new_app('200 OK', '')(), {})
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = uuid.uuid4().hex
-        app(req.environ, self.start_fake_response)
-
-        self.assertEqual(503, self.response_status)
+        self.assertRaises(
+            exceptions.NoMatchingPlugin,
+            lambda: auth_token.AuthProtocol(new_app('200 OK', '')(), {}))
 
 
 def load_tests(loader, tests, pattern):

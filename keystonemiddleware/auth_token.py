@@ -709,7 +709,7 @@ class AuthProtocol(object):
         self._include_service_catalog = self._conf_get(
             'include_service_catalog')
 
-        self._identity_server_obj = None
+        self._identity_server = self._create_identity_server()
 
         # signing
         self._signing_dirname = self._conf_get('signing_dir')
@@ -813,11 +813,6 @@ class AuthProtocol(object):
                 self._LOG.info(
                     _LI('Invalid service token - rejecting request'))
                 return self._reject_request(env, start_response)
-
-        except exceptions.NoMatchingPlugin as e:
-            msg = _LC('Required auth plugin does not exist. %s') % e
-            self._LOG.critical(msg)
-            return self._do_503_error(env, start_response)
 
         except ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
@@ -970,6 +965,8 @@ class AuthProtocol(object):
             self._LOG.debug('Token validation failure.', exc_info=True)
             self._LOG.warn(_LW('Authorization failed for token'))
             raise InvalidToken(_('Token authorization failed'))
+        except ServiceError:
+            raise
         except Exception:
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_id:
@@ -1306,86 +1303,57 @@ class AuthProtocol(object):
             self._signing_ca_file_name,
             self._identity_server.fetch_ca_cert())
 
-    @property
-    def _identity_server(self):
-        if not self._identity_server_obj:
-            # NOTE(jamielennox): Loading Session here should be exactly the
-            # same as calling Session.load_from_conf_options(CONF, GROUP)
-            # however we can't do that because we have to use _conf_get to
-            # support the paste.ini options.
-            sess = session.Session.construct(dict(
-                cert=self._conf_get('certfile'),
-                key=self._conf_get('keyfile'),
-                cacert=self._conf_get('cafile'),
-                insecure=self._conf_get('insecure'),
-                timeout=self._conf_get('http_connect_timeout')
-            ))
+    def _create_identity_server(self):
+        # NOTE(jamielennox): Loading Session here should be exactly the
+        # same as calling Session.load_from_conf_options(CONF, GROUP)
+        # however we can't do that because we have to use _conf_get to
+        # support the paste.ini options.
+        sess = session.Session.construct(dict(
+            cert=self._conf_get('certfile'),
+            key=self._conf_get('keyfile'),
+            cacert=self._conf_get('cafile'),
+            insecure=self._conf_get('insecure'),
+            timeout=self._conf_get('http_connect_timeout')
+        ))
 
-            # NOTE(jamielennox): The original auth mechanism allowed deployers
-            # to configure authentication information via paste file. These
-            # are accessible via _conf_get, however this doesn't work with the
-            # plugin loading mechanisms. For using auth plugins we only support
-            # configuring via the CONF file.
-            auth_plugin = auth.load_from_conf_options(CONF, _AUTHTOKEN_GROUP)
+        # NOTE(jamielennox): The original auth mechanism allowed deployers
+        # to configure authentication information via paste file. These
+        # are accessible via _conf_get, however this doesn't work with the
+        # plugin loading mechanisms. For using auth plugins we only support
+        # configuring via the CONF file.
+        auth_plugin = auth.load_from_conf_options(CONF, _AUTHTOKEN_GROUP)
 
-            if not auth_plugin:
-                # NOTE(jamielennox): Loading AuthTokenPlugin here should be
-                # exactly the same as calling
-                # _AuthTokenPlugin.load_from_conf_options(CONF, GROUP) however
-                # we can't do that because we have to use _conf_get to support
-                # the paste.ini options.
-                auth_plugin = _AuthTokenPlugin.load_from_options(
-                    auth_host=self._conf_get('auth_host'),
-                    auth_port=int(self._conf_get('auth_port')),
-                    auth_protocol=self._conf_get('auth_protocol'),
-                    auth_admin_prefix=self._conf_get('auth_admin_prefix'),
-                    admin_user=self._conf_get('admin_user'),
-                    admin_password=self._conf_get('admin_password'),
-                    admin_tenant_name=self._conf_get('admin_tenant_name'),
-                    admin_token=self._conf_get('admin_token'),
-                    identity_uri=self._conf_get('identity_uri'),
-                    log=self._LOG)
+        if not auth_plugin:
+            # NOTE(jamielennox): Loading AuthTokenPlugin here should be
+            # exactly the same as calling
+            # _AuthTokenPlugin.load_from_conf_options(CONF, GROUP) however
+            # we can't do that because we have to use _conf_get to support
+            # the paste.ini options.
+            auth_plugin = _AuthTokenPlugin.load_from_options(
+                auth_host=self._conf_get('auth_host'),
+                auth_port=int(self._conf_get('auth_port')),
+                auth_protocol=self._conf_get('auth_protocol'),
+                auth_admin_prefix=self._conf_get('auth_admin_prefix'),
+                admin_user=self._conf_get('admin_user'),
+                admin_password=self._conf_get('admin_password'),
+                admin_tenant_name=self._conf_get('admin_tenant_name'),
+                admin_token=self._conf_get('admin_token'),
+                identity_uri=self._conf_get('identity_uri'),
+                log=self._LOG)
 
-            adap = adapter.Adapter(
-                sess,
-                auth=auth_plugin,
-                service_type='identity',
-                interface='admin',
-                connect_retries=self._conf_get('http_request_max_retries'))
+        adap = adapter.Adapter(
+            sess,
+            auth=auth_plugin,
+            service_type='identity',
+            interface='admin',
+            connect_retries=self._conf_get('http_request_max_retries'))
 
-            server_class = self._get_server_class(adap)
-            adap.version = server_class.AUTH_VERSION
-
-            self._identity_server_obj = server_class(
-                self._LOG,
-                adap,
-                include_service_catalog=self._include_service_catalog,
-                auth_uri=self._conf_get('auth_uri'))
-
-        return self._identity_server_obj
-
-    def _get_server_class(self, adap):
-        # FIXME(jamielennox): Checking string equality is bad, but consistent
-        # with the existing code. Fix this to better handle selecting v3.
-        auth_version = self._conf_get('auth_version')
-
-        if auth_version == 'v3.0':
-            return _V3IdentityServer
-        elif auth_version:
-            return _V2IdentityServer
-
-        for klass in _VERSIONS_TO_ATTEMPT:
-            if adap.get_endpoint(version=klass.AUTH_VERSION):
-                msg = _LI('Auth Token confirmed use of %s apis')
-                self._LOG.info(msg, auth_version)
-                return klass
-
-        versions = ['v%d.%d' % s.AUTH_VERSION for s in _VERSIONS_TO_ATTEMPT]
-        self._LOG.error(_LE('No attempted versions [%s] supported by server') %
-                        ', '.join(versions))
-
-        msg = _('No compatible apis supported by server')
-        raise ServiceError(msg)
+        return _IdentityServer(
+            self._LOG,
+            adap,
+            include_service_catalog=self._include_service_catalog,
+            auth_uri=self._conf_get('auth_uri'),
+            requested_auth_version=self._conf_get('auth_version'))
 
     def _token_cache_factory(self):
         security_strategy = self._conf_get('memcache_security_strategy')
@@ -1483,10 +1451,12 @@ class _IdentityServer(object):
 
     AUTH_VERSION = None
 
-    def __init__(self, log, adap, include_service_catalog=None, auth_uri=None):
+    def __init__(self, log, adap, include_service_catalog=None, auth_uri=None,
+                 requested_auth_version=None):
         self._LOG = log
         self._adapter = adap
         self._include_service_catalog = include_service_catalog
+        self._requested_auth_version = requested_auth_version
 
         if auth_uri is None:
             self._LOG.warning(
@@ -1506,6 +1476,43 @@ class _IdentityServer(object):
 
         self.auth_uri = auth_uri
 
+        # Built on-demand with self._request_strategy.
+        self._request_strategy_obj = None
+
+    @property
+    def _request_strategy(self):
+        if not self._request_strategy_obj:
+            strategy_class = self._get_strategy_class()
+            self._adapter.version = strategy_class.AUTH_VERSION
+
+            self._request_strategy_obj = strategy_class(
+                self._json_request,
+                self._adapter,
+                include_service_catalog=self._include_service_catalog)
+
+        return self._request_strategy_obj
+
+    def _get_strategy_class(self):
+        # FIXME(jamielennox): Checking string equality is bad, but consistent
+        # with the existing code. Fix this to better handle selecting v3.
+        if self._requested_auth_version == 'v3.0':
+            return _V3RequestStrategy
+        elif self._requested_auth_version:
+            return _V2RequestStrategy
+
+        for klass in _REQUEST_STRATEGIES:
+            if self._adapter.get_endpoint(version=klass.AUTH_VERSION):
+                msg = _LI('Auth Token confirmed use of %s apis')
+                self._LOG.info(msg, self._requested_auth_version)
+                return klass
+
+        versions = ['v%d.%d' % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
+        self._LOG.error(_LE('No attempted versions [%s] supported by server') %
+                        ', '.join(versions))
+
+        msg = _('No compatible apis supported by server')
+        raise ServiceError(msg)
+
     def verify_token(self, user_token, retry=True):
         """Authenticate user token with identity server.
 
@@ -1521,7 +1528,7 @@ class _IdentityServer(object):
         user_token = _safe_quote(user_token)
 
         try:
-            response, data = self._do_verify_token(user_token)
+            response, data = self._request_strategy.verify_token(user_token)
         except exceptions.NotFound as e:
             self._LOG.warn(_LW('Authorization failed for token'))
             self._LOG.warn(_LW('Identity response: %s') % e.response.text)
@@ -1588,7 +1595,7 @@ class _IdentityServer(object):
 
     def _fetch_cert_file(self, cert_type):
         try:
-            response = self._do_fetch_cert_file(cert_type)
+            response = self._request_strategy.fetch_cert_file(cert_type)
         except exceptions.HTTPError as e:
             raise exceptions.CertificateConfigError(e.details)
         if response.status_code != 200:
@@ -1596,25 +1603,41 @@ class _IdentityServer(object):
         return response.text
 
 
-class _V2IdentityServer(_IdentityServer):
+class _RequestStrategy(object):
+
+    AUTH_VERSION = None
+
+    def __init__(self, json_request, adap, include_service_catalog=None):
+        self._json_request = json_request
+        self._adapter = adap
+        self._include_service_catalog = include_service_catalog
+
+    def verify_token(self, user_token):
+        pass
+
+    def fetch_cert_file(self, cert_type):
+        pass
+
+
+class _V2RequestStrategy(_RequestStrategy):
 
     AUTH_VERSION = (2, 0)
 
-    def _do_verify_token(self, user_token):
+    def verify_token(self, user_token):
         return self._json_request('GET',
                                   '/tokens/%s' % user_token,
                                   authenticated=True)
 
-    def _do_fetch_cert_file(self, cert_type):
+    def fetch_cert_file(self, cert_type):
         return self._adapter.get('/certificates/%s' % cert_type,
                                  authenticated=False)
 
 
-class _V3IdentityServer(_IdentityServer):
+class _V3RequestStrategy(_RequestStrategy):
 
     AUTH_VERSION = (3, 0)
 
-    def _do_verify_token(self, user_token):
+    def verify_token(self, user_token):
         path = '/auth/tokens'
         if not self._include_service_catalog:
             path += '?nocatalog'
@@ -1624,12 +1647,16 @@ class _V3IdentityServer(_IdentityServer):
                                   authenticated=True,
                                   headers={'X-Subject-Token': user_token})
 
-    def _do_fetch_cert_file(self, cert_type):
+    def fetch_cert_file(self, cert_type):
         if cert_type == 'signing':
             cert_type = 'certificates'
 
         return self._adapter.get('/OS-SIMPLE-CERT/%s' % cert_type,
                                  authenticated=False)
+
+
+# NOTE(jamielennox): must be defined after request strategy classes
+_REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
 
 
 class _TokenCache(object):
@@ -1935,10 +1962,6 @@ def app_factory(global_conf, **local_conf):
     conf = global_conf.copy()
     conf.update(local_conf)
     return AuthProtocol(None, conf)
-
-
-# NOTE(jamielennox): must be defined after identity server classes
-_VERSIONS_TO_ATTEMPT = [_V3IdentityServer, _V2IdentityServer]
 
 
 if __name__ == '__main__':
