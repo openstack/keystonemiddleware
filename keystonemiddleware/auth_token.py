@@ -195,7 +195,7 @@ import six
 from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
-from keystonemiddleware.i18n import _, _LE, _LI, _LW
+from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 from keystonemiddleware.openstack.common import memorycache
 
 

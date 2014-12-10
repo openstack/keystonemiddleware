@@ -2407,6 +2407,26 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         return response
 
 
+class OtherTests(BaseAuthTokenMiddlewareTest):
+
+    def setUp(self):
+        super(OtherTests, self).setUp()
+        self.logger = self.useFixture(fixtures.FakeLogger())
+
+    def test_unknown_server_versions(self):
+        versions = fixture.DiscoveryList(v2=False, v3_id='v4', href=BASE_URI)
+        self.set_middleware()
+
+        self.requests.get(BASE_URI, json=versions, status_code=300)
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = uuid.uuid4().hex
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(503, self.response_status)
+
+        self.assertIn('versions [v3.0, v2.0]', self.logger.output)
+
+
 class DefaultAuthPluginTests(testtools.TestCase):
 
     def new_plugin(self, auth_host=None, auth_port=None, auth_protocol=None,
