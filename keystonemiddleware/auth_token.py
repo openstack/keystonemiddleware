@@ -383,16 +383,6 @@ class _BIND_MODE:
     KERBEROS = 'kerberos'
 
 
-def _will_expire_soon(expiry):
-    """Determines if expiration is about to occur.
-
-    :param expiry: a datetime of the expected expiration
-    :returns: boolean : true if expiration is within 30 seconds
-    """
-    soon = (timeutils.utcnow() + datetime.timedelta(seconds=30))
-    return expiry < soon
-
-
 def _token_is_v2(token_info):
     return ('access' in token_info)
 
