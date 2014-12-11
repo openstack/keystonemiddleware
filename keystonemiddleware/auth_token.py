@@ -353,6 +353,7 @@ _OPTS = [
 _AUTHTOKEN_GROUP = 'keystone_authtoken'
 CONF = cfg.CONF
 CONF.register_opts(_OPTS, group=_AUTHTOKEN_GROUP)
+auth.register_conf_options(CONF, _AUTHTOKEN_GROUP)
 
 _HEADER_TEMPLATE = {
     'X%s-Domain-Id': 'domain_id',
@@ -833,15 +834,23 @@ class AuthProtocol(object):
                     _LI('Invalid service token - rejecting request'))
                 return self._reject_request(env, start_response)
 
+        except exceptions.NoMatchingPlugin as e:
+            msg = _LC('Required auth plugin does not exist. %s') % e
+            self._LOG.critical(msg)
+            return self._do_503_error(env, start_response)
+
         except ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
-            resp = _MiniResp('Service unavailable', env)
-            start_response('503 Service Unavailable', resp.headers)
-            return resp.body
+            return self._do_503_error(env, start_response)
 
         self._LOG.debug("Received request from %s" % _fmt_msg(env))
 
         return self._call_app(env, start_response)
+
+    def _do_503_error(self, env, start_response):
+        resp = _MiniResp('Service unavailable', env)
+        start_response('503 Service Unavailable', resp.headers)
+        return resp.body
 
     def _init_auth_headers(self):
         """Initialize auth header list.
@@ -1332,21 +1341,30 @@ class AuthProtocol(object):
                 timeout=self._conf_get('http_connect_timeout')
             ))
 
-            # NOTE(jamielennox): Loading AuthTokenPlugin here should be exactly
-            # the same as calling _AuthTokenPlugin.load_from_conf_options(CONF,
-            # GROUP) however we can't do that because we have to use _conf_get
-            # to support the paste.ini options.
-            auth_plugin = _AuthTokenPlugin.load_from_options(
-                auth_host=self._conf_get('auth_host'),
-                auth_port=int(self._conf_get('auth_port')),
-                auth_protocol=self._conf_get('auth_protocol'),
-                auth_admin_prefix=self._conf_get('auth_admin_prefix'),
-                admin_user=self._conf_get('admin_user'),
-                admin_password=self._conf_get('admin_password'),
-                admin_tenant_name=self._conf_get('admin_tenant_name'),
-                admin_token=self._conf_get('admin_token'),
-                identity_uri=self._conf_get('identity_uri'),
-                log=self._LOG)
+            # NOTE(jamielennox): The original auth mechanism allowed deployers
+            # to configure authentication information via paste file. These
+            # are accessible via _conf_get, however this doesn't work with the
+            # plugin loading mechanisms. For using auth plugins we only support
+            # configuring via the CONF file.
+            auth_plugin = auth.load_from_conf_options(CONF, _AUTHTOKEN_GROUP)
+
+            if not auth_plugin:
+                # NOTE(jamielennox): Loading AuthTokenPlugin here should be
+                # exactly the same as calling
+                # _AuthTokenPlugin.load_from_conf_options(CONF, GROUP) however
+                # we can't do that because we have to use _conf_get to support
+                # the paste.ini options.
+                auth_plugin = _AuthTokenPlugin.load_from_options(
+                    auth_host=self._conf_get('auth_host'),
+                    auth_port=int(self._conf_get('auth_port')),
+                    auth_protocol=self._conf_get('auth_protocol'),
+                    auth_admin_prefix=self._conf_get('auth_admin_prefix'),
+                    admin_user=self._conf_get('admin_user'),
+                    admin_password=self._conf_get('admin_password'),
+                    admin_tenant_name=self._conf_get('admin_tenant_name'),
+                    admin_token=self._conf_get('admin_token'),
+                    identity_uri=self._conf_get('identity_uri'),
+                    log=self._LOG)
 
             adap = adapter.Adapter(
                 sess,
