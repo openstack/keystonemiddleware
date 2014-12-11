@@ -396,22 +396,19 @@ def _get_token_expiration(data):
     if not data:
         raise InvalidToken(_('Token authorization failed'))
     if _token_is_v2(data):
-        timestamp = data['access']['token']['expires']
+        return data['access']['token']['expires']
     elif _token_is_v3(data):
-        timestamp = data['token']['expires_at']
+        return data['token']['expires_at']
     else:
         raise InvalidToken(_('Token authorization failed'))
-    expires = timeutils.parse_isotime(timestamp)
+
+
+def _confirm_token_not_expired(expires):
+    expires = timeutils.parse_isotime(expires)
     expires = timeutils.normalize_time(expires)
-    return expires
-
-
-def _confirm_token_not_expired(data):
-    expires = _get_token_expiration(data)
     utcnow = timeutils.utcnow()
     if utcnow >= expires:
         raise InvalidToken(_('Token authorization failed'))
-    return timeutils.isotime(at=expires, subsecond=True)
 
 
 def _v3_to_v2_catalog(catalog):
@@ -961,7 +958,8 @@ class AuthProtocol(object):
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
-                    expires = _confirm_token_not_expired(data)
+                    expires = _get_token_expiration(data)
+                    _confirm_token_not_expired(expires)
                 else:
                     data = self._identity_server.verify_token(token, retry)
                     # No need to confirm token expiration here since
