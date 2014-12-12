@@ -687,24 +687,14 @@ class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
     authentication plugin when communicating via a session.
     """
 
-    def __init__(self, user_token, auth_ref):
-        # FIXME(jamielennox): set reauthenticate=False here when keystoneclient
-        # 0.11 is released to prevent trying to refetch authentication.
-        super(_UserAuthPlugin, self).__init__()
-        self._user_token = user_token
+    def __init__(self, auth_ref):
+        super(_UserAuthPlugin, self).__init__(reauthenticate=False)
         self._stored_auth_ref = auth_ref
 
-    def get_token(self, session, **kwargs):
-        # NOTE(jamielennox): This is needed partially because the AccessInfo
-        # factory is so bad that we don't always get the correct token data.
-        # Override and always return the token that was provided in the req.
-        return self._user_token
-
     def get_auth_ref(self, session, **kwargs):
-        # NOTE(jamielennox): We can't go out and fetch this auth_ref, we've
-        # got it already so always return it. In the event it tries to
-        # re-authenticate it will get the same old auth_ref which is not
-        # perfect, but the best we can do for now.
+        # NOTE(jamielennox): We will always use the auth_ref that was
+        # calculated by the middleware. reauthenticate=False in __init__ should
+        # ensure that this function is only called on the first access.
         return self._stored_auth_ref
 
 
@@ -802,10 +792,10 @@ class AuthProtocol(object):
                 self._LOG.debug('Authenticating user token')
                 user_token = self._get_user_token_from_header(env)
                 token_info = self._validate_token(user_token, env)
-                auth_ref = access.AccessInfo.factory(body=token_info)
+                auth_ref = access.AccessInfo.factory(body=token_info,
+                                                     auth_token=user_token)
                 env['keystone.token_info'] = token_info
-                env['keystone.token_auth'] = _UserAuthPlugin(
-                    user_token, auth_ref)
+                env['keystone.token_auth'] = _UserAuthPlugin(auth_ref)
                 user_headers = self._build_user_headers(auth_ref, token_info)
                 self._add_headers(env, user_headers)
             except InvalidToken:
