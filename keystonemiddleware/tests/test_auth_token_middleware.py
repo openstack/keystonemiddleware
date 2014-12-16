@@ -470,14 +470,6 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
 
-    def test_will_expire_soon(self):
-        tenseconds = datetime.datetime.utcnow() + datetime.timedelta(
-            seconds=10)
-        self.assertTrue(auth_token._will_expire_soon(tenseconds))
-        fortyseconds = datetime.datetime.utcnow() + datetime.timedelta(
-            seconds=40)
-        self.assertFalse(auth_token._will_expire_soon(fortyseconds))
-
     def test_token_is_v2_accepts_v2(self):
         token = self.examples.UUID_TOKEN_DEFAULT
         token_response = self.examples.TOKEN_RESPONSES[token]
