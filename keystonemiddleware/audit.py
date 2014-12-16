@@ -53,7 +53,13 @@ def _log_and_ignore_error(fn):
 
 
 class AuditMiddleware(object):
-    """Create an audit event based on request/response."""
+    """Create an audit event based on request/response.
+
+    The audit middleware takes in various configuration options such as the
+    ability to skip audit of certain requests. The full list of options can
+    be discovered here:
+    http://docs.openstack.org/developer/keystonemiddleware/audit.html
+    """
 
     @staticmethod
     def _get_aliases(proj):
