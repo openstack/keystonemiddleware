@@ -1449,8 +1449,6 @@ class _IdentityServer(object):
 
     """
 
-    AUTH_VERSION = None
-
     def __init__(self, log, adap, include_service_catalog=None, auth_uri=None,
                  requested_auth_version=None):
         self._LOG = log
