@@ -572,8 +572,8 @@ class _AuthTokenPlugin(auth.BaseAuthPlugin):
         implementation should use best effort with the information available to
         determine the endpoint.
 
-        :param Session session: The session object that the auth_plugin
-                                belongs to.
+        :param session: The session object that the auth_plugin belongs to.
+        :type session: keystoneclient.session.Session
         :param tuple version: The version number required for this endpoint.
         :param str interface: what visibility the endpoint should have.
 
@@ -864,8 +864,8 @@ class AuthProtocol(object):
         """Get token id from request.
 
         :param env: wsgi request environment
-        :return token id
-        :raises InvalidToken if no token is provided in request
+        :returns: token id
+        :raises InvalidToken: if no token is provided in request
 
         """
         token = self._get_header(env, 'X-Auth-Token',
@@ -883,7 +883,7 @@ class AuthProtocol(object):
         """Get service token id from request.
 
         :param env: wsgi request environment
-        :return service token id or None if not present
+        :returns: service token id or None if not present
 
         """
         return self._get_header(env, 'X-Service-Token')
@@ -898,7 +898,7 @@ class AuthProtocol(object):
 
         :param env: wsgi request environment
         :param start_response: wsgi response callback
-        :returns HTTPUnauthorized http response
+        :returns: HTTPUnauthorized http response
 
         """
         resp = _MiniResp('Authentication required',
@@ -910,10 +910,10 @@ class AuthProtocol(object):
         """Authenticate user token
 
         :param token: token id
+        :param env: wsgi environment
         :param retry: Ignored, as it is not longer relevant
-        :return uncrypted body of the token if the token is valid
-        :raise InvalidToken if token is rejected
-        :no longer raises ServiceError since it no longer makes RPC
+        :returns: uncrypted body of the token if the token is valid
+        :raises InvalidToken: if token is rejected
 
         """
         token_id = None
@@ -982,7 +982,7 @@ class AuthProtocol(object):
 
         :param token_info: token object returned by identity
                            server on authentication
-        :raise InvalidToken: when unable to parse token object
+        :raises InvalidToken: when unable to parse token object
 
         """
         roles = ','.join(auth_ref.role_names)
@@ -1019,7 +1019,7 @@ class AuthProtocol(object):
 
         :param token_info: token object returned by identity
                            server on authentication
-        :raise InvalidToken: when unable to parse token object
+        :raises InvalidToken: when unable to parse token object
 
         """
         auth_ref = access.AccessInfo.factory(body=token_info)
@@ -1042,7 +1042,7 @@ class AuthProtocol(object):
         """Convert header to wsgi env variable.
 
         :param key: http header name (ex. 'X-Auth-Token')
-        :return wsgi env variable name (ex. 'HTTP_X_AUTH_TOKEN')
+        :returns: wsgi env variable name (ex. 'HTTP_X_AUTH_TOKEN')
 
         """
         return 'HTTP_%s' % key.replace('-', '_').upper()
@@ -1518,9 +1518,9 @@ class _IdentityServer(object):
         :param retry: flag that forces the middleware to retry
                       user authentication when an indeterminate
                       response is received. Optional.
-        :return: token object received from identity server on success
-        :raise InvalidToken: if token is rejected
-        :raise ServiceError: if unable to authenticate token
+        :returns: token object received from identity server on success
+        :raises InvalidToken: if token is rejected
+        :raises ServiceError: if unable to authenticate token
 
         """
         user_token = _safe_quote(user_token)
@@ -1574,8 +1574,8 @@ class _IdentityServer(object):
         :param method: http method
         :param path: relative request url
         :param **kwargs: additional parameters used by session or endpoint
-        :return (http response object, response body parsed as json)
-        :raise ServerError when unable to communicate with identity server.
+        :returns: http response object, response body parsed as json
+        :raises ServerError: when unable to communicate with identity server.
 
         """
         headers = kwargs.setdefault('headers', {})
