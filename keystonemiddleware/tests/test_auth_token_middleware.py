@@ -157,6 +157,22 @@ class TimezoneFixture(fixtures.Fixture):
         time.tzset()
 
 
+class TimeFixture(fixtures.Fixture):
+
+    def __init__(self, new_time, normalize=True):
+        super(TimeFixture, self).__init__()
+        if isinstance(new_time, six.string_types):
+            new_time = timeutils.parse_isotime(new_time)
+        if normalize:
+            new_time = timeutils.normalize_time(new_time)
+        self.new_time = new_time
+
+    def setUp(self):
+        super(TimeFixture, self).setUp()
+        timeutils.set_time_override(self.new_time)
+        self.addCleanup(timeutils.clear_time_override)
+
+
 class FakeApp(object):
     """This represents a WSGI app protected by the auth_token middleware."""
 
@@ -1094,16 +1110,14 @@ class CommonAuthTokenMiddlewareTest(object):
         token = self.token_dict['signed_token_scoped']
         req.headers['X-Auth-Token'] = token
         req.environ.update(extra_environ)
-        utcnow = 'oslo.utils.timeutils.utcnow'
+
         now = datetime.datetime.utcnow()
-        with mock.patch(utcnow) as mock_utcnow:
-            mock_utcnow.return_value = now
-            self.middleware(req.environ, self.start_fake_response)
-            self.assertIsNotNone(self._get_cached_token(token))
-        expired = now + datetime.timedelta(seconds=token_cache_time)
-        with mock.patch(utcnow) as mock_utcnow:
-            mock_utcnow.return_value = expired
-            self.assertIsNone(self._get_cached_token(token))
+        self.useFixture(TimeFixture(now))
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertIsNotNone(self._get_cached_token(token))
+
+        timeutils.advance_time_seconds(token_cache_time)
+        self.assertIsNone(self._get_cached_token(token))
 
     def test_swift_memcache_set_expired(self):
         extra_conf = {'cache': 'swift.cache'}
@@ -1915,22 +1929,16 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
                           auth_token._confirm_token_not_expired,
                           data)
 
-    @mock.patch('oslo.utils.timeutils.utcnow')
-    def test_v2_token_with_timezone_offset_not_expired(self, mock_utcnow):
-        current_time = timeutils.parse_isotime('2000-01-01T00:01:10.000123Z')
-        current_time = timeutils.normalize_time(current_time)
-        mock_utcnow.return_value = current_time
+    def test_v2_token_with_timezone_offset_not_expired(self):
+        self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v2_token_fixture(
             expires='2000-01-01T00:05:10.000123-05:00')
         expected_expires = '2000-01-01T05:05:10.000123Z'
         actual_expires = auth_token._confirm_token_not_expired(data)
         self.assertEqual(actual_expires, expected_expires)
 
-    @mock.patch('oslo.utils.timeutils.utcnow')
-    def test_v2_token_with_timezone_offset_expired(self, mock_utcnow):
-        current_time = timeutils.parse_isotime('2000-01-01T00:01:10.000123Z')
-        current_time = timeutils.normalize_time(current_time)
-        mock_utcnow.return_value = current_time
+    def test_v2_token_with_timezone_offset_expired(self):
+        self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v2_token_fixture(
             expires='2000-01-01T00:05:10.000123+05:00')
         data['access']['token']['expires'] = '2000-01-01T00:05:10.000123+05:00'
@@ -1950,11 +1958,8 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
                           auth_token._confirm_token_not_expired,
                           data)
 
-    @mock.patch('oslo.utils.timeutils.utcnow')
-    def test_v3_token_with_timezone_offset_not_expired(self, mock_utcnow):
-        current_time = timeutils.parse_isotime('2000-01-01T00:01:10.000123Z')
-        current_time = timeutils.normalize_time(current_time)
-        mock_utcnow.return_value = current_time
+    def test_v3_token_with_timezone_offset_not_expired(self):
+        self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v3_token_fixture(
             expires='2000-01-01T00:05:10.000123-05:00')
         expected_expires = '2000-01-01T05:05:10.000123Z'
@@ -1962,11 +1967,8 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         actual_expires = auth_token._confirm_token_not_expired(data)
         self.assertEqual(actual_expires, expected_expires)
 
-    @mock.patch('oslo.utils.timeutils.utcnow')
-    def test_v3_token_with_timezone_offset_expired(self, mock_utcnow):
-        current_time = timeutils.parse_isotime('2000-01-01T00:01:10.000123Z')
-        current_time = timeutils.normalize_time(current_time)
-        mock_utcnow.return_value = current_time
+    def test_v3_token_with_timezone_offset_expired(self):
+        self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v3_token_fixture(
             expires='2000-01-01T00:05:10.000123+05:00')
         self.assertRaises(auth_token.InvalidToken,
