@@ -1220,8 +1220,8 @@ class AuthProtocol(object):
             current_mode = stat.S_IMODE(os.stat(self._signing_dirname).st_mode)
             if current_mode != stat.S_IRWXU:
                 self._LOG.warning(
-                    _LW('signing_dir mode is %s instead of %s'),
-                    oct(current_mode), oct(stat.S_IRWXU))
+                    _LW('signing_dir mode is %(mode)s instead of %(need)s'),
+                    {'mode': oct(current_mode), 'need': oct(stat.S_IRWXU)})
         else:
             os.makedirs(self._signing_dirname, stat.S_IRWXU)
 
