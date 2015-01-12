@@ -2135,9 +2135,21 @@ class CommonCompositeAuthTests(object):
         service_token = self.token_dict['uuid_service_token_default']
         req.headers['X-Auth-Token'] = token
         req.headers['X-Service-Token'] = service_token
+        fake_logger = fixtures.FakeLogger(level=logging.DEBUG)
+        self.middleware.logger = self.useFixture(fake_logger)
         body = self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(200, self.response_status)
         self.assertEqual([FakeApp.SUCCESS], body)
+        expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
+        expected_env.update(EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
+        self.assertIn('Received request from user: '
+                      'user_id %(HTTP_X_USER_ID)s, '
+                      'project_id %(HTTP_X_TENANT_ID)s, '
+                      'roles %(HTTP_X_ROLES)s '
+                      'service: user_id %(HTTP_X_SERVICE_USER_ID)s, '
+                      'project_id %(HTTP_X_SERVICE_PROJECT_ID)s, '
+                      'roles %(HTTP_X_SERVICE_ROLES)s' % expected_env,
+                      fake_logger.output)
 
     def test_composite_auth_invalid_service_token(self):
         req = webob.Request.blank('/')
