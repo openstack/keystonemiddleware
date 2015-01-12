@@ -767,10 +767,11 @@ class AuthProtocol(object):
         def _fmt_msg(env):
             msg = ('user: user_id %s, project_id %s, roles %s '
                    'service: user_id %s, project_id %s, roles %s' % (
-                   env.get('HTTP_X_USER_ID'), env.get('HTTP_X_PROJECT_ID'),
-                   env.get('HTTP_X_ROLES'), env.get('HTTP_X_SERVICE_USER_ID'),
-                   env.get('HTTP_X_SERVICE_PROJECT_ID'),
-                   env.get('HTTP_X_SERVICE_ROLES')))
+                       env.get('HTTP_X_USER_ID'), env.get('HTTP_X_PROJECT_ID'),
+                       env.get('HTTP_X_ROLES'),
+                       env.get('HTTP_X_SERVICE_USER_ID'),
+                       env.get('HTTP_X_SERVICE_PROJECT_ID'),
+                       env.get('HTTP_X_SERVICE_ROLES')))
             return msg
 
         self._token_cache.initialize(env)
