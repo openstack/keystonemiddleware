@@ -365,6 +365,18 @@ provide the ``cache`` option.
 * ``cache``: (optional) if defined, the environment key where the Swift
   MemcacheRing object is stored.
 
+Memcached dependencies
+======================
+
+In order to use `memcached`_ it is necessary to install the `python-memcached`_
+library. If data stored in `memcached`_ will need to be encrypted it is also
+necessary to install the `pycrypto`_ library. These libs are not listed in
+the requirements.txt file.
+
+.. _`memcached`: http://memcached.org/
+.. _`python-memcached`: https://pypi.python.org/pypi/python-memcached
+.. _`pycrypto`: https://pypi.python.org/pypi/pycrypto
+
 Memcached and System Time
 =========================
 
@@ -373,8 +385,6 @@ time of memcached hosts is set to UTC. Memcached uses the host's system
 time in determining whether a key has expired, whereas Keystone sets
 key expiry in UTC.  The timezone used by Keystone and memcached must
 match if key expiry is to behave as expected.
-
-.. _`memcached`: http://memcached.org/
 
 Memcache Protection
 ===================
