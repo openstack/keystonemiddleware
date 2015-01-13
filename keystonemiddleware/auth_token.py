@@ -376,7 +376,7 @@ _DEPRECATED_HEADER_TEMPLATE = {
 }
 
 
-class _BIND_MODE:
+class _BIND_MODE(object):
     DISABLED = 'disabled'
     PERMISSIVE = 'permissive'
     STRICT = 'strict'
