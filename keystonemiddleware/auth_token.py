@@ -1348,12 +1348,15 @@ class AuthProtocol(object):
             interface='admin',
             connect_retries=self._conf_get('http_request_max_retries'))
 
+        auth_version = self._conf_get('auth_version')
+        if auth_version is not None:
+            auth_version = discover.normalize_version_number(auth_version)
         return _IdentityServer(
             self._LOG,
             adap,
             include_service_catalog=self._include_service_catalog,
             auth_uri=self._conf_get('auth_uri'),
-            requested_auth_version=self._conf_get('auth_version'))
+            requested_auth_version=auth_version)
 
     def _token_cache_factory(self):
         security_strategy = self._conf_get('memcache_security_strategy')
@@ -1478,6 +1481,10 @@ class _IdentityServer(object):
         self._request_strategy_obj = None
 
     @property
+    def auth_version(self):
+        return self._request_strategy.AUTH_VERSION
+
+    @property
     def _request_strategy(self):
         if not self._request_strategy_obj:
             strategy_class = self._get_strategy_class()
@@ -1491,13 +1498,17 @@ class _IdentityServer(object):
         return self._request_strategy_obj
 
     def _get_strategy_class(self):
-        # FIXME(jamielennox): Checking string equality is bad, but consistent
-        # with the existing code. Fix this to better handle selecting v3.
-        if self._requested_auth_version == 'v3.0':
-            return _V3RequestStrategy
-        elif self._requested_auth_version:
+        if self._requested_auth_version:
+            # A specific version was requested.
+            if discover.version_match(_V3RequestStrategy.AUTH_VERSION,
+                                      self._requested_auth_version):
+                return _V3RequestStrategy
+
+            # The version isn't v3 so we don't know what to do. Just assume V2.
             return _V2RequestStrategy
 
+        # Specific version was not requested then we fall through to
+        # discovering available versions from the server
         for klass in _REQUEST_STRATEGIES:
             if self._adapter.get_endpoint(version=klass.AUTH_VERSION):
                 msg = _LI('Auth Token confirmed use of %s apis')
