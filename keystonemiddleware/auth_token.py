@@ -189,7 +189,7 @@ from keystoneclient import discover
 from keystoneclient import exceptions
 from keystoneclient import session
 from oslo.config import cfg
-from oslo.serialization import jsonutils
+from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
 from six.moves import urllib
