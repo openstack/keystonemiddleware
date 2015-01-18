@@ -24,7 +24,7 @@ import logging
 import os.path
 import sys
 
-from oslo.config import cfg
+from oslo_config import cfg
 try:
     import oslo.messaging
     messaging = True
