@@ -42,7 +42,7 @@ filter definition:
 ::
 
    [filter:audit]
-   paste.filter_factory = keystonemiddleware.audit:AuditMiddleware.factory
+   paste.filter_factory = keystonemiddleware.audit:filter_factory
    audit_map_file = /etc/nova/api_audit_map.conf
 
 The filter should be included after Keystone middleware's auth_token middleware
@@ -67,13 +67,13 @@ The location of the mapping file should be specified explicitly by adding the
 path to the 'audit_map_file' option of the filter definition::
 
    [filter:audit]
-   paste.filter_factory = keystonemiddleware.audit:AuditMiddleware.factory
+   paste.filter_factory = keystonemiddleware.audit:filter_factory
    audit_map_file = /etc/nova/api_audit_map.conf
 
 Additional options can be set::
 
    [filter:audit]
-   paste.filter_factory = pycadf.middleware.audit:AuditMiddleware.factory
+   paste.filter_factory = pycadf.middleware.audit:filter_factory
    audit_map_file = /etc/nova/api_audit_map.conf
    service_name = test # opt to set HTTP_X_SERVICE_NAME environ variable
    ignore_req_list = GET,POST # opt to ignore specific requests
