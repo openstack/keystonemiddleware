@@ -110,38 +110,40 @@ class AuditMiddleware(object):
     @_log_and_ignore_error
     def _process_request(self, request):
         correlation_id = pycadf.identifier.generate_uuid()
-        self._event = self._cadf_audit.create_event(request, correlation_id)
+        event = self._cadf_audit.create_event(request, correlation_id)
+        request.environ['cadf_event'] = event
 
         self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.request', self._event.as_dict())
+                         'audit.http.request', event.as_dict())
 
     @_log_and_ignore_error
     def _process_response(self, request, response=None):
-        if not hasattr(self, 'event'):
+        if 'cadf_event' not in request.environ:
             # NOTE(gordc): handle case where error processing request
             correlation_id = pycadf.identifier.generate_uuid()
-            self._event = self._cadf_audit.create_event(request,
-                                                        correlation_id)
+            event = self._cadf_audit.create_event(request, correlation_id)
+        else:
+            event = request.environ['cadf_event']
 
         if response:
             if response.status_int >= 200 and response.status_int < 400:
                 result = pycadf.cadftaxonomy.OUTCOME_SUCCESS
             else:
                 result = pycadf.cadftaxonomy.OUTCOME_FAILURE
-            self._event.reason = pycadf.reason.Reason(
+            event.reason = pycadf.reason.Reason(
                 reasonType='HTTP', reasonCode=str(response.status_int))
         else:
             result = pycadf.cadftaxonomy.UNKNOWN
 
-        self._event.outcome = result
-        self._event.add_reporterstep(
+        event.outcome = result
+        event.add_reporterstep(
             pycadf.reporterstep.Reporterstep(
                 role=pycadf.cadftype.REPORTER_ROLE_MODIFIER,
                 reporter=pycadf.resource.Resource(id='target'),
                 reporterTime=pycadf.timestamp.get_utc_now()))
 
         self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.response', self._event.as_dict())
+                         'audit.http.response', event.as_dict())
 
     @webob.dec.wsgify
     def __call__(self, req):

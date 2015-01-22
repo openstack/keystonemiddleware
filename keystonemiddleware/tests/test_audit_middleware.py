@@ -193,3 +193,38 @@ class AuditMiddlewareTest(testtools.TestCase):
                 call_args = log.call_args_list[1][0]
                 self.assertEqual('audit.http.response',
                                  call_args[1]['event_type'])
+
+    def test_cadf_event_scoped_to_request(self):
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self._get_environ_header('GET'))
+        with mock.patch('oslo.messaging.Notifier.info') as notify:
+            middleware(req)
+            self.assertIsNotNone(req.environ.get('cadf_event'))
+
+            # ensure exact same event is used between request and response
+            self.assertEqual(notify.call_args_list[0][0][2]['id'],
+                             notify.call_args_list[1][0][2]['id'])
+
+    def test_cadf_event_scoped_to_request_on_error(self):
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self._get_environ_header('GET'))
+        with mock.patch('oslo.messaging.Notifier.info',
+                        side_effect=Exception('error')) as notify:
+            middleware._process_request(req)
+            self.assertTrue(notify.called)
+        req2 = webob.Request.blank('/foo/bar',
+                                   environ=self._get_environ_header('GET'))
+        with mock.patch('oslo.messaging.Notifier.info') as notify:
+            middleware._process_response(req2, webob.response.Response())
+            self.assertTrue(notify.called)
+            # ensure event is not the same across requests
+            self.assertNotEqual(req.environ['cadf_event'].id,
+                                notify.call_args_list[0][0][2]['id'])
