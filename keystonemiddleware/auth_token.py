@@ -819,7 +819,7 @@ class AuthProtocol(object):
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
             return self._do_503_error(env, start_response)
 
-        self._LOG.debug("Received request from %s" % _fmt_msg(env))
+        self._LOG.debug("Received request from %s", _fmt_msg(env))
 
         return self._call_app(env, start_response)
 
@@ -1517,7 +1517,7 @@ class _IdentityServer(object):
                 return klass
 
         versions = ['v%d.%d' % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
-        self._LOG.error(_LE('No attempted versions [%s] supported by server') %
+        self._LOG.error(_LE('No attempted versions [%s] supported by server'),
                         ', '.join(versions))
 
         msg = _('No compatible apis supported by server')
@@ -1541,10 +1541,10 @@ class _IdentityServer(object):
             response, data = self._request_strategy.verify_token(user_token)
         except exceptions.NotFound as e:
             self._LOG.warn(_LW('Authorization failed for token'))
-            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
+            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
         except exceptions.Unauthorized as e:
             self._LOG.info(_LI('Identity server rejected authorization'))
-            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
+            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
             if retry:
                 self._LOG.info(_LI('Retrying validation'))
                 return self.verify_token(user_token, False)
@@ -1552,7 +1552,7 @@ class _IdentityServer(object):
             self._LOG.error(
                 _LE('Bad response code while validating token: %s'),
                 e.http_status)
-            self._LOG.warn(_LW('Identity response: %s') % e.response.text)
+            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
         else:
             if response.status_code == 200:
                 return data
