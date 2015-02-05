@@ -426,6 +426,22 @@ is set to `Confirmed`. If the middleware is delegating the auth decision to the
 service, then the status is set to `Invalid` if the auth request was
 unsuccessful.
 
+An ``X-Service-Token`` header may also be included with a request. If present,
+and the value of ``X-Auth-Token`` or ``X-Storage-Token`` has not caused the
+request to be denied, then the middleware will attempt to validate the value of
+``X-Service-Token``. If valid, the authentication middleware extends the HTTP
+request with the header ``X-Service-Identity-Status`` having value `Confirmed`
+and also extends the request with additional headers representing the identity
+authenticated and authorised by the token.
+
+If ``X-Service-Token`` is present and its value is invalid and the
+``delay_auth_decision`` option is True then the value of
+``X-Service-Identity-Status`` is set to `Invalid` and no further headers are
+added. Otherwise if ``X-Service-Token`` is present and its value is invalid
+then the middleware will respond to the HTTP request with HTTPUnauthorized,
+regardless of the validity of the ``X-Auth-Token`` or ``X-Storage-Token``
+values.
+
 Extended the request with additional User Information
 -----------------------------------------------------
 

@@ -62,6 +62,7 @@ EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
 }
 
 EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE = {
+    'HTTP_X_SERVICE_IDENTITY_STATUS': 'Confirmed',
     'HTTP_X_SERVICE_PROJECT_ID': 'service_project_id1',
     'HTTP_X_SERVICE_PROJECT_NAME': 'service_project_name1',
     'HTTP_X_SERVICE_USER_ID': 'service_user_id1',
@@ -195,7 +196,18 @@ class FakeApp(object):
 
         resp = webob.Response()
 
-        if env['HTTP_X_IDENTITY_STATUS'] == 'Invalid':
+        if (env.get('HTTP_X_IDENTITY_STATUS') == 'Invalid'
+                and env['HTTP_X_SERVICE_IDENTITY_STATUS'] == 'Invalid'):
+            # Simulate delayed auth forbidding access with arbitrary status
+            # code to differentiate checking this code path
+            resp.status = 419
+            resp.body = FakeApp.FORBIDDEN
+        elif env.get('HTTP_X_SERVICE_IDENTITY_STATUS') == 'Invalid':
+            # Simulate delayed auth forbidding access with arbitrary status
+            # code to differentiate checking this code path
+            resp.status = 420
+            resp.body = FakeApp.FORBIDDEN
+        elif env['HTTP_X_IDENTITY_STATUS'] == 'Invalid':
             # Simulate delayed auth forbidding access
             resp.status = 403
             resp.body = FakeApp.FORBIDDEN
@@ -2315,7 +2327,8 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Foo'] = 'Bar'
         body = self.middleware(req.environ, self.start_fake_response)
         for key in six.iterkeys(self.service_token_expected_env):
-            self.assertFalse(req.headers.get(key))
+            header_key = key[len('HTTP_'):].replace('_', '-')
+            self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
         self.assertEqual(418, self.response_status)
         self.assertEqual([FakeApp.FORBIDDEN], body)
@@ -2351,14 +2364,39 @@ class CommonCompositeAuthTests(object):
 
     def test_composite_auth_delay_invalid_service_token(self):
         self.middleware._delay_auth_decision = True
+        self.purge_service_token_expected_env()
+        expected_env = {
+            'HTTP_X_SERVICE_IDENTITY_STATUS': 'Invalid',
+        }
+        self.update_expected_env(expected_env)
+
         req = webob.Request.blank('/')
         token = self.token_dict['uuid_token_default']
         service_token = 'invalid-service-token'
         req.headers['X-Auth-Token'] = token
         req.headers['X-Service-Token'] = service_token
         body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
-        self.assertEqual([b'Authentication required'], body)
+        self.assertEqual(420, self.response_status)
+        self.assertEqual([FakeApp.FORBIDDEN], body)
+
+    def test_composite_auth_delay_invalid_service_and_user_tokens(self):
+        self.middleware._delay_auth_decision = True
+        self.purge_service_token_expected_env()
+        self.purge_token_expected_env()
+        expected_env = {
+            'HTTP_X_IDENTITY_STATUS': 'Invalid',
+            'HTTP_X_SERVICE_IDENTITY_STATUS': 'Invalid',
+        }
+        self.update_expected_env(expected_env)
+
+        req = webob.Request.blank('/')
+        token = 'invalid-user-token'
+        service_token = 'invalid-service-token'
+        req.headers['X-Auth-Token'] = token
+        req.headers['X-Service-Token'] = service_token
+        body = self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(419, self.response_status)
+        self.assertEqual([FakeApp.FORBIDDEN], body)
 
     def test_composite_auth_delay_no_service_token(self):
         self.middleware._delay_auth_decision = True
@@ -2376,7 +2414,8 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Foo'] = 'Bar'
         body = self.middleware(req.environ, self.start_fake_response)
         for key in six.iterkeys(self.service_token_expected_env):
-            self.assertFalse(req.headers.get(key))
+            header_key = key[len('HTTP_'):].replace('_', '-')
+            self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
         self.assertEqual(418, self.response_status)
         self.assertEqual([FakeApp.FORBIDDEN], body)

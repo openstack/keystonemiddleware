@@ -69,10 +69,15 @@ will be added. They take the same form as the standard headers but add
 '_SERVICE_'. These headers will not exist in the environment if no
 service token is present.
 
-HTTP_X_IDENTITY_STATUS
+HTTP_X_IDENTITY_STATUS, HTTP_X_SERVICE_IDENTITY_STATUS
     'Confirmed' or 'Invalid'
     The underlying service will only see a value of 'Invalid' if the Middleware
-    is configured to run in 'delay_auth_decision' mode
+    is configured to run in 'delay_auth_decision' mode. As with all such
+    headers, HTTP_X_SERVICE_IDENTITY_STATUS will only exist in the
+    environment if a service token is presented. This is different than
+    HTTP_X_IDENTITY_STATUS which is always set even if no user token is
+    presented. This allows the underlying service to determine if a
+    denial should use 401 or 403.
 
 HTTP_X_DOMAIN_ID, HTTP_X_SERVICE_DOMAIN_ID
     Identity service managed unique identifier, string. Only present if
@@ -938,11 +943,16 @@ class AuthProtocol(object):
                     serv_headers = self._build_service_headers(serv_token_info)
                     self._add_headers(env, serv_headers)
             except exc.InvalidToken:
-                # Delayed auth not currently supported for service tokens.
-                # (Can be implemented if a use case is found.)
-                self._LOG.info(
-                    _LI('Invalid service token - rejecting request'))
-                return self._reject_request(env, start_response)
+                if self._delay_auth_decision:
+                    self._LOG.info(
+                        _LI('Invalid service token - deferring reject '
+                            'downstream'))
+                    self._add_headers(env,
+                                      {'X-Service-Identity-Status': 'Invalid'})
+                else:
+                    self._LOG.info(
+                        _LI('Invalid service token - rejecting request'))
+                    return self._reject_request(env, start_response)
 
             env['keystone.token_auth'] = _UserAuthPlugin(user_auth_ref,
                                                          serv_auth_ref)
@@ -967,6 +977,7 @@ class AuthProtocol(object):
         """
         auth_headers = ['X-Service-Catalog',
                         'X-Identity-Status',
+                        'X-Service-Identity-Status',
                         'X-Roles',
                         'X-Service-Roles']
         for key in six.iterkeys(_HEADER_TEMPLATE):
@@ -1164,6 +1175,7 @@ class AuthProtocol(object):
 
         roles = ','.join(auth_ref.role_names)
         rval = {
+            'X-Service-Identity-Status': 'Confirmed',
             'X-Service-Roles': roles,
         }
 
