@@ -31,7 +31,7 @@ from keystoneclient import exceptions
 from keystoneclient import fixture
 from keystoneclient import session
 import mock
-from oslo.config import fixture as cfg_fixture
+from oslo_config import fixture as cfg_fixture
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 from requests_mock.contrib import fixture as rm_fixture

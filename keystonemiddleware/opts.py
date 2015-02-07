@@ -29,9 +29,9 @@ auth_token_opts = [
 
 
 def list_auth_token_opts():
-    """Return a list of oslo.config options available in auth_token middleware.
+    """Return a list of oslo_config options available in auth_token middleware.
 
-    The returned list includes all oslo.config options which may be registered
+    The returned list includes all oslo_config options which may be registered
     at runtime by the project.
 
     Each element of the list is a tuple. The first element is the name of the

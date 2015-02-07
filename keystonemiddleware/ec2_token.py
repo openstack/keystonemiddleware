@@ -20,7 +20,7 @@ Starting point for routing EC2 requests.
 
 """
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import requests
 import webob.dec
