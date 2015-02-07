@@ -18,7 +18,7 @@ import fixtures
 from keystoneclient.common import cms
 from keystoneclient import fixture
 from keystoneclient import utils
-from oslo.serialization import jsonutils
+from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
 import testresources

@@ -13,7 +13,7 @@
 # under the License.
 
 import mock
-from oslo.serialization import jsonutils
+from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture
 import six
