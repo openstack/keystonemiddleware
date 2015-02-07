@@ -33,7 +33,7 @@ from keystoneclient import session
 import mock
 from oslo.config import fixture as cfg_fixture
 from oslo.serialization import jsonutils
-from oslo.utils import timeutils
+from oslo_utils import timeutils
 from requests_mock.contrib import fixture as rm_fixture
 import six
 import testresources
