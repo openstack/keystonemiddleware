@@ -663,7 +663,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.set_middleware(conf=conf)
         expected_auth_uri = 'http://[2001:2013:1:f101::1]:1234'
         self.assertEqual(expected_auth_uri,
-                         self.middleware._identity_server.auth_uri)
+                         self.middleware._auth_uri)
 
     def assert_valid_request_200(self, token, with_catalog=True):
         req = webob.Request.blank('/')

@@ -711,6 +711,18 @@ class AuthProtocol(object):
 
         self._identity_server = self._create_identity_server()
 
+        self._auth_uri = self._conf_get('auth_uri')
+        if not self._auth_uri:
+            self._LOG.warning(
+                _LW('Configuring auth_uri to point to the public identity '
+                    'endpoint is required; clients may not be able to '
+                    'authenticate against an admin endpoint'))
+
+            # FIXME(dolph): drop support for this fallback behavior as
+            # documented in bug 1207517.
+
+            self._auth_uri = self._identity_server.auth_uri
+
         # signing
         self._signing_dirname = self._conf_get('signing_dir')
         if self._signing_dirname is None:
@@ -891,7 +903,7 @@ class AuthProtocol(object):
 
     @property
     def _reject_auth_headers(self):
-        header_val = 'Keystone uri=\'%s\'' % self._identity_server.auth_uri
+        header_val = 'Keystone uri=\'%s\'' % self._auth_uri
         return [('WWW-Authenticate', header_val)]
 
     def _reject_request(self, env, start_response):
@@ -1356,7 +1368,6 @@ class AuthProtocol(object):
             self._LOG,
             adap,
             include_service_catalog=self._include_service_catalog,
-            auth_uri=self._conf_get('auth_uri'),
             requested_auth_version=auth_version)
 
     def _token_cache_factory(self):
@@ -1453,33 +1464,27 @@ class _IdentityServer(object):
 
     """
 
-    def __init__(self, log, adap, include_service_catalog=None, auth_uri=None,
+    def __init__(self, log, adap, include_service_catalog=None,
                  requested_auth_version=None):
         self._LOG = log
         self._adapter = adap
         self._include_service_catalog = include_service_catalog
         self._requested_auth_version = requested_auth_version
 
-        if auth_uri is None:
-            self._LOG.warning(
-                _LW('Configuring auth_uri to point to the public identity '
-                    'endpoint is required; clients may not be able to '
-                    'authenticate against an admin endpoint'))
-
-            # FIXME(dolph): drop support for this fallback behavior as
-            # documented in bug 1207517.
-            auth_uri = adap.get_endpoint(interface=auth.AUTH_INTERFACE)
-
-            # NOTE(jamielennox): This weird stripping of the prefix hack is
-            # only relevant to the legacy case. We urljoin '/' to get just the
-            # base URI as this is the original behaviour.
-            if isinstance(adap.auth, _AuthTokenPlugin):
-                auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
-
-        self.auth_uri = auth_uri
-
         # Built on-demand with self._request_strategy.
         self._request_strategy_obj = None
+
+    @property
+    def auth_uri(self):
+        auth_uri = self._adapter.get_endpoint(interface=auth.AUTH_INTERFACE)
+
+        # NOTE(jamielennox): This weird stripping of the prefix hack is
+        # only relevant to the legacy case. We urljoin '/' to get just the
+        # base URI as this is the original behaviour.
+        if isinstance(self._adapter.auth, _AuthTokenPlugin):
+            auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
+
+        return auth_uri
 
     @property
     def auth_version(self):
