@@ -25,6 +25,7 @@ import os.path
 import sys
 
 from oslo_config import cfg
+from oslo_context import context
 try:
     import oslo.messaging
     messaging = True
@@ -35,7 +36,6 @@ from pycadf.audit import api
 import webob.dec
 
 from keystonemiddleware.i18n import _LE, _LI
-from keystonemiddleware.openstack.common import context
 
 
 _LOG = None
