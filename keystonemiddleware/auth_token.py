@@ -702,10 +702,7 @@ class AuthProtocol(object):
 
         # delay_auth_decision means we still allow unauthenticated requests
         # through and we let the downstream service make the final decision
-        self._delay_auth_decision = (self._conf_get('delay_auth_decision') in
-                                     (True, 'true', 't', '1', 'on', 'yes', 'y')
-                                     )
-
+        self._delay_auth_decision = self._conf_get('delay_auth_decision')
         self._include_service_catalog = self._conf_get(
             'include_service_catalog')
 
