@@ -498,6 +498,10 @@ class ConfigurationError(Exception):
     pass
 
 
+class RevocationListError(Exception):
+    pass
+
+
 class _MiniResp(object):
     def __init__(self, error_message, env, headers=[]):
         # The HEAD method is unique: it must never return a body, even if
@@ -940,19 +944,26 @@ class AuthProtocol(object):
                                 _('Token authorization failed'))
                 self._confirm_token_bind(data, env)
             else:
+                verified = None
                 # Token wasn't cached. In this case, the token needs to be
                 # checked that it's not expired, and also put in the cache.
-                if cms.is_pkiz(token):
-                    verified = self._verify_pkiz_token(token, token_ids)
-                    data = jsonutils.loads(verified)
-                    expires = _confirm_token_not_expired(data)
-                elif cms.is_asn1_token(token):
-                    verified = self._verify_signed_token(token, token_ids)
+                try:
+                    if cms.is_pkiz(token):
+                        verified = self._verify_pkiz_token(token, token_ids)
+                    elif cms.is_asn1_token(token):
+                        verified = self._verify_signed_token(token, token_ids)
+                except exceptions.CertificateConfigError:
+                    self._LOG.warn(_LW('Fetch certificate config failed, '
+                                       'fallback to online validation.'))
+                except RevocationListError:
+                    self._LOG.warn(_LW('Fetch revocation list failed, '
+                                       'fallback to online validation.'))
+
+                if verified is not None:
                     data = jsonutils.loads(verified)
                     expires = _confirm_token_not_expired(data)
                 else:
-                    data = self._identity_server.verify_token(token,
-                                                              retry)
+                    data = self._identity_server.verify_token(token, retry)
                     # No need to confirm token expiration here since
                     # verify_token fails for expired tokens.
                     expires = _get_token_expiration(data)
@@ -1563,12 +1574,14 @@ class _IdentityServer(object):
                 authenticated=True,
                 endpoint_filter={'version': (2, 0)})
         except exceptions.HTTPError as e:
-            raise ServiceError(_('Failed to fetch token revocation list: %d') %
-                               e.http_status)
+            raise RevocationListError(_('Failed to fetch token revocation '
+                                        'list: %d') % e.http_status)
         if response.status_code != 200:
-            raise ServiceError(_('Unable to fetch token revocation list.'))
+            raise RevocationListError(_('Unable to fetch token revocation '
+                                        'list.'))
         if 'signed' not in data:
-            raise ServiceError(_('Revocation list improperly formatted.'))
+            raise RevocationListError(_('Revocation list improperly '
+                                        'formatted.'))
         return data['signed']
 
     def fetch_signing_cert(self):

@@ -961,10 +961,10 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertEqual(self.middleware._token_revocation_list,
                          in_memory_list)
 
-    def test_invalid_revocation_list_raises_service_error(self):
+    def test_invalid_revocation_list_raises_error(self):
         self.requests.get('%s/v2.0/tokens/revoked' % BASE_URI, json={})
 
-        self.assertRaises(auth_token.ServiceError,
+        self.assertRaises(auth_token.RevocationListError,
                           self.middleware._fetch_revocation_list)
 
     def test_fetch_revocation_list(self):
@@ -1816,6 +1816,31 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                 self.assertIn('adminURL', endpoint)
                 self.assertIn('publicURL', endpoint)
                 self.assertIn('adminURL', endpoint)
+
+    def test_fallback_to_online_validation_with_signing_error(self):
+        self.requests.register_uri(
+            'GET',
+            '%s/v3/OS-SIMPLE-CERT/certificates' % BASE_URI,
+            status_code=404)
+        self.assert_valid_request_200(self.token_dict['signed_token_scoped'])
+        self.assert_valid_request_200(
+            self.token_dict['signed_token_scoped_pkiz'])
+
+    def test_fallback_to_online_validation_with_ca_error(self):
+        self.requests.register_uri('GET',
+                                   '%s/v3/OS-SIMPLE-CERT/ca' % BASE_URI,
+                                   status_code=404)
+        self.assert_valid_request_200(self.token_dict['signed_token_scoped'])
+        self.assert_valid_request_200(
+            self.token_dict['signed_token_scoped_pkiz'])
+
+    def test_fallback_to_online_validation_with_revocation_list_error(self):
+        self.requests.register_uri('GET',
+                                   '%s/v2.0/tokens/revoked' % BASE_URI,
+                                   status_code=404)
+        self.assert_valid_request_200(self.token_dict['signed_token_scoped'])
+        self.assert_valid_request_200(
+            self.token_dict['signed_token_scoped_pkiz'])
 
 
 class TokenEncodingTest(testtools.TestCase):
