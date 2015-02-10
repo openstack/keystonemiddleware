@@ -1373,6 +1373,10 @@ class CommonAuthTokenMiddlewareTest(object):
         url = token_auth.get_endpoint(session.Session(), **endpoint_filter)
         self.assertEqual('%s/v3' % BASE_URI, url)
 
+        self.assertTrue(token_auth.has_user_token)
+        self.assertFalse(token_auth.has_service_token)
+        self.assertIsNone(token_auth.service)
+
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                    testresources.ResourcedTestCase):
@@ -1629,6 +1633,35 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertFalse(req.headers.get('X-Service-Catalog'))
         self.assertEqual(body, [FakeApp.SUCCESS])
 
+    def test_user_plugin_token_properties(self):
+        req = webob.Request.blank('/')
+        req.headers['X-Service-Catalog'] = '[]'
+        token = self.examples.UUID_TOKEN_DEFAULT
+        token_data = self.examples.TOKEN_RESPONSES[token]
+        req.headers['X-Auth-Token'] = token
+        req.headers['X-Service-Token'] = token
+
+        body = self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(self.response_status, 200)
+        self.assertEqual([FakeApp.SUCCESS], body)
+
+        token_auth = req.environ['keystone.token_auth']
+
+        self.assertTrue(token_auth.has_user_token)
+        self.assertTrue(token_auth.has_service_token)
+
+        for t in [token_auth.user, token_auth.service]:
+            self.assertEqual(token_data.user_id, t.user_id)
+            self.assertEqual(token_data.tenant_id, t.project_id)
+
+            self.assertThat(t.role_names, matchers.HasLength(2))
+            self.assertIn('role1', t.role_names)
+            self.assertIn('role2', t.role_names)
+
+            self.assertIsNone(t.trust_id)
+            self.assertIsNone(t.user_domain_id)
+            self.assertIsNone(t.project_domain_id)
+
 
 class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                           testresources.ResourcedTestCase):
@@ -1841,6 +1874,35 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assert_valid_request_200(self.token_dict['signed_token_scoped'])
         self.assert_valid_request_200(
             self.token_dict['signed_token_scoped_pkiz'])
+
+    def test_user_plugin_token_properties(self):
+        req = webob.Request.blank('/')
+        req.headers['X-Service-Catalog'] = '[]'
+        token = self.examples.v3_UUID_TOKEN_DEFAULT
+        token_data = self.examples.TOKEN_RESPONSES[token]
+        req.headers['X-Auth-Token'] = token
+        req.headers['X-Service-Token'] = token
+
+        body = self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(self.response_status, 200)
+        self.assertEqual([FakeApp.SUCCESS], body)
+
+        token_auth = req.environ['keystone.token_auth']
+
+        self.assertTrue(token_auth.has_user_token)
+        self.assertTrue(token_auth.has_service_token)
+
+        for t in [token_auth.user, token_auth.service]:
+            self.assertEqual(token_data.user_id, t.user_id)
+            self.assertEqual(token_data.project_id, t.project_id)
+            self.assertEqual(token_data.user_domain_id, t.user_domain_id)
+            self.assertEqual(token_data.project_domain_id, t.project_domain_id)
+
+            self.assertThat(t.role_names, matchers.HasLength(2))
+            self.assertIn('role1', t.role_names)
+            self.assertIn('role2', t.role_names)
+
+            self.assertIsNone(t.trust_id)
 
 
 class TokenEncodingTest(testtools.TestCase):
@@ -2179,6 +2241,25 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
             middleware = auth_token.AuthProtocol(fake_app, conf)
             self.assertFalse(middleware._delay_auth_decision)
+
+    def test_auth_plugin_with_no_tokens(self):
+        body = uuid.uuid4().hex
+        auth_uri = 'http://local.test'
+        conf = {'delay_auth_decision': True, 'auth_uri': auth_uri}
+        self.fake_app = new_app('200 OK', body)
+        self.set_middleware(conf=conf)
+
+        req = webob.Request.blank('/')
+        resp = self.middleware(req.environ, self.start_fake_response)
+
+        self.assertEqual([six.b(body)], resp)
+
+        token_auth = req.environ['keystone.token_auth']
+
+        self.assertFalse(token_auth.has_user_token)
+        self.assertIsNone(token_auth.user)
+        self.assertFalse(token_auth.has_service_token)
+        self.assertIsNone(token_auth.service)
 
 
 class CommonCompositeAuthTests(object):
