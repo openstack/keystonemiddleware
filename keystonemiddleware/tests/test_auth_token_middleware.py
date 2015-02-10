@@ -1933,72 +1933,85 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def test_no_data(self):
         data = {}
         self.assertRaises(auth_token.InvalidToken,
-                          auth_token._confirm_token_not_expired,
+                          auth_token._get_token_expiration,
                           data)
 
     def test_bad_data(self):
         data = {'my_happy_token_dict': 'woo'}
         self.assertRaises(auth_token.InvalidToken,
-                          auth_token._confirm_token_not_expired,
+                          auth_token._get_token_expiration,
                           data)
+
+    def test_v2_token_get_token_expiration_return_isotime(self):
+        data = self.create_v2_token_fixture()
+        actual_expires = auth_token._get_token_expiration(data)
+        self.assertEqual(self.one_hour_earlier, actual_expires)
 
     def test_v2_token_not_expired(self):
         data = self.create_v2_token_fixture()
         expected_expires = data['access']['token']['expires']
-        actual_expires = auth_token._confirm_token_not_expired(data)
+        actual_expires = auth_token._get_token_expiration(data)
         self.assertEqual(actual_expires, expected_expires)
 
     def test_v2_token_expired(self):
         data = self.create_v2_token_fixture(expires=self.one_hour_ago)
+        expires = auth_token._get_token_expiration(data)
         self.assertRaises(auth_token.InvalidToken,
                           auth_token._confirm_token_not_expired,
-                          data)
+                          expires)
 
     def test_v2_token_with_timezone_offset_not_expired(self):
         self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v2_token_fixture(
-            expires='2000-01-01T00:05:10.000123-05:00')
+            expires='2000-01-01T05:05:10.000123Z')
         expected_expires = '2000-01-01T05:05:10.000123Z'
-        actual_expires = auth_token._confirm_token_not_expired(data)
+        actual_expires = auth_token._get_token_expiration(data)
         self.assertEqual(actual_expires, expected_expires)
 
     def test_v2_token_with_timezone_offset_expired(self):
         self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v2_token_fixture(
-            expires='2000-01-01T00:05:10.000123+05:00')
-        data['access']['token']['expires'] = '2000-01-01T00:05:10.000123+05:00'
+            expires='1999-12-31T19:05:10Z')
+        expires = auth_token._get_token_expiration(data)
         self.assertRaises(auth_token.InvalidToken,
                           auth_token._confirm_token_not_expired,
-                          data)
+                          expires)
+
+    def test_v3_token_get_token_expiration_return_isotime(self):
+        data = self.create_v3_token_fixture()
+        actual_expires = auth_token._get_token_expiration(data)
+        self.assertEqual(self.one_hour_earlier, actual_expires)
 
     def test_v3_token_not_expired(self):
         data = self.create_v3_token_fixture()
         expected_expires = data['token']['expires_at']
-        actual_expires = auth_token._confirm_token_not_expired(data)
+        actual_expires = auth_token._get_token_expiration(data)
         self.assertEqual(actual_expires, expected_expires)
 
     def test_v3_token_expired(self):
         data = self.create_v3_token_fixture(expires=self.one_hour_ago)
+        expires = auth_token._get_token_expiration(data)
         self.assertRaises(auth_token.InvalidToken,
                           auth_token._confirm_token_not_expired,
-                          data)
+                          expires)
 
     def test_v3_token_with_timezone_offset_not_expired(self):
         self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v3_token_fixture(
-            expires='2000-01-01T00:05:10.000123-05:00')
+            expires='2000-01-01T05:05:10.000123Z')
         expected_expires = '2000-01-01T05:05:10.000123Z'
 
-        actual_expires = auth_token._confirm_token_not_expired(data)
+        actual_expires = auth_token._get_token_expiration(data)
         self.assertEqual(actual_expires, expected_expires)
 
     def test_v3_token_with_timezone_offset_expired(self):
         self.useFixture(TimeFixture('2000-01-01T00:01:10.000123Z'))
         data = self.create_v3_token_fixture(
-            expires='2000-01-01T00:05:10.000123+05:00')
+            expires='1999-12-31T19:05:10Z')
+        expires = auth_token._get_token_expiration(data)
         self.assertRaises(auth_token.InvalidToken,
                           auth_token._confirm_token_not_expired,
-                          data)
+                          expires)
 
     def test_cached_token_not_expired(self):
         token = 'mytoken'
