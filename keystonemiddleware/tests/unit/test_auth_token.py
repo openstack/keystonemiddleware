@@ -14,9 +14,7 @@
 
 import datetime
 import json
-import os
 import shutil
-import stat
 import uuid
 
 import mock
@@ -24,13 +22,14 @@ import testtools
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _signing_dir
 
 
 class RevocationsTests(testtools.TestCase):
 
     def _check_with_list(self, revoked_list, token_ids):
         directory_name = '/tmp/%s' % uuid.uuid4().hex
-        signing_directory = auth_token._SigningDirectory(directory_name)
+        signing_directory = _signing_dir.SigningDirectory(directory_name)
         self.addCleanup(shutil.rmtree, directory_name)
 
         identity_server = mock.Mock()
@@ -64,121 +63,3 @@ class RevocationsTests(testtools.TestCase):
         token_ids = [token_id]
         self.assertRaises(exc.InvalidToken,
                           self._check_with_list, revoked_tokens, token_ids)
-
-
-class SigningDirectoryTests(testtools.TestCase):
-
-    def test_directory_created_when_doesnt_exist(self):
-        # When _SigningDirectory is created, if the directory doesn't exist
-        # it's created with the expected permissions.
-        tmp_name = uuid.uuid4().hex
-        parent_directory = '/tmp/%s' % tmp_name
-        directory_name = '/tmp/%s/%s' % ((tmp_name,) * 2)
-
-        # Directories are created by __init__.
-        auth_token._SigningDirectory(directory_name)
-        self.addCleanup(shutil.rmtree, parent_directory)
-
-        self.assertTrue(os.path.isdir(directory_name))
-        self.assertTrue(os.access(directory_name, os.W_OK))
-        self.assertEqual(os.stat(directory_name).st_uid, os.getuid())
-        self.assertEqual(stat.S_IMODE(os.stat(directory_name).st_mode),
-                         stat.S_IRWXU)
-
-    def test_use_directory_already_exists(self):
-        # The directory can already exist.
-
-        tmp_name = uuid.uuid4().hex
-        parent_directory = '/tmp/%s' % tmp_name
-        directory_name = '/tmp/%s/%s' % ((tmp_name,) * 2)
-        os.makedirs(directory_name, stat.S_IRWXU)
-        self.addCleanup(shutil.rmtree, parent_directory)
-
-        auth_token._SigningDirectory(directory_name)
-
-    def test_write_file(self):
-        # write_file when the file doesn't exist creates the file.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        contents = self.getUniqueString()
-        signing_directory.write_file(file_name, contents)
-
-        file_path = signing_directory.calc_path(file_name)
-        with open(file_path) as f:
-            actual_contents = f.read()
-
-        self.assertEqual(contents, actual_contents)
-
-    def test_replace_file(self):
-        # write_file when the file already exists overwrites it.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        orig_contents = self.getUniqueString()
-        signing_directory.write_file(file_name, orig_contents)
-
-        new_contents = self.getUniqueString()
-        signing_directory.write_file(file_name, new_contents)
-
-        file_path = signing_directory.calc_path(file_name)
-        with open(file_path) as f:
-            actual_contents = f.read()
-
-        self.assertEqual(new_contents, actual_contents)
-
-    def test_recreate_directory(self):
-        # If the original directory is lost, it gets recreated when a file
-        # is written.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        # Delete the directory.
-        shutil.rmtree(signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        contents = self.getUniqueString()
-        signing_directory.write_file(file_name, contents)
-
-        actual_contents = signing_directory.read_file(file_name)
-        self.assertEqual(contents, actual_contents)
-
-    def test_read_file(self):
-        # Can read a file that was written.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        contents = self.getUniqueString()
-        signing_directory.write_file(file_name, contents)
-
-        actual_contents = signing_directory.read_file(file_name)
-
-        self.assertEqual(contents, actual_contents)
-
-    def test_read_file_doesnt_exist(self):
-        # Show what happens when try to read a file that wasn't written.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        self.assertRaises(IOError, signing_directory.read_file, file_name)
-
-    def test_calc_path(self):
-        # calc_path returns the actual filename built from the directory name.
-
-        signing_directory = auth_token._SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
-        file_name = self.getUniqueString()
-        actual_path = signing_directory.calc_path(file_name)
-        expected_path = os.path.join(signing_directory._directory_name,
-                                     file_name)
-        self.assertEqual(expected_path, actual_path)
