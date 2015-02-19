@@ -44,6 +44,7 @@ import webob.dec
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests import client_fixtures
 from keystonemiddleware.tests import utils
@@ -904,7 +905,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # Get rid of the revoked file
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token._Revocations._FILE_NAME)
+            _revocations.Revocations._FILE_NAME)
         os.remove(revoked_path)
 
         self.assertEqual(self.middleware._revocations._fetched_time,
@@ -914,7 +915,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_get_token_revocation_list_fetched_time_returns_mtime(self):
         self.middleware._revocations._fetched_time = None
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token._Revocations._FILE_NAME)
+            _revocations.Revocations._FILE_NAME)
         mtime = os.path.getmtime(revoked_path)
         fetched_time = datetime.datetime.utcfromtimestamp(mtime)
         self.assertEqual(fetched_time,
@@ -942,7 +943,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # Get rid of the revoked file
         revoked_path = self.middleware._signing_directory.calc_path(
-            auth_token._Revocations._FILE_NAME)
+            _revocations.Revocations._FILE_NAME)
         os.remove(revoked_path)
 
         self.assertEqual(self.middleware._revocations._list,

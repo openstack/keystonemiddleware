@@ -174,7 +174,6 @@ keystone.token_auth
 import contextlib
 import datetime
 import logging
-import os
 
 from keystoneclient import access
 from keystoneclient import adapter
@@ -194,6 +193,7 @@ from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 from keystonemiddleware.openstack.common import memorycache
@@ -851,11 +851,11 @@ class AuthProtocol(object):
 
         revocation_cache_timeout = datetime.timedelta(
             seconds=self._conf_get('revocation_cache_time'))
-        self._revocations = _Revocations(revocation_cache_timeout,
-                                         self._signing_directory,
-                                         self._identity_server,
-                                         self._cms_verify,
-                                         self._LOG)
+        self._revocations = _revocations.Revocations(revocation_cache_timeout,
+                                                     self._signing_directory,
+                                                     self._identity_server,
+                                                     self._cms_verify,
+                                                     self._LOG)
 
         self._check_revocations_for_cached = self._conf_get(
             'check_revocations_for_cached')
@@ -1694,89 +1694,6 @@ class _V3RequestStrategy(_RequestStrategy):
 
 # NOTE(jamielennox): must be defined after request strategy classes
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
-
-
-class _Revocations(object):
-    _FILE_NAME = 'revoked.pem'
-
-    def __init__(self, timeout, signing_directory, identity_server,
-                 cms_verify, log=_LOG):
-        self._cache_timeout = timeout
-        self._signing_directory = signing_directory
-        self._identity_server = identity_server
-        self._cms_verify = cms_verify
-        self._log = log
-
-        self._fetched_time_prop = None
-        self._list_prop = None
-
-    @property
-    def _fetched_time(self):
-        if not self._fetched_time_prop:
-            # If the fetched list has been written to disk, use its
-            # modification time.
-            file_path = self._signing_directory.calc_path(self._FILE_NAME)
-            if os.path.exists(file_path):
-                mtime = os.path.getmtime(file_path)
-                fetched_time = datetime.datetime.utcfromtimestamp(mtime)
-            # Otherwise the list will need to be fetched.
-            else:
-                fetched_time = datetime.datetime.min
-            self._fetched_time_prop = fetched_time
-        return self._fetched_time_prop
-
-    @_fetched_time.setter
-    def _fetched_time(self, value):
-        self._fetched_time_prop = value
-
-    def _fetch(self):
-        revocation_list_data = self._identity_server.fetch_revocation_list()
-        return self._cms_verify(revocation_list_data)
-
-    @property
-    def _list(self):
-        timeout = self._fetched_time + self._cache_timeout
-        list_is_current = timeutils.utcnow() < timeout
-
-        if list_is_current:
-            # Load the list from disk if required
-            if not self._list_prop:
-                self._list_prop = jsonutils.loads(
-                    self._signing_directory.read_file(self._FILE_NAME))
-        else:
-            self._list = self._fetch()
-        return self._list_prop
-
-    @_list.setter
-    def _list(self, value):
-        """Save a revocation list to memory and to disk.
-
-        :param value: A json-encoded revocation list
-
-        """
-        self._list_prop = jsonutils.loads(value)
-        self._fetched_time = timeutils.utcnow()
-        self._signing_directory.write_file(self._FILE_NAME, value)
-
-    def _is_revoked(self, token_id):
-        """Indicate whether the token_id appears in the revocation list."""
-        revoked_tokens = self._list.get('revoked', None)
-        if not revoked_tokens:
-            return False
-
-        revoked_ids = (x['id'] for x in revoked_tokens)
-        return token_id in revoked_ids
-
-    def _any_revoked(self, token_ids):
-        for token_id in token_ids:
-            if self._is_revoked(token_id):
-                return True
-        return False
-
-    def check(self, token_ids):
-        if self._any_revoked(token_ids):
-            self._log.debug('Token is marked as having been revoked')
-            raise exc.InvalidToken(_('Token has been revoked'))
 
 
 class _TokenCache(object):

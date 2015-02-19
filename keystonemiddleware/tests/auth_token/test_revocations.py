@@ -20,8 +20,8 @@ import uuid
 import mock
 import testtools
 
-from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 
 
@@ -39,7 +39,7 @@ class RevocationsTests(testtools.TestCase):
         }
         cms_verify = mock.Mock(return_value=json.dumps(verify_result_obj))
 
-        revocations = auth_token._Revocations(
+        revocations = _revocations.Revocations(
             timeout=datetime.timedelta(1), signing_directory=signing_directory,
             identity_server=identity_server, cms_verify=cms_verify)
 
