@@ -355,6 +355,8 @@ CONF = cfg.CONF
 CONF.register_opts(_OPTS, group=_AUTHTOKEN_GROUP)
 auth.register_conf_options(CONF, _AUTHTOKEN_GROUP)
 
+_LOG = logging.getLogger(__name__)
+
 _HEADER_TEMPLATE = {
     'X%s-Domain-Id': 'domain_id',
     'X%s-Domain-Name': 'domain_name',
@@ -826,6 +828,10 @@ class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
 class AuthProtocol(object):
     """Middleware that handles authenticating client calls."""
 
+    _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
+    _SIGNING_CA_FILE_NAME = 'cacert.pem'
+    _REVOKED_FILE_NAME = 'revoked.pem'
+
     def __init__(self, app, conf):
         self._LOG = logging.getLogger(conf.get('log_name', __name__))
         self._LOG.info(_LI('Starting Keystone auth_token middleware'))
@@ -855,22 +861,8 @@ class AuthProtocol(object):
 
             self._auth_uri = self._identity_server.auth_uri
 
-        # signing
-        self._signing_dirname = self._conf_get('signing_dir')
-        if self._signing_dirname is None:
-            self._signing_dirname = tempfile.mkdtemp(
-                prefix='keystone-signing-')
-        self._LOG.info(
-            _LI('Using %s as cache directory for signing certificate'),
-            self._signing_dirname)
-        self._verify_signing_dir()
-
-        val = '%s/signing_cert.pem' % self._signing_dirname
-        self._signing_cert_file_name = val
-        val = '%s/cacert.pem' % self._signing_dirname
-        self._signing_ca_file_name = val
-        val = '%s/revoked.pem' % self._signing_dirname
-        self._revoked_file_name = val
+        self._signing_directory = _SigningDirectory(
+            directory_name=self._conf_get('signing_dir'), log=self._LOG)
 
         self._token_cache = self._token_cache_factory()
         self._token_revocation_list_prop = None
@@ -1327,8 +1319,12 @@ class AuthProtocol(object):
         """
         def verify():
             try:
-                return cms.cms_verify(data, self._signing_cert_file_name,
-                                      self._signing_ca_file_name,
+                signing_cert_path = self._signing_directory.calc_path(
+                    self._SIGNING_CERT_FILE_NAME)
+                signing_ca_path = self._signing_directory.calc_path(
+                    self._SIGNING_CA_FILE_NAME)
+                return cms.cms_verify(data, signing_cert_path,
+                                      signing_ca_path,
                                       inform=inform).decode('utf-8')
             except cms.subprocess.CalledProcessError as err:
                 self._LOG.warning(_LW('Verify error: %s'), err)
@@ -1370,30 +1366,15 @@ class AuthProtocol(object):
         except TypeError:
             raise InvalidToken(signed_text)
 
-    def _verify_signing_dir(self):
-        if os.path.exists(self._signing_dirname):
-            if not os.access(self._signing_dirname, os.W_OK):
-                raise ConfigurationError(
-                    _('unable to access signing_dir %s') %
-                    self._signing_dirname)
-            uid = os.getuid()
-            if os.stat(self._signing_dirname).st_uid != uid:
-                self._LOG.warning(_LW('signing_dir is not owned by %s'), uid)
-            current_mode = stat.S_IMODE(os.stat(self._signing_dirname).st_mode)
-            if current_mode != stat.S_IRWXU:
-                self._LOG.warning(
-                    _LW('signing_dir mode is %(mode)s instead of %(need)s'),
-                    {'mode': oct(current_mode), 'need': oct(stat.S_IRWXU)})
-        else:
-            os.makedirs(self._signing_dirname, stat.S_IRWXU)
-
     @property
     def _token_revocation_list_fetched_time(self):
         if not self._token_revocation_list_fetched_time_prop:
             # If the fetched list has been written to disk, use its
             # modification time.
-            if os.path.exists(self._revoked_file_name):
-                mtime = os.path.getmtime(self._revoked_file_name)
+            revoked_file_name = self._signing_directory.calc_path(
+                self._REVOKED_FILE_NAME)
+            if os.path.exists(revoked_file_name):
+                mtime = os.path.getmtime(revoked_file_name)
                 fetched_time = datetime.datetime.utcfromtimestamp(mtime)
             # Otherwise the list will need to be fetched.
             else:
@@ -1414,31 +1395,11 @@ class AuthProtocol(object):
         if list_is_current:
             # Load the list from disk if required
             if not self._token_revocation_list_prop:
-                open_kwargs = {'encoding': 'utf-8'} if six.PY3 else {}
-                with open(self._revoked_file_name, 'r', **open_kwargs) as f:
-                    self._token_revocation_list_prop = jsonutils.loads(
-                        f.read())
+                self._token_revocation_list_prop = jsonutils.loads(
+                    self._signing_directory.read_file(self._REVOKED_FILE_NAME))
         else:
             self._token_revocation_list = self._fetch_revocation_list()
         return self._token_revocation_list_prop
-
-    def _atomic_write_to_signing_dir(self, file_name, value):
-        # In Python2, encoding is slow so the following check avoids it if it
-        # is not absolutely necessary.
-        if isinstance(value, six.text_type):
-            value = value.encode('utf-8')
-
-        def _atomic_write(destination, data):
-            with tempfile.NamedTemporaryFile(dir=self._signing_dirname,
-                                             delete=False) as f:
-                f.write(data)
-            os.rename(f.name, destination)
-
-        try:
-            _atomic_write(file_name, value)
-        except (OSError, IOError):
-            self._verify_signing_dir()
-            _atomic_write(file_name, value)
 
     @_token_revocation_list.setter
     def _token_revocation_list(self, value):
@@ -1449,20 +1410,20 @@ class AuthProtocol(object):
         """
         self._token_revocation_list_prop = jsonutils.loads(value)
         self._token_revocation_list_fetched_time = timeutils.utcnow()
-        self._atomic_write_to_signing_dir(self._revoked_file_name, value)
+        self._signing_directory.write_file(self._REVOKED_FILE_NAME, value)
 
     def _fetch_revocation_list(self):
         revocation_list_data = self._identity_server.fetch_revocation_list()
         return self._cms_verify(revocation_list_data)
 
     def _fetch_signing_cert(self):
-        self._atomic_write_to_signing_dir(
-            self._signing_cert_file_name,
+        self._signing_directory.write_file(
+            self._SIGNING_CERT_FILE_NAME,
             self._identity_server.fetch_signing_cert())
 
     def _fetch_ca_cert(self):
-        self._atomic_write_to_signing_dir(
-            self._signing_ca_file_name,
+        self._signing_directory.write_file(
+            self._SIGNING_CA_FILE_NAME,
             self._identity_server.fetch_ca_cert())
 
     def _create_identity_server(self):
@@ -1823,6 +1784,65 @@ class _V3RequestStrategy(_RequestStrategy):
 
 # NOTE(jamielennox): must be defined after request strategy classes
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
+
+
+class _SigningDirectory(object):
+    def __init__(self, directory_name=None, log=None):
+        self._log = log or _LOG
+
+        if directory_name is None:
+            directory_name = tempfile.mkdtemp(prefix='keystone-signing-')
+        self._log.info(
+            _LI('Using %s as cache directory for signing certificate'),
+            directory_name)
+        self._directory_name = directory_name
+
+        self._verify_signing_dir()
+
+    def write_file(self, file_name, new_contents):
+
+        # In Python2, encoding is slow so the following check avoids it if it
+        # is not absolutely necessary.
+        if isinstance(new_contents, six.text_type):
+            new_contents = new_contents.encode('utf-8')
+
+        def _atomic_write():
+            with tempfile.NamedTemporaryFile(dir=self._directory_name,
+                                             delete=False) as f:
+                f.write(new_contents)
+            os.rename(f.name, self.calc_path(file_name))
+
+        try:
+            _atomic_write()
+        except (OSError, IOError):
+            self._verify_signing_dir()
+            _atomic_write()
+
+    def read_file(self, file_name):
+        path = self.calc_path(file_name)
+        open_kwargs = {'encoding': 'utf-8'} if six.PY3 else {}
+        with open(path, 'r', **open_kwargs) as f:
+            return f.read()
+
+    def calc_path(self, file_name):
+        return os.path.join(self._directory_name, file_name)
+
+    def _verify_signing_dir(self):
+        if os.path.isdir(self._directory_name):
+            if not os.access(self._directory_name, os.W_OK):
+                raise ConfigurationError(
+                    _('unable to access signing_dir %s') %
+                    self._directory_name)
+            uid = os.getuid()
+            if os.stat(self._directory_name).st_uid != uid:
+                self._log.warning(_LW('signing_dir is not owned by %s'), uid)
+            current_mode = stat.S_IMODE(os.stat(self._directory_name).st_mode)
+            if current_mode != stat.S_IRWXU:
+                self._log.warning(
+                    _LW('signing_dir mode is %(mode)s instead of %(need)s'),
+                    {'mode': oct(current_mode), 'need': oct(stat.S_IRWXU)})
+        else:
+            os.makedirs(self._directory_name, stat.S_IRWXU)
 
 
 class _TokenCache(object):
