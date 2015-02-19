@@ -177,7 +177,6 @@ import logging
 from keystoneclient import access
 from keystoneclient import adapter
 from keystoneclient import auth
-from keystoneclient.auth.identity import base as base_identity
 from keystoneclient.common import cms
 from keystoneclient import discover
 from keystoneclient import exceptions
@@ -194,6 +193,7 @@ from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _identity
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
+from keystonemiddleware.auth_token import _user_plugin
 from keystonemiddleware.auth_token import _utils
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 
@@ -477,162 +477,6 @@ def _conf_values_type_convert(conf):
     return opts
 
 
-class _TokenData(object):
-    """An abstraction to show auth_token consumers some of the token contents.
-
-    This is a simplified and cleaned up keystoneclient.access.AccessInfo object
-    with which services relying on auth_token middleware can find details of
-    the current token.
-    """
-
-    def __init__(self, auth_ref):
-        self._stored_auth_ref = auth_ref
-
-    @property
-    def _is_v2(self):
-        return self._stored_auth_ref.version == 'v2.0'
-
-    @property
-    def auth_token(self):
-        """The token data used to authenticate requests.
-
-        :returns: token data.
-        :rtype: str
-        """
-        return self._stored_auth_ref.auth_token
-
-    @property
-    def user_id(self):
-        """The user id associated with the authentication request.
-
-        :rtype: str
-        """
-        return self._stored_auth_ref.user_id
-
-    @property
-    def user_domain_id(self):
-        """Returns the domain id of the user associated with the authentication
-        request.
-
-        :returns: str
-        """
-        # NOTE(jamielennox): v2 AccessInfo returns 'default' for domain_id
-        # because it can't know that value. We want to return None instead.
-        if self._is_v2:
-            return None
-
-        return self._stored_auth_ref.user_domain_id
-
-    @property
-    def project_id(self):
-        """The project ID associated with the authentication.
-
-        :rtype: str
-        """
-        return self._stored_auth_ref.project_id
-
-    @property
-    def project_domain_id(self):
-        """The domain id of the project associated with the authentication
-        request.
-
-        :rtype: str
-        """
-        # NOTE(jamielennox): v2 AccessInfo returns 'default' for domain_id
-        # because it can't know that value. We want to return None instead.
-        if self._is_v2:
-            return None
-
-        return self._stored_auth_ref.project_domain_id
-
-    @property
-    def trust_id(self):
-        """Returns the trust id associated with the authentication request..
-
-        :rtype: str
-        """
-        return self._stored_auth_ref.trust_id
-
-    @property
-    def role_ids(self):
-        """Role ids of the user associated with the authentication request.
-
-        :rtype: set(str)
-        """
-        return frozenset(self._stored_auth_ref.role_ids or [])
-
-    @property
-    def role_names(self):
-        """Role names of the user associated with the authentication request.
-
-        :rtype: set(str)
-        """
-        return frozenset(self._stored_auth_ref.role_names or [])
-
-
-class _UserAuthPlugin(base_identity.BaseIdentityPlugin):
-    """The incoming authentication credentials.
-
-    A plugin that represents the incoming user credentials. This can be
-    consumed by applications.
-
-    This object is not expected to be constructed directly by users. It is
-    created and passed by auth_token middleware and then can be used as the
-    authentication plugin when communicating via a session.
-    """
-
-    def __init__(self, user_auth_ref, serv_auth_ref):
-        super(_UserAuthPlugin, self).__init__(reauthenticate=False)
-        self._user_auth_ref = user_auth_ref
-        self._serv_auth_ref = serv_auth_ref
-        self._user_data = None
-        self._serv_data = None
-
-    @property
-    def has_user_token(self):
-        """Did this authentication request contained a user auth token."""
-        return self._user_auth_ref is not None
-
-    @property
-    def user(self):
-        """Authentication information about the user token.
-
-        Will return None if a user token was not passed with this request.
-        """
-        if not self.has_user_token:
-            return None
-
-        if not self._user_data:
-            self._user_data = _TokenData(self._user_auth_ref)
-
-        return self._user_data
-
-    @property
-    def has_service_token(self):
-        """Did this authentication request contained a service token."""
-        return self._serv_auth_ref is not None
-
-    @property
-    def service(self):
-        """Authentication information about the service token.
-
-        Will return None if a user token was not passed with this request.
-        """
-        if not self.has_service_token:
-            return None
-
-        if not self._serv_data:
-            self._serv_data = _TokenData(self._serv_auth_ref)
-
-        return self._serv_data
-
-    def get_auth_ref(self, session, **kwargs):
-        # NOTE(jamielennox): We will always use the auth_ref that was
-        # calculated by the middleware. reauthenticate=False in __init__ should
-        # ensure that this function is only called on the first access.
-        return self._user_auth_ref
-
-
 class AuthProtocol(object):
     """Middleware that handles authenticating client calls."""
 
@@ -768,8 +612,8 @@ class AuthProtocol(object):
                     _LI('Invalid service token - rejecting request'))
                 return self._reject_request(env, start_response)
 
-            env['keystone.token_auth'] = _UserAuthPlugin(user_auth_ref,
-                                                         serv_auth_ref)
+            env['keystone.token_auth'] = _user_plugin.UserAuthPlugin(
+                user_auth_ref, serv_auth_ref)
 
         except exc.ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
