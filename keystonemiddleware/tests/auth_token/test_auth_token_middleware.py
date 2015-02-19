@@ -1908,27 +1908,6 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             self.assertIsNone(t.trust_id)
 
 
-class TokenEncodingTest(testtools.TestCase):
-    def test_unquoted_token(self):
-        self.assertEqual('foo%20bar', auth_token._safe_quote('foo bar'))
-
-    def test_quoted_token(self):
-        self.assertEqual('foo%20bar', auth_token._safe_quote('foo%20bar'))
-
-    def test_messages_encoded_as_bytes(self):
-        """Test that string are passed around as bytes for PY3."""
-        msg = "This is an error"
-
-        class FakeResp(auth_token._MiniResp):
-            def __init__(self, error, env):
-                super(FakeResp, self).__init__(error, env)
-
-        fake_resp = FakeResp(msg, dict(REQUEST_METHOD='GET'))
-        # On Py2 .encode() don't do much but that's better than to
-        # have a ifdef with six.PY3
-        self.assertEqual(msg.encode(), fake_resp.body[0])
-
-
 class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def setUp(self):
         super(TokenExpirationTest, self).setUp()
