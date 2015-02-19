@@ -43,6 +43,7 @@ import webob
 import webob.dec
 
 from keystonemiddleware import auth_token
+from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests import client_fixtures
 from keystonemiddleware.tests import utils
@@ -562,35 +563,35 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt'
         }
-        self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
+        self.assertRaises(exc.ConfigurationError, self.set_middleware,
                           conf=conf)
         # test invalue memcache_security_strategy
         conf = {
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'whatever'
         }
-        self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
+        self.assertRaises(exc.ConfigurationError, self.set_middleware,
                           conf=conf)
         # test missing memcache_secret_key
         conf = {
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mac'
         }
-        self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
+        self.assertRaises(exc.ConfigurationError, self.set_middleware,
                           conf=conf)
         conf = {
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt',
             'memcache_secret_key': ''
         }
-        self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
+        self.assertRaises(exc.ConfigurationError, self.set_middleware,
                           conf=conf)
         conf = {
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mAc',
             'memcache_secret_key': ''
         }
-        self.assertRaises(auth_token.ConfigurationError, self.set_middleware,
+        self.assertRaises(exc.ConfigurationError, self.set_middleware,
                           conf=conf)
 
     def test_config_revocation_cache_timeout(self):
@@ -630,7 +631,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         conf = {
             'include_service_catalog': '123',
         }
-        self.assertRaises(auth_token.ConfigurationError,
+        self.assertRaises(exc.ConfigurationError,
                           auth_token.AuthProtocol, self.fake_app, conf)
 
 
@@ -844,7 +845,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_raises_exception_for_revoked_token(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self.middleware._verify_signed_token,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash']])
@@ -854,7 +855,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self.middleware._verify_signed_token,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash_sha256'],
@@ -863,7 +864,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_raises_exception_for_revoked_pkiz_token(self):
         self.middleware._revocations._list = (
             self.examples.REVOKED_TOKEN_PKIZ_LIST_JSON)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self.middleware._verify_pkiz_token,
                           self.token_dict['revoked_token_pkiz'],
                           [self.token_dict['revoked_token_pkiz_hash']])
@@ -960,7 +961,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_invalid_revocation_list_raises_error(self):
         self.requests.get('%s/v2.0/tokens/revoked' % BASE_URI, json={})
 
-        self.assertRaises(auth_token.RevocationListError,
+        self.assertRaises(exc.RevocationListError,
                           self.middleware._revocations._fetch)
 
     def test_fetch_revocation_list(self):
@@ -1019,7 +1020,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
         self.middleware._LOG = FakeLog()
         self.middleware._delay_auth_decision = False
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self.middleware._get_user_token_from_header, {})
         self.assertIsNotNone(self.middleware._LOG.msg)
         self.assertIsNotNone(self.middleware._LOG.debugmsg)
@@ -1067,7 +1068,7 @@ class CommonAuthTokenMiddlewareTest(object):
         token = 'invalid-token'
         req.headers['X-Auth-Token'] = token
         self.middleware(req.environ, self.start_fake_response)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self._get_cached_token, token)
 
     def _test_memcache_set_invalid_signed(self, hash_algorithms=None,
@@ -1079,7 +1080,7 @@ class CommonAuthTokenMiddlewareTest(object):
             self.conf['hash_algorithms'] = ','.join(hash_algorithms)
             self.set_middleware()
         self.middleware(req.environ, self.start_fake_response)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self._get_cached_token, token, mode=exp_mode)
 
     def test_memcache_set_invalid_signed(self):
@@ -1994,13 +1995,13 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
 
     def test_no_data(self):
         data = {}
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._get_token_expiration,
                           data)
 
     def test_bad_data(self):
         data = {'my_happy_token_dict': 'woo'}
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._get_token_expiration,
                           data)
 
@@ -2018,7 +2019,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def test_v2_token_expired(self):
         data = self.create_v2_token_fixture(expires=self.one_hour_ago)
         expires = auth_token._get_token_expiration(data)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._confirm_token_not_expired,
                           expires)
 
@@ -2035,7 +2036,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         data = self.create_v2_token_fixture(
             expires='1999-12-31T19:05:10Z')
         expires = auth_token._get_token_expiration(data)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._confirm_token_not_expired,
                           expires)
 
@@ -2053,7 +2054,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def test_v3_token_expired(self):
         data = self.create_v3_token_fixture(expires=self.one_hour_ago)
         expires = auth_token._get_token_expiration(data)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._confirm_token_not_expired,
                           expires)
 
@@ -2071,7 +2072,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         data = self.create_v3_token_fixture(
             expires='1999-12-31T19:05:10Z')
         expires = auth_token._get_token_expiration(data)
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           auth_token._confirm_token_not_expired,
                           expires)
 
@@ -2112,7 +2113,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         expires = some_time_earlier
         self.middleware._token_cache.store(token, data, expires)
         self.assertThat(lambda: self.middleware._token_cache._cache_get(token),
-                        matchers.raises(auth_token.InvalidToken))
+                        matchers.raises(exc.InvalidToken))
 
     def test_cached_token_with_timezone_offset_not_expired(self):
         token = 'mytoken'
@@ -2135,7 +2136,7 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         expires = timeutils.strtime(some_time_earlier) + '-02:00'
         self.middleware._token_cache.store(token, data, expires)
         self.assertThat(lambda: self.middleware._token_cache._cache_get(token),
-                        matchers.raises(auth_token.InvalidToken))
+                        matchers.raises(exc.InvalidToken))
 
 
 class CatalogConversionTests(BaseAuthTokenMiddlewareTest):

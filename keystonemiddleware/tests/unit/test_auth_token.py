@@ -23,6 +23,7 @@ import mock
 import testtools
 
 from keystonemiddleware import auth_token
+from keystonemiddleware.auth_token import _exceptions as exc
 
 
 class RevocationsTests(testtools.TestCase):
@@ -61,7 +62,7 @@ class RevocationsTests(testtools.TestCase):
         token_id = uuid.uuid4().hex
         revoked_tokens = [token_id]
         token_ids = [token_id]
-        self.assertRaises(auth_token.InvalidToken,
+        self.assertRaises(exc.InvalidToken,
                           self._check_with_list, revoked_tokens, token_ids)
 
 

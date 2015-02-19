@@ -195,6 +195,7 @@ import six
 from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
+from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 from keystonemiddleware.openstack.common import memorycache
 
@@ -396,13 +397,13 @@ def _token_is_v3(token_info):
 
 def _get_token_expiration(data):
     if not data:
-        raise InvalidToken(_('Token authorization failed'))
+        raise exc.InvalidToken(_('Token authorization failed'))
     if _token_is_v2(data):
         return data['access']['token']['expires']
     elif _token_is_v3(data):
         return data['token']['expires_at']
     else:
-        raise InvalidToken(_('Token authorization failed'))
+        raise exc.InvalidToken(_('Token authorization failed'))
 
 
 def _confirm_token_not_expired(expires):
@@ -410,7 +411,7 @@ def _confirm_token_not_expired(expires):
     expires = timeutils.normalize_time(expires)
     utcnow = timeutils.utcnow()
     if utcnow >= expires:
-        raise InvalidToken(_('Token authorization failed'))
+        raise exc.InvalidToken(_('Token authorization failed'))
 
 
 def _v3_to_v2_catalog(catalog):
@@ -478,27 +479,11 @@ def _conf_values_type_convert(conf):
             # This option is not known to auth_token.
             pass
         except ValueError as e:
-            raise ConfigurationError(
+            raise exc.ConfigurationError(
                 _('Unable to convert the value of %(key)s option into correct '
                   'type: %(ex)s') % {'key': k, 'ex': e})
         opts[dest] = v
     return opts
-
-
-class InvalidToken(Exception):
-    pass
-
-
-class ServiceError(Exception):
-    pass
-
-
-class ConfigurationError(Exception):
-    pass
-
-
-class RevocationListError(Exception):
-    pass
 
 
 class _MiniResp(object):
@@ -931,7 +916,7 @@ class AuthProtocol(object):
                 user_headers = self._build_user_headers(user_auth_ref,
                                                         user_token_info)
                 self._add_headers(env, user_headers)
-            except InvalidToken:
+            except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
                         _LI('Invalid user token - deferring reject '
@@ -953,7 +938,7 @@ class AuthProtocol(object):
                         auth_token=serv_token)
                     serv_headers = self._build_service_headers(serv_token_info)
                     self._add_headers(env, serv_headers)
-            except InvalidToken:
+            except exc.InvalidToken:
                 # Delayed auth not currently supported for service tokens.
                 # (Can be implemented if a use case is found.)
                 self._LOG.info(
@@ -963,7 +948,7 @@ class AuthProtocol(object):
             env['keystone.token_auth'] = _UserAuthPlugin(user_auth_ref,
                                                          serv_auth_ref)
 
-        except ServiceError as e:
+        except exc.ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
             return self._do_503_error(env, start_response)
 
@@ -1014,7 +999,7 @@ class AuthProtocol(object):
 
         :param env: wsgi request environment
         :returns: token id
-        :raises InvalidToken: if no token is provided in request
+        :raises exc.InvalidToken: if no token is provided in request
 
         """
         token = self._get_header(env, 'X-Auth-Token',
@@ -1026,7 +1011,7 @@ class AuthProtocol(object):
                 self._LOG.warn(_LW('Unable to find authentication token'
                                    ' in headers'))
                 self._LOG.debug('Headers: %s', env)
-            raise InvalidToken(_('Unable to find token in headers'))
+            raise exc.InvalidToken(_('Unable to find token in headers'))
 
     def _get_service_token_from_header(self, env):
         """Get service token id from request.
@@ -1062,7 +1047,7 @@ class AuthProtocol(object):
         :param env: wsgi environment
         :param retry: Ignored, as it is not longer relevant
         :returns: uncrypted body of the token if the token is valid
-        :raises InvalidToken: if token is rejected
+        :raises exc.InvalidToken: if token is rejected
 
         """
         token_id = None
@@ -1096,7 +1081,7 @@ class AuthProtocol(object):
                 except exceptions.CertificateConfigError:
                     self._LOG.warn(_LW('Fetch certificate config failed, '
                                        'fallback to online validation.'))
-                except RevocationListError:
+                except exc.RevocationListError:
                     self._LOG.warn(_LW('Fetch revocation list failed, '
                                        'fallback to online validation.'))
 
@@ -1115,15 +1100,15 @@ class AuthProtocol(object):
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
             self._LOG.warn(_LW('Authorization failed for token'))
-            raise InvalidToken(_('Token authorization failed'))
-        except ServiceError:
+            raise exc.InvalidToken(_('Token authorization failed'))
+        except exc.ServiceError:
             raise
         except Exception:
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_id:
                 self._token_cache.store_invalid(token_id)
             self._LOG.warn(_LW('Authorization failed for token'))
-            raise InvalidToken(_('Token authorization failed'))
+            raise exc.InvalidToken(_('Token authorization failed'))
 
     def _build_user_headers(self, auth_ref, token_info):
         """Convert token object into headers.
@@ -1133,13 +1118,13 @@ class AuthProtocol(object):
 
         :param token_info: token object returned by identity
                            server on authentication
-        :raises InvalidToken: when unable to parse token object
+        :raises exc.InvalidToken: when unable to parse token object
 
         """
         roles = ','.join(auth_ref.role_names)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise InvalidToken(_('Unable to determine tenancy.'))
+            raise exc.InvalidToken(_('Unable to determine tenancy.'))
 
         rval = {
             'X-Identity-Status': 'Confirmed',
@@ -1170,13 +1155,13 @@ class AuthProtocol(object):
 
         :param token_info: token object returned by identity
                            server on authentication
-        :raises InvalidToken: when unable to parse token object
+        :raises exc.InvalidToken: when unable to parse token object
 
         """
         auth_ref = access.AccessInfo.factory(body=token_info)
 
         if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise InvalidToken(_('Unable to determine service tenancy.'))
+            raise exc.InvalidToken(_('Unable to determine service tenancy.'))
 
         roles = ','.join(auth_ref.role_names)
         rval = {
@@ -1223,7 +1208,7 @@ class AuthProtocol(object):
         if msg is False:
             msg = _('Token authorization failed')
 
-        raise InvalidToken(msg)
+        raise exc.InvalidToken(msg)
 
     def _confirm_token_bind(self, data, env):
         bind_mode = self._conf_get('enforce_token_bind')
@@ -1340,7 +1325,7 @@ class AuthProtocol(object):
             return verified
         # TypeError If the signed_text is not zlib compressed
         except TypeError:
-            raise InvalidToken(signed_text)
+            raise exc.InvalidToken(signed_text)
 
     def _fetch_signing_cert(self):
         self._signing_directory.write_file(
@@ -1562,7 +1547,7 @@ class _IdentityServer(object):
                         ', '.join(versions))
 
         msg = _('No compatible apis supported by server')
-        raise ServiceError(msg)
+        raise exc.ServiceError(msg)
 
     def verify_token(self, user_token, retry=True):
         """Authenticate user token with identity server.
@@ -1572,8 +1557,8 @@ class _IdentityServer(object):
                       user authentication when an indeterminate
                       response is received. Optional.
         :returns: token object received from identity server on success
-        :raises InvalidToken: if token is rejected
-        :raises ServiceError: if unable to authenticate token
+        :raises exc.InvalidToken: if token is rejected
+        :raises exc.ServiceError: if unable to authenticate token
 
         """
         user_token = _safe_quote(user_token)
@@ -1598,7 +1583,7 @@ class _IdentityServer(object):
             if response.status_code == 200:
                 return data
 
-            raise InvalidToken()
+            raise exc.InvalidToken()
 
     def fetch_revocation_list(self):
         try:
@@ -1607,14 +1592,14 @@ class _IdentityServer(object):
                 authenticated=True,
                 endpoint_filter={'version': (2, 0)})
         except exceptions.HTTPError as e:
-            raise RevocationListError(_('Failed to fetch token revocation '
-                                        'list: %d') % e.http_status)
+            msg = _('Failed to fetch token revocation list: %d')
+            raise exc.RevocationListError(msg % e.http_status)
         if response.status_code != 200:
-            raise RevocationListError(_('Unable to fetch token revocation '
-                                        'list.'))
+            msg = _('Unable to fetch token revocation list.')
+            raise exc.RevocationListError(msg)
         if 'signed' not in data:
-            raise RevocationListError(_('Revocation list improperly '
-                                        'formatted.'))
+            msg = _('Revocation list improperly formatted.')
+            raise exc.RevocationListError(msg)
         return data['signed']
 
     def fetch_signing_cert(self):
@@ -1792,7 +1777,7 @@ class _Revocations(object):
     def check(self, token_ids):
         if self._any_revoked(token_ids):
             self._log.debug('Token is marked as having been revoked')
-            raise InvalidToken(_('Token has been revoked'))
+            raise exc.InvalidToken(_('Token has been revoked'))
 
 
 class _SigningDirectory(object):
@@ -1839,7 +1824,7 @@ class _SigningDirectory(object):
     def _verify_signing_dir(self):
         if os.path.isdir(self._directory_name):
             if not os.access(self._directory_name, os.W_OK):
-                raise ConfigurationError(
+                raise exc.ConfigurationError(
                     _('unable to access signing_dir %s') %
                     self._directory_name)
             uid = os.getuid()
@@ -1935,7 +1920,7 @@ class _TokenCache(object):
         The second element is the token data from the cache if the token was
         cached, otherwise ``None``.
 
-        :raises InvalidToken: if the token is invalid
+        :raises exc.InvalidToken: if the token is invalid
 
         """
 
@@ -2028,7 +2013,7 @@ class _TokenCache(object):
     def _cache_get(self, token_id):
         """Return token information from cache.
 
-        If token is invalid raise InvalidToken
+        If token is invalid raise exc.InvalidToken
         return token only if fresh (not expired).
         """
 
@@ -2054,7 +2039,7 @@ class _TokenCache(object):
         cached = jsonutils.loads(data)
         if cached == self._INVALID_INDICATOR:
             self._LOG.debug('Cached Token is marked unauthorized')
-            raise InvalidToken(_('Token authorization failed'))
+            raise exc.InvalidToken(_('Token authorization failed'))
 
         data, expires = cached
 
@@ -2073,7 +2058,7 @@ class _TokenCache(object):
             return data
         else:
             self._LOG.debug('Cached Token seems expired')
-            raise InvalidToken(_('Token authorization failed'))
+            raise exc.InvalidToken(_('Token authorization failed'))
 
     def _cache_store(self, token_id, data):
         """Store value into memcache.
@@ -2105,12 +2090,12 @@ class _SecureTokenCache(_TokenCache):
         security_strategy = security_strategy.upper()
 
         if security_strategy not in ('MAC', 'ENCRYPT'):
-            raise ConfigurationError(_('memcache_security_strategy must be '
-                                       'ENCRYPT or MAC'))
+            msg = _('memcache_security_strategy must be ENCRYPT or MAC')
+            raise exc.ConfigurationError(msg)
         if not secret_key:
-            raise ConfigurationError(_('memcache_secret_key must be defined '
-                                       'when a memcache_security_strategy '
-                                       'is defined'))
+            msg = _('memcache_secret_key must be defined when a '
+                    'memcache_security_strategy is defined')
+            raise exc.ConfigurationError(msg)
 
         if isinstance(security_strategy, six.string_types):
             security_strategy = security_strategy.encode('utf-8')
@@ -2175,3 +2160,10 @@ if __name__ == '__main__':
     server = simple_server.make_server('', 8000, app)
     print('Serving on port 8000 (Ctrl+C to end)...')
     server.serve_forever()
+
+
+# NOTE(jamielennox): Maintained here for public API compatibility.
+InvalidToken = exc.InvalidToken
+ServiceError = exc.ServiceError
+ConfigurationError = exc.ConfigurationError
+RevocationListError = exc.RevocationListError
