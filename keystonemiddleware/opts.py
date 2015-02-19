@@ -19,12 +19,13 @@ __all__ = [
 import copy
 
 import keystonemiddleware.auth_token
-
+from keystonemiddleware.auth_token import _auth
+from keystonemiddleware.auth_token import _base
 
 auth_token_opts = [
-    (keystonemiddleware.auth_token._AUTHTOKEN_GROUP,
+    (_base.AUTHTOKEN_GROUP,
      keystonemiddleware.auth_token._OPTS +
-     keystonemiddleware.auth_token._AuthTokenPlugin.get_options())
+     _auth.AuthTokenPlugin.get_options())
 ]
 
 

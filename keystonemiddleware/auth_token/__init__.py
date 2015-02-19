@@ -179,8 +179,6 @@ from keystoneclient import access
 from keystoneclient import adapter
 from keystoneclient import auth
 from keystoneclient.auth.identity import base as base_identity
-from keystoneclient.auth.identity import v2
-from keystoneclient.auth import token_endpoint
 from keystoneclient.common import cms
 from keystoneclient import discover
 from keystoneclient import exceptions
@@ -192,6 +190,8 @@ import six
 from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
+from keystonemiddleware.auth_token import _auth
+from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
@@ -350,10 +350,8 @@ _OPTS = [
                 ' should be set to a single value for better performance.'),
 ]
 
-_AUTHTOKEN_GROUP = 'keystone_authtoken'
 CONF = cfg.CONF
-CONF.register_opts(_OPTS, group=_AUTHTOKEN_GROUP)
-auth.register_conf_options(CONF, _AUTHTOKEN_GROUP)
+CONF.register_opts(_OPTS, group=_base.AUTHTOKEN_GROUP)
 
 _LOG = logging.getLogger(__name__)
 
@@ -460,7 +458,7 @@ def _conf_values_type_convert(conf):
         return {}
 
     opt_types = {}
-    for o in (_OPTS + _AuthTokenPlugin.get_options()):
+    for o in (_OPTS + _auth.AuthTokenPlugin.get_options()):
         type_dest = (getattr(o, 'type', str), o.dest)
         opt_types[o.dest] = type_dest
         # Also add the deprecated name with the same type and dest.
@@ -496,161 +494,6 @@ class _MiniResp(object):
             self.body = [error_message.encode()]
         self.headers = list(headers)
         self.headers.append(('Content-type', 'text/plain'))
-
-
-class _AuthTokenPlugin(auth.BaseAuthPlugin):
-
-    def __init__(self, auth_host, auth_port, auth_protocol, auth_admin_prefix,
-                 admin_user, admin_password, admin_tenant_name, admin_token,
-                 identity_uri, log):
-        # NOTE(jamielennox): it does appear here that our default arguments
-        # are backwards. We need to do it this way so that we can handle the
-        # same deprecation strategy for CONF and the conf variable.
-        if not identity_uri:
-            log.warning(_LW('Configuring admin URI using auth fragments. '
-                            'This is deprecated, use \'identity_uri\''
-                            ' instead.'))
-
-            if ':' in auth_host:
-                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
-                # with '[]' to generate a valid IPv6 URL, based on
-                # http://www.ietf.org/rfc/rfc2732.txt
-                auth_host = '[%s]' % auth_host
-
-            identity_uri = '%s://%s:%s' % (auth_protocol,
-                                           auth_host,
-                                           auth_port)
-
-            if auth_admin_prefix:
-                identity_uri = '%s/%s' % (identity_uri,
-                                          auth_admin_prefix.strip('/'))
-
-        self._identity_uri = identity_uri.rstrip('/')
-
-        # FIXME(jamielennox): Yes. This is wrong. We should be determining the
-        # plugin to use based on a combination of discovery and inputs. Much
-        # of this can be changed when we get keystoneclient 0.10. For now this
-        # hardcoded path is EXACTLY the same as the original auth_token did.
-        auth_url = '%s/v2.0' % self._identity_uri
-
-        if admin_token:
-            log.warning(_LW(
-                "The admin_token option in the auth_token middleware is "
-                "deprecated and should not be used. The admin_user and "
-                "admin_password options should be used instead. The "
-                "admin_token option may be removed in a future release."))
-            self._plugin = token_endpoint.Token(auth_url, admin_token)
-        else:
-            self._plugin = v2.Password(auth_url,
-                                       username=admin_user,
-                                       password=admin_password,
-                                       tenant_name=admin_tenant_name)
-
-        self._LOG = log
-        self._discover = None
-
-    def get_token(self, *args, **kwargs):
-        return self._plugin.get_token(*args, **kwargs)
-
-    def get_endpoint(self, session, interface=None, version=None, **kwargs):
-        """Return an endpoint for the client.
-
-        There are no required keyword arguments to ``get_endpoint`` as a plugin
-        implementation should use best effort with the information available to
-        determine the endpoint.
-
-        :param session: The session object that the auth_plugin belongs to.
-        :type session: keystoneclient.session.Session
-        :param tuple version: The version number required for this endpoint.
-        :param str interface: what visibility the endpoint should have.
-
-        :returns: The base URL that will be used to talk to the required
-                  service or None if not available.
-        :rtype: string
-        """
-        if interface == auth.AUTH_INTERFACE:
-            return self._identity_uri
-
-        if not version:
-            # NOTE(jamielennox): This plugin can only be used within auth_token
-            # and auth_token will always provide version= with requests.
-            return None
-
-        if not self._discover:
-            self._discover = discover.Discover(session,
-                                               auth_url=self._identity_uri,
-                                               authenticated=False)
-
-        if not self._discover.url_for(version):
-            # NOTE(jamielennox): The requested version is not supported by the
-            # identity server.
-            return None
-
-        # NOTE(jamielennox): for backwards compatibility here we don't
-        # actually use the URL from discovery we hack it up instead. :(
-        if version[0] == 2:
-            return '%s/v2.0' % self._identity_uri
-        elif version[0] == 3:
-            return '%s/v3' % self._identity_uri
-
-        # NOTE(jamielennox): This plugin will only get called from auth_token
-        # middleware. The middleware should never request a version that the
-        # plugin doesn't know how to handle.
-        msg = _('Invalid version asked for in auth_token plugin')
-        raise NotImplementedError(msg)
-
-    def invalidate(self):
-        return self._plugin.invalidate()
-
-    @classmethod
-    def get_options(cls):
-        options = super(_AuthTokenPlugin, cls).get_options()
-
-        options.extend([
-            cfg.StrOpt('auth_admin_prefix',
-                       default='',
-                       help='Prefix to prepend at the beginning of the path. '
-                            'Deprecated, use identity_uri.'),
-            cfg.StrOpt('auth_host',
-                       default='127.0.0.1',
-                       help='Host providing the admin Identity API endpoint. '
-                            'Deprecated, use identity_uri.'),
-            cfg.IntOpt('auth_port',
-                       default=35357,
-                       help='Port of the admin Identity API endpoint. '
-                            'Deprecated, use identity_uri.'),
-            cfg.StrOpt('auth_protocol',
-                       default='https',
-                       help='Protocol of the admin Identity API endpoint '
-                            '(http or https). Deprecated, use identity_uri.'),
-            cfg.StrOpt('identity_uri',
-                       default=None,
-                       help='Complete admin Identity API endpoint. This '
-                            'should specify the unversioned root endpoint '
-                            'e.g. https://localhost:35357/'),
-            cfg.StrOpt('admin_token',
-                       secret=True,
-                       help='This option is deprecated and may be removed in '
-                            'a future release. Single shared secret with the '
-                            'Keystone configuration used for bootstrapping a '
-                            'Keystone installation, or otherwise bypassing '
-                            'the normal authentication process. This option '
-                            'should not be used, use `admin_user` and '
-                            '`admin_password` instead.'),
-            cfg.StrOpt('admin_user',
-                       help='Service username.'),
-            cfg.StrOpt('admin_password',
-                       secret=True,
-                       help='Service user password.'),
-            cfg.StrOpt('admin_tenant_name',
-                       default='admin',
-                       help='Service tenant name.'),
-        ])
-
-        return options
-
-
-_AuthTokenPlugin.register_conf_options(CONF, _AUTHTOKEN_GROUP)
 
 
 class _TokenData(object):
@@ -1354,7 +1197,7 @@ class AuthProtocol(object):
         # are accessible via _conf_get, however this doesn't work with the
         # plugin loading mechanisms. For using auth plugins we only support
         # configuring via the CONF file.
-        auth_plugin = auth.load_from_conf_options(CONF, _AUTHTOKEN_GROUP)
+        auth_plugin = auth.load_from_conf_options(CONF, _base.AUTHTOKEN_GROUP)
 
         if not auth_plugin:
             # NOTE(jamielennox): Loading AuthTokenPlugin here should be
@@ -1362,7 +1205,7 @@ class AuthProtocol(object):
             # _AuthTokenPlugin.load_from_conf_options(CONF, GROUP) however
             # we can't do that because we have to use _conf_get to support
             # the paste.ini options.
-            auth_plugin = _AuthTokenPlugin.load_from_options(
+            auth_plugin = _auth.AuthTokenPlugin.load_from_options(
                 auth_host=self._conf_get('auth_host'),
                 auth_port=int(self._conf_get('auth_port')),
                 auth_protocol=self._conf_get('auth_protocol'),
@@ -1501,7 +1344,7 @@ class _IdentityServer(object):
         # NOTE(jamielennox): This weird stripping of the prefix hack is
         # only relevant to the legacy case. We urljoin '/' to get just the
         # base URI as this is the original behaviour.
-        if isinstance(self._adapter.auth, _AuthTokenPlugin):
+        if isinstance(self._adapter.auth, _auth.AuthTokenPlugin):
             auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
 
         return auth_uri
