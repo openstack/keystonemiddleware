@@ -13,5 +13,5 @@ pbr>=0.6,!=0.7,<1.0
 pycadf>=0.8.0
 python-keystoneclient>=1.1.0
 requests>=2.2.0,!=2.4.0
-six>=1.7.0
+six>=1.9.0
 WebOb>=1.2.3
