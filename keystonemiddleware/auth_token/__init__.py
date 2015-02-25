@@ -175,8 +175,6 @@ import contextlib
 import datetime
 import logging
 import os
-import stat
-import tempfile
 
 from keystoneclient import access
 from keystoneclient import adapter
@@ -196,6 +194,7 @@ from six.moves import urllib
 
 from keystonemiddleware import _memcache_crypt as memcache_crypt
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 from keystonemiddleware.openstack.common import memorycache
 
@@ -845,7 +844,7 @@ class AuthProtocol(object):
 
             self._auth_uri = self._identity_server.auth_uri
 
-        self._signing_directory = _SigningDirectory(
+        self._signing_directory = _signing_dir.SigningDirectory(
             directory_name=self._conf_get('signing_dir'), log=self._LOG)
 
         self._token_cache = self._token_cache_factory()
@@ -1778,65 +1777,6 @@ class _Revocations(object):
         if self._any_revoked(token_ids):
             self._log.debug('Token is marked as having been revoked')
             raise exc.InvalidToken(_('Token has been revoked'))
-
-
-class _SigningDirectory(object):
-    def __init__(self, directory_name=None, log=None):
-        self._log = log or _LOG
-
-        if directory_name is None:
-            directory_name = tempfile.mkdtemp(prefix='keystone-signing-')
-        self._log.info(
-            _LI('Using %s as cache directory for signing certificate'),
-            directory_name)
-        self._directory_name = directory_name
-
-        self._verify_signing_dir()
-
-    def write_file(self, file_name, new_contents):
-
-        # In Python2, encoding is slow so the following check avoids it if it
-        # is not absolutely necessary.
-        if isinstance(new_contents, six.text_type):
-            new_contents = new_contents.encode('utf-8')
-
-        def _atomic_write():
-            with tempfile.NamedTemporaryFile(dir=self._directory_name,
-                                             delete=False) as f:
-                f.write(new_contents)
-            os.rename(f.name, self.calc_path(file_name))
-
-        try:
-            _atomic_write()
-        except (OSError, IOError):
-            self._verify_signing_dir()
-            _atomic_write()
-
-    def read_file(self, file_name):
-        path = self.calc_path(file_name)
-        open_kwargs = {'encoding': 'utf-8'} if six.PY3 else {}
-        with open(path, 'r', **open_kwargs) as f:
-            return f.read()
-
-    def calc_path(self, file_name):
-        return os.path.join(self._directory_name, file_name)
-
-    def _verify_signing_dir(self):
-        if os.path.isdir(self._directory_name):
-            if not os.access(self._directory_name, os.W_OK):
-                raise exc.ConfigurationError(
-                    _('unable to access signing_dir %s') %
-                    self._directory_name)
-            uid = os.getuid()
-            if os.stat(self._directory_name).st_uid != uid:
-                self._log.warning(_LW('signing_dir is not owned by %s'), uid)
-            current_mode = stat.S_IMODE(os.stat(self._directory_name).st_mode)
-            if current_mode != stat.S_IRWXU:
-                self._log.warning(
-                    _LW('signing_dir mode is %(mode)s instead of %(need)s'),
-                    {'mode': oct(current_mode), 'need': oct(stat.S_IRWXU)})
-        else:
-            os.makedirs(self._directory_name, stat.S_IRWXU)
 
 
 class _TokenCache(object):
