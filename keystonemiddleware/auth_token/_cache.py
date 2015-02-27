@@ -266,11 +266,6 @@ class SecureTokenCache(TokenCache):
     def __init__(self, log, security_strategy, secret_key, **kwargs):
         super(SecureTokenCache, self).__init__(log, **kwargs)
 
-        security_strategy = security_strategy.upper()
-
-        if security_strategy not in ('MAC', 'ENCRYPT'):
-            msg = _('memcache_security_strategy must be ENCRYPT or MAC')
-            raise exc.ConfigurationError(msg)
         if not secret_key:
             msg = _('memcache_secret_key must be defined when a '
                     'memcache_security_strategy is defined')
