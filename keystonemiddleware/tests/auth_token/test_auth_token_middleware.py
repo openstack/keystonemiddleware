@@ -2555,6 +2555,7 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
     def setUp(self):
         super(OtherTests, self).setUp()
         self.logger = self.useFixture(fixtures.FakeLogger())
+        self.cfg = self.useFixture(cfg_fixture.Config())
 
     def test_unknown_server_versions(self):
         versions = fixture.DiscoveryList(v2=False, v3_id='v4', href=BASE_URI)
@@ -2616,6 +2617,49 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         super(AuthProtocolLoadingTests, self).setUp()
         self.cfg = self.useFixture(cfg_fixture.Config())
 
+        self.project_id = uuid.uuid4().hex
+
+        # first touch is to discover the available versions at the auth_url
+        self.requests.get(self.AUTH_URL,
+                          json=fixture.DiscoveryList(href=self.DISC_URL),
+                          status_code=300)
+
+        # then we do discovery on the URL from the service catalog. In practice
+        # this is mostly the same URL as before but test the full range.
+        self.requests.get(self.KEYSTONE_BASE_URL + '/',
+                          json=fixture.DiscoveryList(href=self.CRUD_URL),
+                          status_code=300)
+
+    def good_request(self, app):
+        # admin_token is the token that the service will get back from auth
+        admin_token_id = uuid.uuid4().hex
+        admin_token = fixture.V3Token(project_id=self.project_id)
+        s = admin_token.add_service('identity', name='keystone')
+        s.add_standard_endpoints(admin=self.KEYSTONE_URL)
+
+        self.requests.post(self.DISC_URL + '/v3/auth/tokens',
+                           json=admin_token,
+                           headers={'X-Subject-Token': admin_token_id})
+
+        # user_token is the data from the user's inputted token
+        user_token_id = uuid.uuid4().hex
+        user_token = fixture.V3Token()
+        user_token.set_project_scope()
+
+        request_headers = {'X-Subject-Token': user_token_id,
+                           'X-Auth-Token': admin_token_id}
+
+        self.requests.get(self.CRUD_URL + '/v3/auth/tokens',
+                          request_headers=request_headers,
+                          json=user_token)
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = user_token_id
+        resp = app(req.environ, self.start_fake_response)
+
+        self.assertEqual(200, self.response_status)
+        return resp
+
     def test_loading_password_plugin(self):
         # the password options aren't set on config until loading time, but we
         # need them set so we can override the values for testing, so force it
@@ -2633,49 +2677,15 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
                         user_domain_id='userdomainid',
                         group=_base.AUTHTOKEN_GROUP)
 
-        # admin_token is the token that the service will get back from auth
-        admin_token_id = uuid.uuid4().hex
-        admin_token = fixture.V3Token(project_id=project_id)
-        s = admin_token.add_service('identity', name='keystone')
-        s.add_standard_endpoints(admin=self.KEYSTONE_URL)
-
-        # user_token is the data from the user's inputted token
-        user_token_id = uuid.uuid4().hex
-        user_token = fixture.V3Token()
-        user_token.set_project_scope()
-
-        # first touch is to discover the available versions at the auth_url
-        self.requests.get(self.AUTH_URL,
-                          json=fixture.DiscoveryList(href=self.DISC_URL),
-                          status_code=300)
-
-        # then we use the url returned from discovery to actually auth
-        self.requests.post(self.DISC_URL + '/v3/auth/tokens',
-                           json=admin_token,
-                           headers={'X-Subject-Token': admin_token_id})
-
-        # then we do discovery on the URL from the service catalog. In practice
-        # this is mostly the same URL as before but test the full range.
-        self.requests.get(self.KEYSTONE_BASE_URL + '/',
-                          json=fixture.DiscoveryList(href=self.CRUD_URL),
-                          status_code=300)
-
-        # actually authenticating the user will then use the base url that was
-        # retrieved from discovery from the service catalog.
-        self.requests.get(self.CRUD_URL + '/v3/auth/tokens',
-                          request_headers={'X-Subject-Token': user_token_id,
-                                           'X-Auth-Token': admin_token_id},
-                          json=user_token)
-
         body = uuid.uuid4().hex
         app = auth_token.AuthProtocol(new_app('200 OK', body)(), {})
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = user_token_id
-        resp = app(req.environ, self.start_fake_response)
-
-        self.assertEqual(200, self.response_status)
+        resp = self.good_request(app)
         self.assertEqual(six.b(body), resp[0])
+
+    @staticmethod
+    def get_plugin(app):
+        return app._identity_server._adapter.auth
 
     def test_invalid_plugin_fails_to_intialize(self):
         self.cfg.config(auth_plugin=uuid.uuid4().hex,
@@ -2684,6 +2694,69 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         self.assertRaises(
             exceptions.NoMatchingPlugin,
             lambda: auth_token.AuthProtocol(new_app('200 OK', '')(), {}))
+
+    def test_plugin_loading_mixed_opts(self):
+        # some options via override and some via conf
+        opts = auth.get_plugin_options('password')
+        self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
+
+        username = 'testuser'
+        password = 'testpass'
+
+        # configure the authentication options
+        self.cfg.config(auth_plugin='password',
+                        password=password,
+                        project_id=self.project_id,
+                        user_domain_id='userdomainid',
+                        group=_base.AUTHTOKEN_GROUP)
+
+        conf = {'username': username, 'auth_url': self.AUTH_URL}
+
+        body = uuid.uuid4().hex
+        app = auth_token.AuthProtocol(new_app('200 OK', body)(), conf)
+
+        resp = self.good_request(app)
+        self.assertEqual(six.b(body), resp[0])
+
+        plugin = self.get_plugin(app)
+
+        self.assertEqual(self.AUTH_URL, plugin.auth_url)
+        self.assertEqual(username, plugin._username)
+        self.assertEqual(password, plugin._password)
+        self.assertEqual(self.project_id, plugin._project_id)
+
+    def test_plugin_loading_with_auth_section(self):
+        # some options via override and some via conf
+        section = 'testsection'
+        username = 'testuser'
+        password = 'testpass'
+
+        auth.register_conf_options(self.cfg.conf, group=section)
+        opts = auth.get_plugin_options('password')
+        self.cfg.register_opts(opts, group=section)
+
+        # configure the authentication options
+        self.cfg.config(auth_section=section, group=_base.AUTHTOKEN_GROUP)
+        self.cfg.config(auth_plugin='password',
+                        password=password,
+                        project_id=self.project_id,
+                        user_domain_id='userdomainid',
+                        group=section)
+
+        conf = {'username': username, 'auth_url': self.AUTH_URL}
+
+        body = uuid.uuid4().hex
+        app = auth_token.AuthProtocol(new_app('200 OK', body)(), conf)
+
+        resp = self.good_request(app)
+        self.assertEqual(six.b(body), resp[0])
+
+        plugin = self.get_plugin(app)
+
+        self.assertEqual(self.AUTH_URL, plugin.auth_url)
+        self.assertEqual(username, plugin._username)
+        self.assertEqual(password, plugin._password)
+        self.assertEqual(self.project_id, plugin._project_id)
 
 
 def load_tests(loader, tests, pattern):

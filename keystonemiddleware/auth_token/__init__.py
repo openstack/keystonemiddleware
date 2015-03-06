@@ -534,12 +534,12 @@ class AuthProtocol(object):
             'check_revocations_for_cached')
         self._init_auth_headers()
 
-    def _conf_get(self, name):
+    def _conf_get(self, name, group=_base.AUTHTOKEN_GROUP):
         # try config from paste-deploy first
         if name in self._conf:
             return self._conf[name]
         else:
-            return CONF.keystone_authtoken[name]
+            return CONF[group][name]
 
     def _call_app(self, env, start_response):
         # NOTE(jamielennox): We wrap the given start response so that if an
@@ -1016,6 +1016,42 @@ class AuthProtocol(object):
             self._SIGNING_CA_FILE_NAME,
             self._identity_server.fetch_ca_cert())
 
+    def _get_auth_plugin(self):
+        # NOTE(jamielennox): Ideally this would use get_from_conf_options
+        # however that is not possible because we have to support the override
+        # pattern we use in _conf_get. There is a somewhat replacement for this
+        # in keystoneclient in load_from_options_getter which should be used
+        # when available. Until then this is essentially a copy and paste of
+        # the ksc load_from_conf_options code because we need to get a fix out
+        # for this quickly.
+
+        # FIXME(jamielennox): update to use load_from_options_getter when
+        # https://review.openstack.org/162529 merges.
+
+        # !!! - UNDER NO CIRCUMSTANCES COPY ANY OF THIS CODE - !!!
+
+        group = self._conf_get('auth_section') or _base.AUTHTOKEN_GROUP
+        plugin_name = self._conf_get('auth_plugin', group=group)
+        plugin_kwargs = dict()
+
+        if plugin_name:
+            plugin_class = auth.get_plugin_class(plugin_name)
+        else:
+            plugin_class = _auth.AuthTokenPlugin
+            # logger object is a required parameter of the default plugin
+            plugin_kwargs['log'] = self._LOG
+
+        plugin_opts = plugin_class.get_options()
+        CONF.register_opts(plugin_opts, group=group)
+
+        for opt in plugin_opts:
+            val = self._conf_get(opt.dest, group=group)
+            if val is not None:
+                val = opt.type(val)
+            plugin_kwargs[opt.dest] = val
+
+        return plugin_class.load_from_options(**plugin_kwargs)
+
     def _create_identity_server(self):
         # NOTE(jamielennox): Loading Session here should be exactly the
         # same as calling Session.load_from_conf_options(CONF, GROUP)
@@ -1029,30 +1065,7 @@ class AuthProtocol(object):
             timeout=self._conf_get('http_connect_timeout')
         ))
 
-        # NOTE(jamielennox): The original auth mechanism allowed deployers
-        # to configure authentication information via paste file. These
-        # are accessible via _conf_get, however this doesn't work with the
-        # plugin loading mechanisms. For using auth plugins we only support
-        # configuring via the CONF file.
-        auth_plugin = auth.load_from_conf_options(CONF, _base.AUTHTOKEN_GROUP)
-
-        if not auth_plugin:
-            # NOTE(jamielennox): Loading AuthTokenPlugin here should be
-            # exactly the same as calling
-            # _AuthTokenPlugin.load_from_conf_options(CONF, GROUP) however
-            # we can't do that because we have to use _conf_get to support
-            # the paste.ini options.
-            auth_plugin = _auth.AuthTokenPlugin.load_from_options(
-                auth_host=self._conf_get('auth_host'),
-                auth_port=int(self._conf_get('auth_port')),
-                auth_protocol=self._conf_get('auth_protocol'),
-                auth_admin_prefix=self._conf_get('auth_admin_prefix'),
-                admin_user=self._conf_get('admin_user'),
-                admin_password=self._conf_get('admin_password'),
-                admin_tenant_name=self._conf_get('admin_tenant_name'),
-                admin_token=self._conf_get('admin_token'),
-                identity_uri=self._conf_get('identity_uri'),
-                log=self._LOG)
+        auth_plugin = self._get_auth_plugin()
 
         adap = adapter.Adapter(
             sess,
