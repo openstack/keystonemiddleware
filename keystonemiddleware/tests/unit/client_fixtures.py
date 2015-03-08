@@ -25,7 +25,7 @@ import testresources
 
 
 TESTDIR = os.path.dirname(os.path.abspath(__file__))
-ROOTDIR = os.path.normpath(os.path.join(TESTDIR, '..', '..'))
+ROOTDIR = os.path.normpath(os.path.join(TESTDIR, '..', '..', '..'))
 CERTDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'certs')
 CMSDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'cms')
 KEYDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'private')

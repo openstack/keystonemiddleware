@@ -18,7 +18,7 @@ import testtools
 from testtools import matchers
 
 from keystonemiddleware import _memcache_pool
-from keystonemiddleware.tests import utils
+from keystonemiddleware.tests.unit import utils
 
 
 class _TestConnectionPool(_memcache_pool.ConnectionPool):

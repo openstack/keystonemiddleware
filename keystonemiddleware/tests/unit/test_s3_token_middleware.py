@@ -21,7 +21,7 @@ import testtools
 import webob
 
 from keystonemiddleware import s3_token
-from keystonemiddleware.tests import utils
+from keystonemiddleware.tests.unit import utils
 
 
 GOOD_RESPONSE = {'access': {'token': {'id': 'TOKEN_ID',

@@ -16,7 +16,7 @@ import pkg_resources
 from testtools import matchers
 
 from keystonemiddleware import opts
-from keystonemiddleware.tests import utils
+from keystonemiddleware.tests.unit import utils
 
 
 class OptsTestCase(utils.TestCase):

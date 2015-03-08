@@ -47,8 +47,8 @@ from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.openstack.common import memorycache
-from keystonemiddleware.tests import client_fixtures
-from keystonemiddleware.tests import utils
+from keystonemiddleware.tests.unit import client_fixtures
+from keystonemiddleware.tests.unit import utils
 
 
 EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
