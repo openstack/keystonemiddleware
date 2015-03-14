@@ -29,6 +29,10 @@ This WSGI component:
 Refer to: http://docs.openstack.org/developer/keystonemiddleware/\
 middlewarearchitecture.html
 
+
+Echo test server
+----------------
+
 Run this module directly to start a protected echo service on port 8000::
 
  $ python -m keystonemiddleware.auth_token
@@ -174,6 +178,37 @@ keystone.token_auth
     :py:class:`keystoneclient.session.Session`. This plugin will load the
     authentication data provided to auth_token middleware.
 
+
+Configuration
+-------------
+
+Middleware configuration can be in the main application's configuration file,
+e.g. in ``nova.conf``:
+
+.. code-block:: ini
+
+  [keystone_authtoken]
+  auth_plugin = password
+  auth_url = http://keystone:35357/
+  username = nova
+  user_domain_id = default
+  password = whyarewestillusingpasswords
+  project_name = service
+  project_domain_id = default
+
+Configuration can also be in the ``api-paste.ini`` file with the same options,
+but this is discouraged.
+
+Swift
+-----
+
+When deploy Keystone auth_token middleware with Swift, user may elect to use
+Swift memcache instead of the local auth_token memcache. Swift memcache is
+passed in from the request environment and it's identified by the
+``swift.cache`` key. However it could be different, depending on deployment. To
+use Swift memcache, you must set the ``cache`` option to the environment key
+where the Swift cache object is stored.
+
 """
 
 import datetime
@@ -201,24 +236,6 @@ from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
 from keystonemiddleware.auth_token import _utils
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
-
-
-# alternative middleware configuration in the main application's
-# configuration file e.g. in nova.conf
-# [keystone_authtoken]
-# auth_host = 127.0.0.1
-# auth_port = 35357
-# auth_protocol = http
-# admin_tenant_name = admin
-# admin_user = admin
-# admin_password = badpassword
-
-# when deploy Keystone auth_token middleware with Swift, user may elect
-# to use Swift memcache instead of the local auth_token memcache. Swift
-# memcache is passed in from the request environment and its identified by the
-# 'swift.cache' key. However it could be different, depending on deployment.
-# To use Swift memcache, you must set the 'cache' option to the environment
-# key where the Swift cache object is stored.
 
 
 # NOTE(jamielennox): A number of options below are deprecated however are left
