@@ -54,7 +54,7 @@ class S3TokenMiddlewareTestBase(utils.TestCase):
             'auth_protocol': self.TEST_PROTOCOL,
         }
 
-        self.requests = self.useFixture(rm_fixture.Fixture())
+        self.requests_mock = self.useFixture(rm_fixture.Fixture())
 
     def start_fake_response(self, status, headers):
         self.response_status = int(status.split(' ', 1)[0])
@@ -67,7 +67,9 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         super(S3TokenMiddlewareTestGood, self).setUp()
         self.middleware = s3_token.S3Token(FakeApp(), self.conf)
 
-        self.requests.post(self.TEST_URL, status_code=201, json=GOOD_RESPONSE)
+        self.requests_mock.post(self.TEST_URL,
+                                status_code=201,
+                                json=GOOD_RESPONSE)
 
     # Ignore the request and pass to the next middleware in the
     # pipeline if no path has been specified.
@@ -98,9 +100,9 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         self.assertEqual(req.headers['X-Auth-Token'], 'TOKEN_ID')
 
     def test_authorized_http(self):
-        self.requests.post(self.TEST_URL.replace('https', 'http'),
-                           status_code=201,
-                           json=GOOD_RESPONSE)
+        self.requests_mock.post(self.TEST_URL.replace('https', 'http'),
+                                status_code=201,
+                                json=GOOD_RESPONSE)
 
         self.middleware = (
             s3_token.filter_factory({'auth_protocol': 'http',
@@ -153,7 +155,7 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
                {"message": "EC2 access key not found.",
                 "code": 401,
                 "title": "Unauthorized"}}
-        self.requests.post(self.TEST_URL, status_code=403, json=ret)
+        self.requests_mock.post(self.TEST_URL, status_code=403, json=ret)
         req = webob.Request.blank('/v1/AUTH_cfa/c/o')
         req.headers['Authorization'] = 'access:signature'
         req.headers['X-Storage-Token'] = 'token'
@@ -185,7 +187,9 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
             self.assertEqual(resp.status_int, s3_invalid_req.status_int)
 
     def test_bad_reply(self):
-        self.requests.post(self.TEST_URL, status_code=201, text="<badreply>")
+        self.requests_mock.post(self.TEST_URL,
+                                status_code=201,
+                                text="<badreply>")
 
         req = webob.Request.blank('/v1/AUTH_cfa/c/o')
         req.headers['Authorization'] = 'access:signature'
