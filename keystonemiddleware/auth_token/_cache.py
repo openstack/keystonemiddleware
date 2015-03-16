@@ -59,7 +59,7 @@ class _MemcacheClientPool(object):
         # NOTE(morganfainberg): import here to avoid hard dependency on
         # python-memcache library.
         global _memcache_pool
-        from keystonemiddleware import _memcache_pool
+        from keystonemiddleware.auth_token import _memcache_pool
 
         self._pool = _memcache_pool.MemcacheClientPool(
             memcache_servers,
