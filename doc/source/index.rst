@@ -14,6 +14,16 @@ Contents:
    middlewarearchitecture
    audit
 
+Related Identity Projects
+=========================
+
+In addition to creating the Python Middleware for OpenStack Identity
+API, the Keystone team also provides `Identity Service`_, as well as
+`Python Client Library`_.
+
+.. _`Identity Service`: http://docs.openstack.org/developer/keystone/
+.. _`Python Client Library`: http://docs.openstack.org/developer/python-keystoneclient/
+
 Contributing
 ============
 
