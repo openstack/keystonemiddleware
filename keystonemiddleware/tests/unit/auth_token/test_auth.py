@@ -50,7 +50,7 @@ class DefaultAuthPluginTests(testtools.TestCase):
         self.stream = six.StringIO()
         self.logger = logging.getLogger(__name__)
         self.session = session.Session()
-        self.requests = self.useFixture(rm_fixture.Fixture())
+        self.requests_mock = self.useFixture(rm_fixture.Fixture())
 
     def test_auth_uri_from_fragments(self):
         auth_protocol = 'http'
@@ -91,8 +91,8 @@ class DefaultAuthPluginTests(testtools.TestCase):
         token = fixture.V2Token()
         admin_tenant_name = uuid.uuid4().hex
 
-        self.requests.post(base_uri + '/v2.0/tokens',
-                           json=token)
+        self.requests_mock.post(base_uri + '/v2.0/tokens',
+                                json=token)
 
         plugin = self.new_plugin(identity_uri=base_uri,
                                  admin_user=uuid.uuid4().hex,
