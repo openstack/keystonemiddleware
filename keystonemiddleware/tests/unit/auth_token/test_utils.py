@@ -17,12 +17,6 @@ from keystonemiddleware.auth_token import _utils
 
 class TokenEncodingTest(testtools.TestCase):
 
-    def test_unquoted_token(self):
-        self.assertEqual('foo%20bar', _utils.safe_quote('foo bar'))
-
-    def test_quoted_token(self):
-        self.assertEqual('foo%20bar', _utils.safe_quote('foo%20bar'))
-
     def test_messages_encoded_as_bytes(self):
         """Test that string are passed around as bytes for PY3."""
         msg = "This is an error"

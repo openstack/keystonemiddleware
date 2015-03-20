@@ -10,13 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from six.moves import urllib
-
-
-def safe_quote(s):
-    """URL-encode strings that are not already URL-encoded."""
-    return urllib.parse.quote(s) if s == urllib.parse.unquote(s) else s
-
 
 class MiniResp(object):
 

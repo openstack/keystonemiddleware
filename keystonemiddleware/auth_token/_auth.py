@@ -96,7 +96,8 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
 
         :param session: The session object that the auth_plugin belongs to.
         :type session: keystoneclient.session.Session
-        :param tuple version: The version number required for this endpoint.
+        :param version: The version number required for this endpoint.
+        :type version: tuple or str
         :param str interface: what visibility the endpoint should have.
 
         :returns: The base URL that will be used to talk to the required
@@ -123,9 +124,13 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
 
         # NOTE(jamielennox): for backwards compatibility here we don't
         # actually use the URL from discovery we hack it up instead. :(
-        if version[0] == 2:
+        # NOTE(blk-u): Normalizing the version is a workaround for bug 1450272.
+        # This can be removed once that's fixed. Also fix the docstring for the
+        # version parameter to be just "tuple".
+        version = discover.normalize_version_number(version)
+        if discover.version_match((2, 0), version):
             return '%s/v2.0' % self._identity_uri
-        elif version[0] == 3:
+        elif discover.version_match((3, 0), version):
             return '%s/v3' % self._identity_uri
 
         # NOTE(jamielennox): This plugin will only get called from auth_token

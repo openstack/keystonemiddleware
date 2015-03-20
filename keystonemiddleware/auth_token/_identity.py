@@ -13,12 +13,12 @@
 from keystoneclient import auth
 from keystoneclient import discover
 from keystoneclient import exceptions
-from oslo_serialization import jsonutils
+from keystoneclient.v2_0 import client as v2_client
+from keystoneclient.v3 import client as v3_client
 from six.moves import urllib
 
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as exc
-from keystonemiddleware.auth_token import _utils
 from keystonemiddleware.i18n import _, _LE, _LI, _LW
 
 
@@ -26,9 +26,7 @@ class _RequestStrategy(object):
 
     AUTH_VERSION = None
 
-    def __init__(self, json_request, adap, include_service_catalog=None):
-        self._json_request = json_request
-        self._adapter = adap
+    def __init__(self, adap, include_service_catalog=None):
         self._include_service_catalog = include_service_catalog
 
     def verify_token(self, user_token):
@@ -42,36 +40,42 @@ class _V2RequestStrategy(_RequestStrategy):
 
     AUTH_VERSION = (2, 0)
 
+    def __init__(self, adap, **kwargs):
+        super(_V2RequestStrategy, self).__init__(adap, **kwargs)
+        self._client = v2_client.Client(session=adap)
+
     def verify_token(self, user_token):
-        return self._json_request('GET',
-                                  '/tokens/%s' % user_token,
-                                  authenticated=True)
+        token = self._client.tokens.validate_access_info(user_token)
+        data = {'access': token}
+        return data
 
     def fetch_cert_file(self, cert_type):
-        return self._adapter.get('/certificates/%s' % cert_type,
-                                 authenticated=False)
+        if cert_type == 'ca':
+            return self._client.certificates.get_ca_certificate()
+        elif cert_type == 'signing':
+            return self._client.certificates.get_signing_certificate()
 
 
 class _V3RequestStrategy(_RequestStrategy):
 
     AUTH_VERSION = (3, 0)
 
-    def verify_token(self, user_token):
-        path = '/auth/tokens'
-        if not self._include_service_catalog:
-            path += '?nocatalog'
+    def __init__(self, adap, **kwargs):
+        super(_V3RequestStrategy, self).__init__(adap, **kwargs)
+        self._client = v3_client.Client(session=adap)
 
-        return self._json_request('GET',
-                                  path,
-                                  authenticated=True,
-                                  headers={'X-Subject-Token': user_token})
+    def verify_token(self, user_token):
+        token = self._client.tokens.validate(
+            user_token,
+            include_catalog=self._include_service_catalog)
+        data = {'token': token}
+        return data
 
     def fetch_cert_file(self, cert_type):
-        if cert_type == 'signing':
-            cert_type = 'certificates'
-
-        return self._adapter.get('/OS-SIMPLE-CERT/%s' % cert_type,
-                                 authenticated=False)
+        if cert_type == 'ca':
+            return self._client.simple_cert.get_ca_certificates()
+        elif cert_type == 'signing':
+            return self._client.simple_cert.get_certificates()
 
 
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
@@ -97,6 +101,8 @@ class IdentityServer(object):
         # Built on-demand with self._request_strategy.
         self._request_strategy_obj = None
 
+        self._v2_client = v2_client.Client(session=self._adapter)
+
     @property
     def auth_uri(self):
         auth_uri = self._adapter.get_endpoint(interface=auth.AUTH_INTERFACE)
@@ -120,7 +126,6 @@ class IdentityServer(object):
             self._adapter.version = strategy_class.AUTH_VERSION
 
             self._request_strategy_obj = strategy_class(
-                self._json_request,
                 self._adapter,
                 include_service_catalog=self._include_service_catalog)
 
@@ -163,10 +168,8 @@ class IdentityServer(object):
         :raises exc.ServiceError: if unable to authenticate token
 
         """
-        user_token = _utils.safe_quote(user_token)
-
         try:
-            response, data = self._request_strategy.verify_token(user_token)
+            data = self._request_strategy.verify_token(user_token)
         except exceptions.NotFound as e:
             self._LOG.warn(_LW('Authorization failed for token'))
             self._LOG.warn(_LW('Identity response: %s'), e.response.text)
@@ -182,23 +185,14 @@ class IdentityServer(object):
                 e.http_status)
             self._LOG.warn(_LW('Identity response: %s'), e.response.text)
         else:
-            if response.status_code == 200:
-                return data
-
-            raise exc.InvalidToken()
+            return data
 
     def fetch_revocation_list(self):
         try:
-            response, data = self._json_request(
-                'GET', '/tokens/revoked',
-                authenticated=True,
-                endpoint_filter={'version': (2, 0)})
+            data = self._v2_client.tokens.get_revoked()
         except exceptions.HTTPError as e:
             msg = _('Failed to fetch token revocation list: %d')
             raise exc.RevocationListError(msg % e.http_status)
-        if response.status_code != 200:
-            msg = _('Unable to fetch token revocation list.')
-            raise exc.RevocationListError(msg)
         if 'signed' not in data:
             msg = _('Revocation list improperly formatted.')
             raise exc.RevocationListError(msg)
@@ -210,34 +204,9 @@ class IdentityServer(object):
     def fetch_ca_cert(self):
         return self._fetch_cert_file('ca')
 
-    def _json_request(self, method, path, **kwargs):
-        """HTTP request helper used to make json requests.
-
-        :param method: http method
-        :param path: relative request url
-        :param **kwargs: additional parameters used by session or endpoint
-        :returns: http response object, response body parsed as json
-        :raises ServerError: when unable to communicate with identity server.
-
-        """
-        headers = kwargs.setdefault('headers', {})
-        headers['Accept'] = 'application/json'
-
-        response = self._adapter.request(path, method, **kwargs)
-
-        try:
-            data = jsonutils.loads(response.text)
-        except ValueError:
-            self._LOG.debug('Identity server did not return json-encoded body')
-            data = {}
-
-        return response, data
-
     def _fetch_cert_file(self, cert_type):
         try:
-            response = self._request_strategy.fetch_cert_file(cert_type)
+            text = self._request_strategy.fetch_cert_file(cert_type)
         except exceptions.HTTPError as e:
             raise exceptions.CertificateConfigError(e.details)
-        if response.status_code != 200:
-            raise exceptions.CertificateConfigError(response.text)
-        return response.text
+        return text

@@ -1773,7 +1773,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                text=self.examples.SIGNED_REVOCATION_LIST)
 
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
-                               text=self.token_response)
+                               text=self.token_response,
+                               headers={'X-Subject-Token': uuid.uuid4().hex})
 
         self.set_middleware()
 
@@ -2498,7 +2499,8 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
                                text=self.examples.SIGNED_REVOCATION_LIST)
 
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
-                               text=self.token_response)
+                               text=self.token_response,
+                               headers={'X-Subject-Token': uuid.uuid4().hex})
 
         self.token_expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
         self.token_expected_env.update(EXPECTED_V3_DEFAULT_ENV_ADDITIONS)
@@ -2629,7 +2631,8 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
         self.requests_mock.get(self.CRUD_URL + '/v3/auth/tokens',
                                request_headers=request_headers,
-                               json=user_token)
+                               json=user_token,
+                               headers={'X-Subject-Token': uuid.uuid4().hex})
 
         req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = user_token_id
