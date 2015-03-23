@@ -35,6 +35,7 @@ import logging
 import webob
 
 from oslo.serialization import jsonutils
+from oslo.utils import strutils
 import requests
 import six
 from six.moves import urllib
@@ -116,7 +117,7 @@ class S3Token(object):
                                             auth_port)
 
         # SSL
-        insecure = conf.get('insecure', False)
+        insecure = strutils.bool_from_string(conf.get('insecure', False))
         cert_file = conf.get('certfile')
         key_file = conf.get('keyfile')
 
