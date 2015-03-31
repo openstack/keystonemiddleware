@@ -30,6 +30,14 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
     def __init__(self, auth_host, auth_port, auth_protocol, auth_admin_prefix,
                  admin_user, admin_password, admin_tenant_name, admin_token,
                  identity_uri, log):
+
+        log.warning(_LW(
+            "Use of the auth_admin_prefix, auth_host, auth_port, "
+            "auth_protocol, identity_uri, admin_token, admin_user, "
+            "admin_password, and admin_tenant_name configuration options is "
+            "deprecated in favor of auth_plugin and related options and may "
+            "be removed in a future release."))
+
         # NOTE(jamielennox): it does appear here that our default arguments
         # are backwards. We need to do it this way so that we can handle the
         # same deprecation strategy for CONF and the conf variable.
