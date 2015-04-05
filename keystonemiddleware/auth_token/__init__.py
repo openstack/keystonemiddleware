@@ -325,7 +325,7 @@ _OPTS = [
     cfg.IntOpt('memcache_pool_socket_timeout',
                default=3,
                help='(Optional) Socket timeout in seconds for communicating '
-                    'with a memcache server.'),
+                    'with a memcached server.'),
     cfg.IntOpt('memcache_pool_unused_timeout',
                default=60,
                help='(Optional) Number of seconds a connection to memcached'
@@ -333,10 +333,10 @@ _OPTS = [
     cfg.IntOpt('memcache_pool_conn_get_timeout',
                default=10,
                help='(Optional) Number of seconds that an operation will wait '
-                    'to get a memcache client connection from the pool.'),
+                    'to get a memcached client connection from the pool.'),
     cfg.BoolOpt('memcache_use_advanced_pool',
                 default=False,
-                help='(Optional) Use the advanced (eventlet safe) memcache '
+                help='(Optional) Use the advanced (eventlet safe) memcached '
                      'client pool. The advanced pool will only work under '
                      'python 2.x.'),
     cfg.BoolOpt('include_service_catalog',

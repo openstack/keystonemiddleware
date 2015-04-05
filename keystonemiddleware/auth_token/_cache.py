@@ -57,7 +57,7 @@ class _MemcacheClientPool(object):
                  memcache_pool_conn_get_timeout=None,
                  memcache_pool_socket_timeout=None):
         # NOTE(morganfainberg): import here to avoid hard dependency on
-        # python-memcache library.
+        # python-memcached library.
         global _memcache_pool
         from keystonemiddleware.auth_token import _memcache_pool
 
