@@ -12,7 +12,6 @@
 
 import contextlib
 
-from keystoneclient.common import cms
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
@@ -97,7 +96,7 @@ class TokenCache(object):
     _CACHE_KEY_TEMPLATE = 'tokens/%s'
     _INVALID_INDICATOR = 'invalid'
 
-    def __init__(self, log, cache_time=None, hash_algorithms=None,
+    def __init__(self, log, cache_time=None,
                  env_cache_name=None, memcached_servers=None,
                  use_advanced_pool=False, memcache_pool_dead_retry=None,
                  memcache_pool_maxsize=None, memcache_pool_unused_timeout=None,
@@ -105,7 +104,6 @@ class TokenCache(object):
                  memcache_pool_socket_timeout=None):
         self._LOG = log
         self._cache_time = cache_time
-        self._hash_algorithms = hash_algorithms
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
         self._use_advanced_pool = use_advanced_pool
@@ -149,38 +147,6 @@ class TokenCache(object):
         )
 
         self._initialized = True
-
-    def get(self, user_token):
-        """Check if the token is cached already.
-
-        Returns a tuple. The first element is a list of token IDs, where the
-        first one is the preferred hash.
-
-        The second element is the token data from the cache if the token was
-        cached, otherwise ``None``.
-
-        :raises exc.InvalidToken: if the token is invalid
-
-        """
-
-        if cms.is_asn1_token(user_token) or cms.is_pkiz(user_token):
-            # user_token is a PKI token that's not hashed.
-
-            token_hashes = list(cms.cms_hash_token(user_token, mode=algo)
-                                for algo in self._hash_algorithms)
-
-            for token_hash in token_hashes:
-                cached = self._cache_get(token_hash)
-                if cached:
-                    return (token_hashes, cached)
-
-            # The token wasn't found using any hash algorithm.
-            return (token_hashes, None)
-
-        # user_token is either a UUID token or a hashed PKI token.
-        token_id = user_token
-        cached = self._cache_get(token_id)
-        return ([token_id], cached)
 
     def store(self, token_id, data, expires):
         """Put token data into the cache.
@@ -249,7 +215,7 @@ class TokenCache(object):
         # memory cache will handle serialization for us
         return data
 
-    def _cache_get(self, token_id):
+    def get(self, token_id):
         """Return token information from cache.
 
         If token is invalid raise exc.InvalidToken
