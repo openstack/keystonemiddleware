@@ -535,16 +535,6 @@ class AuthProtocol(object):
         we can't authenticate.
 
         """
-        def _fmt_msg(env):
-            msg = ('user: user_id %s, project_id %s, roles %s '
-                   'service: user_id %s, project_id %s, roles %s' % (
-                       env.get('HTTP_X_USER_ID'), env.get('HTTP_X_PROJECT_ID'),
-                       env.get('HTTP_X_ROLES'),
-                       env.get('HTTP_X_SERVICE_USER_ID'),
-                       env.get('HTTP_X_SERVICE_PROJECT_ID'),
-                       env.get('HTTP_X_SERVICE_ROLES')))
-            return msg
-
         self._token_cache.initialize(request.environ)
         self._remove_auth_headers(request.environ)
 
@@ -601,7 +591,8 @@ class AuthProtocol(object):
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
             raise webob.exc.HTTPServiceUnavailable()
 
-        self._LOG.debug("Received request from %s", _fmt_msg(request.environ))
+        if self._LOG.isEnabledFor(logging.DEBUG):
+            self._LOG.debug('Received request from %s' % p._log_format)
 
         response = request.get_response(self._app)
 

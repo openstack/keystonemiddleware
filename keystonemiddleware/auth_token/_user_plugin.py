@@ -105,6 +105,13 @@ class _TokenData(object):
         """
         return frozenset(self._stored_auth_ref.role_names or [])
 
+    @property
+    def _log_format(self):
+        roles = ','.join(self.role_names)
+        return 'user_id %s, project_id %s, roles %s' % (self.user_id,
+                                                        self.project_id,
+                                                        roles)
+
 
 class UserAuthPlugin(base_identity.BaseIdentityPlugin):
     """The incoming authentication credentials.
@@ -167,3 +174,15 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
         # calculated by the middleware. reauthenticate=False in __init__ should
         # ensure that this function is only called on the first access.
         return self._user_auth_ref
+
+    @property
+    def _log_format(self):
+        msg = []
+
+        if self.has_user_token:
+            msg.append('user: %s' % self.user._log_format)
+
+        if self.has_service_token:
+            msg.append('service: %s' % self.service._log_format)
+
+        return ' '.join(msg)
