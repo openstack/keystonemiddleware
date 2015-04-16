@@ -783,6 +783,10 @@ class AuthProtocol(object):
             if auth_ref.will_expire_soon(stale_duration=0):
                 raise exc.InvalidToken(_('Token authorization failed'))
 
+            if _token_is_v2(data) and not auth_ref.project_id:
+                msg = _('Unable to determine service tenancy.')
+                raise exc.InvalidToken(msg)
+
             self._confirm_token_bind(data, env)
 
             if not cached:
@@ -814,9 +818,6 @@ class AuthProtocol(object):
 
         """
         roles = ','.join(auth_ref.role_names)
-
-        if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise exc.InvalidToken(_('Unable to determine tenancy.'))
 
         rval = {
             'X-Identity-Status': 'Confirmed',
@@ -851,9 +852,6 @@ class AuthProtocol(object):
 
         """
         auth_ref = access.AccessInfo.factory(body=token_info)
-
-        if _token_is_v2(token_info) and not auth_ref.project_id:
-            raise exc.InvalidToken(_('Unable to determine service tenancy.'))
 
         roles = ','.join(auth_ref.role_names)
         rval = {
