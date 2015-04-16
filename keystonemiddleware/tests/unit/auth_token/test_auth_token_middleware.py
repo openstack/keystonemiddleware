@@ -12,7 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import calendar
 import datetime
 import json
 import logging
@@ -511,13 +510,11 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         }
         self.set_middleware(conf=conf)
         token = b'my_token'
-        some_time_later = timeutils.utcnow() + datetime.timedelta(hours=4)
-        expires = timeutils.strtime(some_time_later)
-        data = ('this_data', expires)
+        data = 'this_data'
         token_cache = self.middleware._token_cache
         token_cache.initialize({})
         token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data[0])
+        self.assertEqual(token_cache.get(token), data)
 
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_sign_cache_data(self):
@@ -528,13 +525,11 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         }
         self.set_middleware(conf=conf)
         token = b'my_token'
-        some_time_later = timeutils.utcnow() + datetime.timedelta(hours=4)
-        expires = timeutils.strtime(some_time_later)
-        data = ('this_data', expires)
+        data = 'this_data'
         token_cache = self.middleware._token_cache
         token_cache.initialize({})
         token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data[0])
+        self.assertEqual(token_cache.get(token), data)
 
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_no_memcache_protection(self):
@@ -544,13 +539,11 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         }
         self.set_middleware(conf=conf)
         token = 'my_token'
-        some_time_later = timeutils.utcnow() + datetime.timedelta(hours=4)
-        expires = timeutils.strtime(some_time_later)
-        data = ('this_data', expires)
+        data = 'this_data'
         token_cache = self.middleware._token_cache
         token_cache.initialize({})
         token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data[0])
+        self.assertEqual(token_cache.get(token), data)
 
     def test_assert_valid_memcache_protection_config(self):
         # test missing memcache_secret_key
@@ -1833,6 +1826,19 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
             self.assertIsNone(t.trust_id)
 
+    def test_expire_stored_in_cache(self):
+        # tests the upgrade path from storing a tuple vs just the data in the
+        # cache. Can be removed in the future.
+        token = 'mytoken'
+        data = 'this_data'
+        self.set_middleware()
+        self.middleware._token_cache.initialize({})
+        now = datetime.datetime.utcnow()
+        delta = datetime.timedelta(hours=1)
+        expires = timeutils.strtime(at=(now + delta))
+        self.middleware._token_cache.store(token, (data, expires))
+        self.assertEqual(self.middleware._token_cache.get(token), data)
+
 
 class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
     def setUp(self):
@@ -1982,68 +1988,6 @@ class TokenExpirationTest(BaseAuthTokenMiddlewareTest):
         self.assertRaises(exc.InvalidToken,
                           auth_token._confirm_token_not_expired,
                           expires)
-
-    def test_cached_token_not_expired(self):
-        token = 'mytoken'
-        data = 'this_data'
-        self.set_middleware()
-        self.middleware._token_cache.initialize({})
-        some_time_later = timeutils.strtime(at=(self.now + self.delta))
-        expires = some_time_later
-        self.middleware._token_cache.store(token, data, expires)
-        self.assertEqual(self.middleware._token_cache.get(token), data)
-
-    def test_cached_token_not_expired_with_old_style_nix_timestamp(self):
-        """Ensure we cannot retrieve a token from the cache.
-
-        Getting a token from the cache should return None when the token data
-        in the cache stores the expires time as a \*nix style timestamp.
-
-        """
-        token = 'mytoken'
-        data = 'this_data'
-        self.set_middleware()
-        token_cache = self.middleware._token_cache
-        token_cache.initialize({})
-        some_time_later = self.now + self.delta
-        # Store a unix timestamp in the cache.
-        expires = calendar.timegm(some_time_later.timetuple())
-        token_cache.store(token, data, expires)
-        self.assertIsNone(token_cache.get(token))
-
-    def test_cached_token_expired(self):
-        token = 'mytoken'
-        data = 'this_data'
-        self.set_middleware()
-        self.middleware._token_cache.initialize({})
-        some_time_earlier = timeutils.strtime(at=(self.now - self.delta))
-        expires = some_time_earlier
-        self.middleware._token_cache.store(token, data, expires)
-        self.assertThat(lambda: self.middleware._token_cache.get(token),
-                        matchers.raises(exc.InvalidToken))
-
-    def test_cached_token_with_timezone_offset_not_expired(self):
-        token = 'mytoken'
-        data = 'this_data'
-        self.set_middleware()
-        self.middleware._token_cache.initialize({})
-        timezone_offset = datetime.timedelta(hours=2)
-        some_time_later = self.now - timezone_offset + self.delta
-        expires = timeutils.strtime(some_time_later) + '-02:00'
-        self.middleware._token_cache.store(token, data, expires)
-        self.assertEqual(self.middleware._token_cache.get(token), data)
-
-    def test_cached_token_with_timezone_offset_expired(self):
-        token = 'mytoken'
-        data = 'this_data'
-        self.set_middleware()
-        self.middleware._token_cache.initialize({})
-        timezone_offset = datetime.timedelta(hours=2)
-        some_time_earlier = self.now - timezone_offset - self.delta
-        expires = timeutils.strtime(some_time_earlier) + '-02:00'
-        self.middleware._token_cache.store(token, data, expires)
-        self.assertThat(lambda: self.middleware._token_cache.get(token),
-                        matchers.raises(exc.InvalidToken))
 
 
 class CatalogConversionTests(BaseAuthTokenMiddlewareTest):

@@ -773,11 +773,6 @@ class AuthProtocol(object):
             cached = self._cache_get_hashes(token_hashes)
 
             if cached:
-                # Token was retrieved from the cache. In this case, there's no
-                # need to check that the token is expired because the cache
-                # fetch fails for an expired token. Also, there's no need to
-                # put the token in the cache because it's already in the cache.
-
                 data = cached
 
                 if self._check_revocations_for_cached:
@@ -785,11 +780,10 @@ class AuthProtocol(object):
                     # regardless of initial mechanism used to validate it,
                     # and needs to be checked.
                     self._revocations.check(token_hashes)
-                self._confirm_token_bind(data, env)
+
             else:
                 verified = None
-                # Token wasn't cached. In this case, the token needs to be
-                # checked that it's not expired, and also put in the cache.
+
                 try:
                     if cms.is_pkiz(token):
                         verified = self._verify_pkiz_token(token, token_hashes)
@@ -805,15 +799,16 @@ class AuthProtocol(object):
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
-                    expires = _get_token_expiration(data)
-                    _confirm_token_not_expired(expires)
                 else:
                     data = self._identity_server.verify_token(token)
-                    # No need to confirm token expiration here since
-                    # verify_token fails for expired tokens.
-                    expires = _get_token_expiration(data)
-                self._confirm_token_bind(data, env)
-                self._token_cache.store(token_hashes[0], data, expires)
+
+            expires = _get_token_expiration(data)
+            _confirm_token_not_expired(expires)
+            self._confirm_token_bind(data, env)
+
+            if not cached:
+                self._token_cache.store(token_hashes[0], data)
+
             return data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)

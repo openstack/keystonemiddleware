@@ -13,7 +13,6 @@
 import contextlib
 
 from oslo_serialization import jsonutils
-from oslo_utils import timeutils
 import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
@@ -148,15 +147,11 @@ class TokenCache(object):
 
         self._initialized = True
 
-    def store(self, token_id, data, expires):
+    def store(self, token_id, data):
         """Put token data into the cache.
-
-        Stores the parsed expire date in cache allowing
-        quick check of token freshness on retrieval.
-
         """
         self._LOG.debug('Storing token in cache')
-        self._cache_store(token_id, (data, expires))
+        self._cache_store(token_id, data)
 
     def store_invalid(self, token_id):
         """Store invalid token in cache."""
@@ -248,24 +243,15 @@ class TokenCache(object):
             self._LOG.debug('Cached Token is marked unauthorized')
             raise exc.InvalidToken(_('Token authorization failed'))
 
-        data, expires = cached
-
+        # NOTE(jamielennox): Cached values used to be stored as a tuple of data
+        # and expiry time. They no longer are but we have to allow some time to
+        # transition the old format so if it's a tuple just return the data.
         try:
-            expires = timeutils.parse_isotime(expires)
+            data, expires = cached
         except ValueError:
-            # Gracefully handle upgrade of expiration times from *nix
-            # timestamps to ISO 8601 formatted dates by ignoring old cached
-            # values.
-            return
+            data = cached
 
-        expires = timeutils.normalize_time(expires)
-        utcnow = timeutils.utcnow()
-        if utcnow < expires:
-            self._LOG.debug('Returning cached token')
-            return data
-        else:
-            self._LOG.debug('Cached Token seems expired')
-            raise exc.InvalidToken(_('Token authorization failed'))
+        return data
 
     def _cache_store(self, token_id, data):
         """Store value into memcache.
