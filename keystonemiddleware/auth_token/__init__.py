@@ -212,6 +212,7 @@ from keystoneclient import session
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 import six
+import webob.dec
 
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _base
@@ -221,7 +222,6 @@ from keystonemiddleware.auth_token import _identity
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
-from keystonemiddleware.auth_token import _utils
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 
 
@@ -527,19 +527,8 @@ class AuthProtocol(object):
         else:
             return CONF[group][name]
 
-    def _call_app(self, env, start_response):
-        # NOTE(jamielennox): We wrap the given start response so that if an
-        # application with a 'delay_auth_decision' setting fails, or otherwise
-        # raises Unauthorized that we include the Authentication URL headers.
-        def _fake_start_response(status, response_headers, exc_info=None):
-            if status.startswith('401'):
-                response_headers.extend(self._reject_auth_headers)
-
-            return start_response(status, response_headers, exc_info)
-
-        return self._app(env, _fake_start_response)
-
-    def __call__(self, env, start_response):
+    @webob.dec.wsgify
+    def __call__(self, request):
         """Handle incoming request.
 
         Authenticate send downstream on success. Reject request if
@@ -556,8 +545,8 @@ class AuthProtocol(object):
                        env.get('HTTP_X_SERVICE_ROLES')))
             return msg
 
-        self._token_cache.initialize(env)
-        self._remove_auth_headers(env)
+        self._token_cache.initialize(request.environ)
+        self._remove_auth_headers(request.environ)
 
         try:
             user_auth_ref = None
@@ -565,58 +554,61 @@ class AuthProtocol(object):
 
             try:
                 self._LOG.debug('Authenticating user token')
-                user_token_info = self._get_user_token_from_header(env)
+                user_token_info = self._get_user_token_from_header(
+                    request.environ)
                 user_auth_ref, user_token_info = self._validate_token(
-                    user_token_info, env)
-                env['keystone.token_info'] = user_token_info
+                    user_token_info, request.environ)
+                request.environ['keystone.token_info'] = user_token_info
                 user_headers = self._build_user_headers(user_auth_ref)
-                self._add_headers(env, user_headers)
+                self._add_headers(request.environ, user_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
                         _LI('Invalid user token - deferring reject '
                             'downstream'))
-                    self._add_headers(env, {'X-Identity-Status': 'Invalid'})
+                    self._add_headers(request.environ,
+                                      {'X-Identity-Status': 'Invalid'})
                 else:
                     self._LOG.info(
                         _LI('Invalid user token - rejecting request'))
-                    return self._reject_request(env, start_response)
+                    self._reject_request()
 
             try:
                 self._LOG.debug('Authenticating service token')
-                serv_token = self._get_service_token_from_header(env)
+                serv_token = self._get_service_token_from_header(
+                    request.environ)
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
-                        serv_token, env)
+                        serv_token, request.environ)
                     serv_headers = self._build_service_headers(serv_auth_ref)
-                    self._add_headers(env, serv_headers)
+                    self._add_headers(request.environ, serv_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
                         _LI('Invalid service token - deferring reject '
                             'downstream'))
-                    self._add_headers(env,
+                    self._add_headers(request.environ,
                                       {'X-Service-Identity-Status': 'Invalid'})
                 else:
                     self._LOG.info(
                         _LI('Invalid service token - rejecting request'))
-                    return self._reject_request(env, start_response)
+                    self._reject_request()
 
-            env['keystone.token_auth'] = _user_plugin.UserAuthPlugin(
-                user_auth_ref, serv_auth_ref)
+            p = _user_plugin.UserAuthPlugin(user_auth_ref, serv_auth_ref)
+            request.environ['keystone.token_auth'] = p
 
         except exc.ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
-            return self._do_503_error(env, start_response)
+            raise webob.exc.HTTPServiceUnavailable()
 
-        self._LOG.debug("Received request from %s", _fmt_msg(env))
+        self._LOG.debug("Received request from %s", _fmt_msg(request.environ))
 
-        return self._call_app(env, start_response)
+        response = request.get_response(self._app)
 
-    def _do_503_error(self, env, start_response):
-        resp = _utils.MiniResp('Service unavailable', env)
-        start_response('503 Service Unavailable', resp.headers)
-        return resp.body
+        if response.status_int == 401:
+            response.headers.extend(self._reject_auth_headers)
+
+        return response
 
     def _init_auth_headers(self):
         """Initialize auth header list.
@@ -683,7 +675,7 @@ class AuthProtocol(object):
         header_val = 'Keystone uri=\'%s\'' % self._auth_uri
         return [('WWW-Authenticate', header_val)]
 
-    def _reject_request(self, env, start_response):
+    def _reject_request(self):
         """Redirect client to auth server.
 
         :param env: wsgi request environment
@@ -691,10 +683,8 @@ class AuthProtocol(object):
         :returns: HTTPUnauthorized http response
 
         """
-        resp = _utils.MiniResp('Authentication required',
-                               env, self._reject_auth_headers)
-        start_response('401 Unauthorized', resp.headers)
-        return resp.body
+        raise webob.exc.HTTPUnauthorized(body='Authentication required',
+                                         headers=self._reject_auth_headers)
 
     def _token_hashes(self, token):
         """Generate a list of hashes that the current token may be cached as.
