@@ -211,7 +211,6 @@ from keystoneclient import exceptions
 from keystoneclient import session
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-from oslo_utils import timeutils
 import six
 
 from keystonemiddleware.auth_token import _auth
@@ -401,25 +400,6 @@ def _token_is_v3(token_info):
     return ('token' in token_info)
 
 
-def _get_token_expiration(data):
-    if not data:
-        raise exc.InvalidToken(_('Token authorization failed'))
-    if _token_is_v2(data):
-        return data['access']['token']['expires']
-    elif _token_is_v3(data):
-        return data['token']['expires_at']
-    else:
-        raise exc.InvalidToken(_('Token authorization failed'))
-
-
-def _confirm_token_not_expired(expires):
-    expires = timeutils.parse_isotime(expires)
-    expires = timeutils.normalize_time(expires)
-    utcnow = timeutils.utcnow()
-    if utcnow >= expires:
-        raise exc.InvalidToken(_('Token authorization failed'))
-
-
 def _v3_to_v2_catalog(catalog):
     """Convert a catalog to v2 format.
 
@@ -585,11 +565,9 @@ class AuthProtocol(object):
 
             try:
                 self._LOG.debug('Authenticating user token')
-                user_token = self._get_user_token_from_header(env)
-                user_token_info = self._validate_token(user_token, env)
-                user_auth_ref = access.AccessInfo.factory(
-                    body=user_token_info,
-                    auth_token=user_token)
+                user_token_info = self._get_user_token_from_header(env)
+                user_auth_ref, user_token_info = self._validate_token(
+                    user_token_info, env)
                 env['keystone.token_info'] = user_token_info
                 user_headers = self._build_user_headers(user_auth_ref,
                                                         user_token_info)
@@ -609,11 +587,8 @@ class AuthProtocol(object):
                 self._LOG.debug('Authenticating service token')
                 serv_token = self._get_service_token_from_header(env)
                 if serv_token is not None:
-                    serv_token_info = self._validate_token(
+                    serv_auth_ref, serv_token_info = self._validate_token(
                         serv_token, env)
-                    serv_auth_ref = access.AccessInfo.factory(
-                        body=serv_token_info,
-                        auth_token=serv_token)
                     serv_headers = self._build_service_headers(serv_token_info)
                     self._add_headers(env, serv_headers)
             except exc.InvalidToken:
@@ -802,14 +777,18 @@ class AuthProtocol(object):
                 else:
                     data = self._identity_server.verify_token(token)
 
-            expires = _get_token_expiration(data)
-            _confirm_token_not_expired(expires)
+            auth_ref = access.AccessInfo.factory(body=data, auth_token=token)
+
+            # 0 seconds of validity means is it valid right now.
+            if auth_ref.will_expire_soon(stale_duration=0):
+                raise exc.InvalidToken(_('Token authorization failed'))
+
             self._confirm_token_bind(data, env)
 
             if not cached:
                 self._token_cache.store(token_hashes[0], data)
 
-            return data
+            return auth_ref, data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
             self._LOG.warn(_LW('Authorization failed for token'))
