@@ -569,8 +569,7 @@ class AuthProtocol(object):
                 user_auth_ref, user_token_info = self._validate_token(
                     user_token_info, env)
                 env['keystone.token_info'] = user_token_info
-                user_headers = self._build_user_headers(user_auth_ref,
-                                                        user_token_info)
+                user_headers = self._build_user_headers(user_auth_ref)
                 self._add_headers(env, user_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
@@ -589,7 +588,7 @@ class AuthProtocol(object):
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
                         serv_token, env)
-                    serv_headers = self._build_service_headers(serv_token_info)
+                    serv_headers = self._build_service_headers(serv_auth_ref)
                     self._add_headers(env, serv_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
@@ -806,7 +805,7 @@ class AuthProtocol(object):
             self._LOG.warn(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
 
-    def _build_user_headers(self, auth_ref, token_info):
+    def _build_user_headers(self, auth_ref):
         """Convert token object into headers.
 
         Build headers that represent authenticated user - see main
@@ -834,24 +833,20 @@ class AuthProtocol(object):
 
         if self._include_service_catalog and auth_ref.has_service_catalog():
             catalog = auth_ref.service_catalog.get_data()
-            if _token_is_v3(token_info):
+            if auth_ref.version == 'v3':
                 catalog = _v3_to_v2_catalog(catalog)
             rval['X-Service-Catalog'] = jsonutils.dumps(catalog)
 
         return rval
 
-    def _build_service_headers(self, token_info):
+    def _build_service_headers(self, auth_ref):
         """Convert token object into service headers.
 
         Build headers that represent authenticated user - see main
         doc info at start of file for details of headers to be defined.
 
-        :param token_info: token object returned by identity
-                           server on authentication
-        :raises exc.InvalidToken: when unable to parse token object
-
+        :param auth_ref: authentication information
         """
-        auth_ref = access.AccessInfo.factory(body=token_info)
 
         roles = ','.join(auth_ref.role_names)
         rval = {
