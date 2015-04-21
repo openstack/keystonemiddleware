@@ -723,12 +723,11 @@ class AuthProtocol(object):
         start_response('401 Unauthorized', resp.headers)
         return resp.body
 
-    def _validate_token(self, token, env, retry=True):
+    def _validate_token(self, token, env):
         """Authenticate user token
 
         :param token: token id
         :param env: wsgi environment
-        :param retry: Ignored, as it is not longer relevant
         :returns: uncrypted body of the token if the token is valid
         :raises exc.InvalidToken: if token is rejected
 
@@ -773,7 +772,7 @@ class AuthProtocol(object):
                     expires = _get_token_expiration(data)
                     _confirm_token_not_expired(expires)
                 else:
-                    data = self._identity_server.verify_token(token, retry)
+                    data = self._identity_server.verify_token(token)
                     # No need to confirm token expiration here since
                     # verify_token fails for expired tokens.
                     expires = _get_token_expiration(data)
