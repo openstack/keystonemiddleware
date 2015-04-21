@@ -7,16 +7,13 @@ authorization features to web services other than `Keystone
 ``keystonemiddleware.auth_token``. This package does not expose any CLI or
 Python API features.
 
-The source is available on GitHub at:
+For information on contributing, see ``CONTRIBUTING.rst``.
 
-    http://github.com/openstack/keystonemiddleware
-
-Bugs and feature requests are tracked on Launchpad at:
-
-    https://bugs.launchpad.net/keystonemiddleware
+* License: Apache License, Version 2.0
+* Documentation: http://docs.openstack.org/developer/keystonemiddleware
+* Source: http://git.openstack.org/cgit/openstack/keystonemiddleware
+* Bugs: http://bugs.launchpad.net/keystonemiddleware
 
 For any other information, refer to the parent project, Keystone:
 
     https://github.com/openstack/keystone
-
-For information on contributing, see ``CONTRIBUTING.rst``.
