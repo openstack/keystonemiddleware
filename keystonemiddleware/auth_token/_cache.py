@@ -268,6 +268,8 @@ class TokenCache(object):
         if serialized is None:
             return None
 
+        if isinstance(serialized, six.text_type):
+            serialized = serialized.encode('utf8')
         data = self._deserialize(serialized, context)
 
         # Note that _INVALID_INDICATOR and (data, expires) are the only
