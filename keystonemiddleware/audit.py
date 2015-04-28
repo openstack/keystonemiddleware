@@ -30,7 +30,7 @@ import sys
 from oslo_config import cfg
 from oslo_context import context
 try:
-    import oslo.messaging
+    import oslo_messaging
     messaging = True
 except ImportError:
     messaging = False
@@ -322,8 +322,8 @@ class AuditMiddleware(object):
 
         transport_aliases = self._get_aliases(cfg.CONF.project)
         if messaging:
-            self._notifier = oslo.messaging.Notifier(
-                oslo.messaging.get_transport(cfg.CONF,
+            self._notifier = oslo_messaging.Notifier(
+                oslo_messaging.get_transport(cfg.CONF,
                                              aliases=transport_aliases),
                 os.path.basename(sys.argv[0]))
 
