@@ -1020,25 +1020,6 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertEqual(self.response_headers['WWW-Authenticate'],
                          "Keystone uri='https://keystone.example.com:1234'")
 
-    def test_request_no_token_log_message(self):
-        class FakeLog(object):
-            def __init__(self):
-                self.msg = None
-                self.debugmsg = None
-
-            def warn(self, msg=None, *args, **kwargs):
-                self.msg = msg
-
-            def debug(self, msg=None, *args, **kwargs):
-                self.debugmsg = msg
-
-        self.middleware._LOG = FakeLog()
-        self.middleware._delay_auth_decision = False
-        self.assertRaises(exc.InvalidToken,
-                          self.middleware._get_user_token_from_header, {})
-        self.assertIsNotNone(self.middleware._LOG.msg)
-        self.assertIsNotNone(self.middleware._LOG.debugmsg)
-
     def test_request_no_token_http(self):
         req = webob.Request.blank('/', environ={'REQUEST_METHOD': 'HEAD'})
         self.set_middleware()
