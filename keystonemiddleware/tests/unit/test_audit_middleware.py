@@ -90,13 +90,13 @@ class BaseAuditMiddlewareTest(testtools.TestCase):
         return env_headers
 
 
-@mock.patch('oslo.messaging.get_transport', mock.MagicMock())
+@mock.patch('oslo_messaging.get_transport', mock.MagicMock())
 class AuditMiddlewareTest(BaseAuditMiddlewareTest):
 
     def test_api_request(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info') as notify:
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
             self.middleware(req)
             # Check first notification with only 'request'
             call_args = notify.call_args_list[0][0]
@@ -121,7 +121,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
             service_name='pycadf')
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info') as notify:
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
             try:
                 self.middleware(req)
                 self.fail('Application exception has not been re-raised')
@@ -144,7 +144,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
     def test_process_request_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info',
+        with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             self.middleware._process_request(req)
             self.assertTrue(notify.called)
@@ -152,7 +152,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
     def test_process_response_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info',
+        with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             self.middleware._process_response(req, webob.response.Response())
             self.assertTrue(notify.called)
@@ -167,7 +167,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
                                    environ=self.get_environ_header('PUT'))
         req2 = webob.Request.blank('/accept/foo',
                                    environ=self.get_environ_header('POST'))
-        with mock.patch('oslo.messaging.Notifier.info') as notify:
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
             # Check GET/PUT request does not send notification
             self.middleware(req)
             self.middleware(req1)
@@ -207,7 +207,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
             service_name='pycadf')
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info') as notify:
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
             middleware(req)
             self.assertIsNotNone(req.environ.get('cadf_event'))
 
@@ -222,13 +222,13 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
             service_name='pycadf')
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info',
+        with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             middleware._process_request(req)
             self.assertTrue(notify.called)
         req2 = webob.Request.blank('/foo/bar',
                                    environ=self.get_environ_header('GET'))
-        with mock.patch('oslo.messaging.Notifier.info') as notify:
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
             middleware._process_response(req2, webob.response.Response())
             self.assertTrue(notify.called)
             # ensure event is not the same across requests
@@ -236,7 +236,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
                                 notify.call_args_list[0][0][2]['id'])
 
 
-@mock.patch('oslo.messaging', mock.MagicMock())
+@mock.patch('oslo_messaging.rpc', mock.MagicMock())
 class AuditApiLogicTest(BaseAuditMiddlewareTest):
 
     def api_request(self, method, url):
