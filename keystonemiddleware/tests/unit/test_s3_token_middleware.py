@@ -17,6 +17,7 @@ from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture
 import six
+from six.moves import urllib
 import webob
 
 from keystonemiddleware import s3_token
@@ -164,6 +165,13 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         config = {'certfile': 'false_ind'}
         middleware = s3_token.filter_factory(config)(FakeApp())
         self.assertIs('false_ind', middleware._verify)
+
+    def test_unicode_path(self):
+        url = u'/v1/AUTH_cfa/c/euro\u20ac'.encode('utf8')
+        req = webob.Request.blank(urllib.parse.quote(url))
+        req.headers['Authorization'] = 'access:signature'
+        req.headers['X-Storage-Token'] = 'token'
+        req.get_response(self.middleware)
 
 
 class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
