@@ -725,6 +725,8 @@ class AuthProtocol(object):
                     # and needs to be checked.
                     self._revocations.check(token_hashes)
 
+                auth_ref = access.AccessInfo.factory(body=data,
+                                                     auth_token=token)
             else:
                 verified = None
 
@@ -743,10 +745,17 @@ class AuthProtocol(object):
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
+                    auth_ref = access.AccessInfo.factory(body=data,
+                                                         auth_token=token)
                 else:
-                    data = self._identity_server.verify_token(token)
-
-            auth_ref = access.AccessInfo.factory(body=data, auth_token=token)
+                    auth_ref = self._identity_server.verify_token(token)
+                    if auth_ref:
+                        if auth_ref.version == 'v2.0':
+                            data = {'access': auth_ref}
+                        else:  # it's v3.
+                            data = {'token': auth_ref}
+                    else:
+                        data = None
 
             # 0 seconds of validity means is it valid right now.
             if auth_ref.will_expire_soon(stale_duration=0):

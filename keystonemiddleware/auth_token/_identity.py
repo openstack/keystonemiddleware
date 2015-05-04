@@ -10,6 +10,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import functools
+
 from keystoneclient import auth
 from keystoneclient import discover
 from keystoneclient import exceptions
@@ -47,10 +49,7 @@ class _V2RequestStrategy(_RequestStrategy):
         super(_V2RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v2_client.Client(session=adap)
 
-    def verify_token(self, user_token):
-        token = self._client.tokens.validate_access_info(user_token)
-        data = {'access': token}
-        return data
+        self.verify_token = self._client.tokens.validate_access_info
 
     def fetch_cert_file(self, cert_type):
         if cert_type == 'ca':
@@ -70,12 +69,9 @@ class _V3RequestStrategy(_RequestStrategy):
         super(_V3RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v3_client.Client(session=adap)
 
-    def verify_token(self, user_token):
-        token = self._client.tokens.validate(
-            user_token,
+        self.verify_token = functools.partial(
+            self._client.tokens.validate,
             include_catalog=self._include_service_catalog)
-        data = {'token': token}
-        return data
 
     def fetch_cert_file(self, cert_type):
         if cert_type == 'ca':
@@ -170,13 +166,14 @@ class IdentityServer(object):
         :param retry: flag that forces the middleware to retry
                       user authentication when an indeterminate
                       response is received. Optional.
-        :returns: token object received from identity server on success
+        :returns: access info received from identity server on success
+        :rtype: :py:class:`keystoneclient.access.AccessInfo`
         :raises exc.InvalidToken: if token is rejected
         :raises exc.ServiceError: if unable to authenticate token
 
         """
         try:
-            data = self._request_strategy.verify_token(user_token)
+            auth_ref = self._request_strategy.verify_token(user_token)
         except exceptions.NotFound as e:
             self._LOG.warn(_LW('Authorization failed for token'))
             self._LOG.warn(_LW('Identity response: %s'), e.response.text)
@@ -192,7 +189,7 @@ class IdentityServer(object):
                 e.http_status)
             self._LOG.warn(_LW('Identity response: %s'), e.response.text)
         else:
-            return data
+            return auth_ref
 
     def fetch_revocation_list(self):
         try:
