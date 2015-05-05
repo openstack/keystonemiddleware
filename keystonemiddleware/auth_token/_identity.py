@@ -35,6 +35,9 @@ class _RequestStrategy(object):
     def fetch_cert_file(self, cert_type):
         pass
 
+    def fetch_revocation_list(self):
+        pass
+
 
 class _V2RequestStrategy(_RequestStrategy):
 
@@ -54,6 +57,9 @@ class _V2RequestStrategy(_RequestStrategy):
             return self._client.certificates.get_ca_certificate()
         elif cert_type == 'signing':
             return self._client.certificates.get_signing_certificate()
+
+    def fetch_revocation_list(self):
+        return self._client.tokens.get_revoked()
 
 
 class _V3RequestStrategy(_RequestStrategy):
@@ -76,6 +82,9 @@ class _V3RequestStrategy(_RequestStrategy):
             return self._client.simple_cert.get_ca_certificates()
         elif cert_type == 'signing':
             return self._client.simple_cert.get_certificates()
+
+    def fetch_revocation_list(self):
+        return self._client.tokens.get_revoked()
 
 
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
@@ -100,8 +109,6 @@ class IdentityServer(object):
 
         # Built on-demand with self._request_strategy.
         self._request_strategy_obj = None
-
-        self._v2_client = v2_client.Client(session=self._adapter)
 
     @property
     def auth_uri(self):
@@ -189,7 +196,7 @@ class IdentityServer(object):
 
     def fetch_revocation_list(self):
         try:
-            data = self._v2_client.tokens.get_revoked()
+            data = self._request_strategy.fetch_revocation_list()
         except exceptions.HTTPError as e:
             msg = _('Failed to fetch token revocation list: %d')
             raise exc.RevocationListError(msg % e.http_status)
