@@ -536,7 +536,7 @@ class AuthProtocol(object):
 
         """
         self._token_cache.initialize(request.environ)
-        self._remove_auth_headers(request.environ)
+        self._remove_auth_headers(request)
 
         try:
             user_auth_ref = None
@@ -549,14 +549,13 @@ class AuthProtocol(object):
                     user_token_info, request.environ)
                 request.environ['keystone.token_info'] = user_token_info
                 user_headers = self._build_user_headers(user_auth_ref)
-                self._add_headers(request.environ, user_headers)
+                request.headers.update(user_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
                         _LI('Invalid user token - deferring reject '
                             'downstream'))
-                    self._add_headers(request.environ,
-                                      {'X-Identity-Status': 'Invalid'})
+                    request.headers['X-Identity-Status'] = 'Invalid'
                 else:
                     self._LOG.info(
                         _LI('Invalid user token - rejecting request'))
@@ -569,14 +568,13 @@ class AuthProtocol(object):
                     serv_auth_ref, serv_token_info = self._validate_token(
                         serv_token, request.environ)
                     serv_headers = self._build_service_headers(serv_auth_ref)
-                    self._add_headers(request.environ, serv_headers)
+                    request.headers.update(serv_headers)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
                         _LI('Invalid service token - deferring reject '
                             'downstream'))
-                    self._add_headers(request.environ,
-                                      {'X-Service-Identity-Status': 'Invalid'})
+                    request.headers['X-Service-Identity-Status'] = 'Invalid'
                 else:
                     self._LOG.info(
                         _LI('Invalid service token - rejecting request'))
@@ -621,7 +619,7 @@ class AuthProtocol(object):
 
         self._auth_headers = auth_headers
 
-    def _remove_auth_headers(self, env):
+    def _remove_auth_headers(self, request):
         """Remove headers so a user can't fake authentication.
 
         Both user and service token headers are removed.
@@ -631,7 +629,8 @@ class AuthProtocol(object):
         """
         self._LOG.debug('Removing headers from request environment: %s',
                         ','.join(self._auth_headers))
-        self._remove_headers(env, self._auth_headers)
+        for k in self._auth_headers:
+            request.headers.pop(k, None)
 
     def _get_user_token_from_request(self, request):
         """Get token id from request.
@@ -829,35 +828,6 @@ class AuthProtocol(object):
             rval[header_tmplt % header_type] = getattr(auth_ref, attr)
 
         return rval
-
-    def _header_to_env_var(self, key):
-        """Convert header to wsgi env variable.
-
-        :param key: http header name (ex. 'X-Auth-Token')
-        :returns: wsgi env variable name (ex. 'HTTP_X_AUTH_TOKEN')
-
-        """
-        return 'HTTP_%s' % key.replace('-', '_').upper()
-
-    def _add_headers(self, env, headers):
-        """Add http headers to environment."""
-        for (k, v) in six.iteritems(headers):
-            env_key = self._header_to_env_var(k)
-            env[env_key] = v
-
-    def _remove_headers(self, env, keys):
-        """Remove http headers from environment."""
-        for k in keys:
-            env_key = self._header_to_env_var(k)
-            try:
-                del env[env_key]
-            except KeyError:
-                pass
-
-    def _get_header(self, env, key, default=None):
-        """Get http header from environment."""
-        env_key = self._header_to_env_var(key)
-        return env.get(env_key, default)
 
     def _invalid_user_token(self, msg=False):
         # NOTE(jamielennox): use False as the default so that None is valid
