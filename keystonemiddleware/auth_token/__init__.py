@@ -211,6 +211,7 @@ from keystoneclient import exceptions
 from keystoneclient import session
 from oslo_config import cfg
 from oslo_serialization import jsonutils
+import pkg_resources
 import six
 import webob.dec
 
@@ -410,6 +411,10 @@ def _conf_values_type_convert(conf):
                   'type: %(ex)s') % {'key': k, 'ex': e})
         opts[dest] = v
     return opts
+
+
+def _get_project_version(project):
+    return pkg_resources.get_distribution(project).version
 
 
 class _BaseAuthProtocol(object):
@@ -910,6 +915,42 @@ class AuthProtocol(_BaseAuthProtocol):
 
         return plugin_class.load_from_options(**plugin_kwargs)
 
+    def _determine_project(self):
+        """Determine a project name from all available config sources.
+
+        The sources are checked in the following order::
+
+          1. The paste-deploy config for auth_token middleware
+          2. The keystone_authtoken in the project's config
+          3. The oslo.config CONF.project property
+
+        """
+        try:
+            return self._conf_get('project')
+        except cfg.NoSuchOptError:
+            try:
+                # CONF.project will exist only if the service uses
+                # oslo.config. It will only be set when the project
+                # calls CONF(...) and when not set oslo.config oddly
+                # raises a NoSuchOptError exception.
+                return CONF.project
+            except cfg.NoSuchOptError:
+                return ''
+
+    def _build_useragent_string(self):
+        project = self._determine_project()
+        if project:
+            project_version = _get_project_version(project)
+            project = '{project}/{project_version} '.format(
+                project=project,
+                project_version=project_version)
+
+        ua_template = ('{project}'
+                       'keystonemiddleware.auth_token/{ksm_version}')
+        return ua_template.format(
+            project=project,
+            ksm_version=_get_project_version('keystonemiddleware'))
+
     def _create_identity_server(self):
         # NOTE(jamielennox): Loading Session here should be exactly the
         # same as calling Session.load_from_conf_options(CONF, GROUP)
@@ -920,7 +961,8 @@ class AuthProtocol(_BaseAuthProtocol):
             key=self._conf_get('keyfile'),
             cacert=self._conf_get('cafile'),
             insecure=self._conf_get('insecure'),
-            timeout=self._conf_get('http_connect_timeout')
+            timeout=self._conf_get('http_connect_timeout'),
+            user_agent=self._build_useragent_string()
         ))
 
         auth_plugin = self._get_auth_plugin()
