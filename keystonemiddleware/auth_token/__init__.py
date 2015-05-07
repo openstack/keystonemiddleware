@@ -412,20 +412,64 @@ def _conf_values_type_convert(conf):
     return opts
 
 
-class AuthProtocol(object):
+class _BaseAuthProtocol(object):
+    """A base class for AuthProtocol token checking implementations.
+
+    :param Callable app: The next application to call after middleware.
+    :param logging.Logger log: The logging object to use for output. By default
+                               it will use a logger in the
+                               keystonemiddleware.auth_token namespace.
+    """
+
+    def __init__(self, app, log=_LOG):
+        self.log = log
+        self._app = app
+
+    @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
+    def __call__(self, req):
+        """Handle incoming request."""
+        response = self.process_request(req)
+        if response:
+            return response
+        response = req.get_response(self._app)
+        return self.process_response(response)
+
+    def process_request(self, request):
+        """Process request.
+
+        If this method returns a value then that value will be used as the
+        response. The next application down the stack will not be executed and
+        process_response will not be called.
+
+        Otherwise, the next application down the stack will be executed and
+        process_response will be called with the generated response.
+
+        By default this method does not return a value.
+        """
+
+    def process_response(self, response):
+        """Do whatever you'd like to the response.
+
+        By default the response is returned unmodified.
+        """
+        return response
+
+
+class AuthProtocol(_BaseAuthProtocol):
     """Middleware that handles authenticating client calls."""
 
     _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
     _SIGNING_CA_FILE_NAME = 'cacert.pem'
 
     def __init__(self, app, conf):
-        self.log = logging.getLogger(conf.get('log_name', __name__))
-        self.log.info(_LI('Starting Keystone auth_token middleware'))
+        log = logging.getLogger(conf.get('log_name', __name__))
+        log.info(_LI('Starting Keystone auth_token middleware'))
+        super(AuthProtocol, self).__init__(app, log=log)
+
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
         self._conf = _conf_values_type_convert(conf)
-        self._app = app
 
         # delay_auth_decision means we still allow unauthenticated requests
         # through and we let the downstream service make the final decision
@@ -471,13 +515,14 @@ class AuthProtocol(object):
         else:
             return CONF[group][name]
 
-    @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
-    def __call__(self, request):
-        """Handle incoming request.
+    def process_request(self, request):
+        """Process request.
 
-        Authenticate send downstream on success. Reject request if
-        we can't authenticate.
-
+        Evaluate the headers in a request and attempt to authenticate the
+        request against the identity server. If authenticated then additional
+        headers are added to the request for use by applications. If not
+        authenticated the request will be rejected or marked unauthenticated
+        depending on configuration.
         """
         self._token_cache.initialize(request.environ)
         request.remove_auth_headers()
@@ -533,8 +578,12 @@ class AuthProtocol(object):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug('Received request from %s' % p._log_format)
 
-        response = request.get_response(self._app)
+    def process_response(self, response):
+        """Process Response.
 
+        Add WWW-Authenticate headers to failed requests so users know where to
+        authenticate for future requests.
+        """
         if response.status_int == 401:
             response.headers.extend(self._reject_auth_headers)
 
