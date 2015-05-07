@@ -154,6 +154,11 @@ class RequestObjectTests(utils.TestCase):
 
         self._test_v3_headers(token, '-Service')
 
+    def test_auth_type(self):
+        self.assertIsNone(self.request.auth_type)
+        self.request.environ['AUTH_TYPE'] = 'NeGoTiatE'
+        self.assertEqual('negotiate', self.request.auth_type)
+
 
 class CatalogConversionTests(utils.TestCase):
 

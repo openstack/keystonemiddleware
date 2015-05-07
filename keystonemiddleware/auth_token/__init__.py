@@ -490,7 +490,7 @@ class AuthProtocol(object):
                 self.log.debug('Authenticating user token')
                 user_token_info = self._get_user_token_from_request(request)
                 user_auth_ref, user_token_info = self._validate_token(
-                    user_token_info, request.environ)
+                    user_token_info, request)
                 request.environ['keystone.token_info'] = user_token_info
                 request.set_user_headers(user_auth_ref,
                                          self._include_service_catalog)
@@ -510,7 +510,7 @@ class AuthProtocol(object):
                 serv_token = request.headers.get('X-Service-Token')
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
-                        serv_token, request.environ)
+                        serv_token, request)
                     request.set_service_headers(serv_auth_ref)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
@@ -608,11 +608,11 @@ class AuthProtocol(object):
             if cached:
                 return cached
 
-    def _validate_token(self, token, env):
+    def _validate_token(self, token, request):
         """Authenticate user token
 
         :param token: token id
-        :param env: wsgi environment
+        :param request: incoming request
         :returns: uncrypted body of the token if the token is valid
         :raises exc.InvalidToken: if token is rejected
 
@@ -672,7 +672,7 @@ class AuthProtocol(object):
                 msg = _('Unable to determine service tenancy.')
                 raise exc.InvalidToken(msg)
 
-            self._confirm_token_bind(data, env)
+            self._confirm_token_bind(data, request)
 
             if not cached:
                 self._token_cache.store(token_hashes[0], data)
@@ -698,7 +698,7 @@ class AuthProtocol(object):
 
         raise exc.InvalidToken(msg)
 
-    def _confirm_token_bind(self, data, env):
+    def _confirm_token_bind(self, data, req):
         bind_mode = self._conf_get('enforce_token_bind')
 
         if bind_mode == _BIND_MODE.DISABLED:
@@ -738,12 +738,12 @@ class AuthProtocol(object):
 
         for bind_type, identifier in six.iteritems(bind):
             if bind_type == _BIND_MODE.KERBEROS:
-                if not env.get('AUTH_TYPE', '').lower() == 'negotiate':
+                if req.auth_type != 'negotiate':
                     self.log.info(_LI('Kerberos credentials required and '
                                       'not present.'))
                     self._invalid_user_token()
 
-                if not env.get('REMOTE_USER') == identifier:
+                if req.remote_user != identifier:
                     self.log.info(_LI('Kerberos credentials do not match '
                                       'those in bind.'))
                     self._invalid_user_token()
