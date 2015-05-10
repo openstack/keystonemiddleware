@@ -29,15 +29,17 @@ import six
 from keystonemiddleware import auth_token
 
 
-class EchoService(object):
-    """A WSGI application that echoes the CGI environment to the user."""
-    def __init__(self):
-        def echo_app(environ, start_response):
-            start_response('200 OK', [('Content-Type', 'application/json')])
-            environment = dict((k, v) for k, v in six.iteritems(environ)
-                               if k.startswith('HTTP_X_'))
-            yield jsonutils.dumps(environment)
+def echo_app(environ, start_response):
+    """A WSGI application that echoes the CGI environment back to the user."""
+    start_response('200 OK', [('Content-Type', 'application/json')])
+    environment = dict((k, v) for k, v in six.iteritems(environ)
+                       if k.startswith('HTTP_X_'))
+    yield jsonutils.dumps(environment)
 
+
+class EchoService(object):
+    """Runs an instance of the echo app on init."""
+    def __init__(self):
         # hardcode any non-default configuration here
         conf = {'auth_protocol': 'http', 'admin_token': 'ADMIN'}
         app = auth_token.AuthProtocol(echo_app, conf)
