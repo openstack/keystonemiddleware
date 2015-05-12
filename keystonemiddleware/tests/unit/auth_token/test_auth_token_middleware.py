@@ -974,8 +974,7 @@ class CommonAuthTokenMiddlewareTest(object):
                          in_memory_list)
 
     def test_invalid_revocation_list_raises_error(self):
-        self.requests_mock.get('%s/v2.0/tokens/revoked' % BASE_URI, json={})
-
+        self.requests_mock.get(self.revocation_url, json={})
         self.assertRaises(exc.RevocationListError,
                           self.middleware._revocations._fetch)
 
@@ -1559,7 +1558,8 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
                                 text=FAKE_ADMIN_TOKEN)
 
-        self.requests_mock.get('%s/v2.0/tokens/revoked' % BASE_URI,
+        self.revocation_url = '%s/v2.0/tokens/revoked' % BASE_URI
+        self.requests_mock.get(self.revocation_url,
                                text=self.examples.SIGNED_REVOCATION_LIST)
 
         for token in (self.examples.UUID_TOKEN_DEFAULT,
@@ -1768,8 +1768,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
                                 text=FAKE_ADMIN_TOKEN)
 
-        # TODO(jamielennox): there is no v3 revocation url yet, it uses v2
-        self.requests_mock.get('%s/v2.0/tokens/revoked' % BASE_URI,
+        self.revocation_url = '%s/v3/auth/tokens/OS-PKI/revoked' % BASE_URI
+        self.requests_mock.get(self.revocation_url,
                                text=self.examples.SIGNED_REVOCATION_LIST)
 
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
@@ -1862,8 +1862,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             self.token_dict['signed_token_scoped_pkiz'])
 
     def test_fallback_to_online_validation_with_revocation_list_error(self):
-        self.requests_mock.get('%s/v2.0/tokens/revoked' % BASE_URI,
-                               status_code=404)
+        self.requests_mock.get(self.revocation_url, status_code=404)
         self.assert_valid_request_200(self.token_dict['signed_token_scoped'])
         self.assert_valid_request_200(
             self.token_dict['signed_token_scoped_pkiz'])
@@ -2494,8 +2493,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
                                 text=FAKE_ADMIN_TOKEN)
 
-        # TODO(jamielennox): there is no v3 revocation url yet, it uses v2
-        self.requests_mock.get('%s/v2.0/tokens/revoked' % BASE_URI,
+        self.requests_mock.get('%s/v3/auth/tokens/OS-PKI/revoked' % BASE_URI,
                                text=self.examples.SIGNED_REVOCATION_LIST)
 
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
