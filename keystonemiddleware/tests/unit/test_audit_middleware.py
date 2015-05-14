@@ -483,3 +483,72 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual(payload['target']['id'], identifier.norm_ns('nova'))
+
+    def test_endpoint_missing_internal_url(self):
+        env_headers = {'HTTP_X_SERVICE_CATALOG':
+                       '''[{"endpoints_links": [],
+                            "endpoints": [{"adminURL":
+                                           "http://admin_host:8774",
+                                           "region": "RegionOne",
+                                           "publicURL":
+                                           "http://public_host:8774"}],
+                            "type": "compute",
+                            "name": "nova"},]''',
+                       'HTTP_X_USER_ID': 'user_id',
+                       'HTTP_X_USER_NAME': 'user_name',
+                       'HTTP_X_AUTH_TOKEN': 'token',
+                       'HTTP_X_PROJECT_ID': 'tenant_id',
+                       'HTTP_X_IDENTITY_STATUS': 'Confirmed',
+                       'REQUEST_METHOD': 'GET'}
+        req = webob.Request.blank('http://admin_host:8774/v2/'
+                                  + str(uuid.uuid4()) + '/servers',
+                                  environ=env_headers)
+        self.middleware._process_request(req)
+        payload = req.environ['cadf_event'].as_dict()
+        self.assertEqual((payload['target']['addresses'][1]['url']), "unknown")
+
+    def test_endpoint_missing_public_url(self):
+        env_headers = {'HTTP_X_SERVICE_CATALOG':
+                       '''[{"endpoints_links": [],
+                            "endpoints": [{"adminURL":
+                                           "http://admin_host:8774",
+                                           "region": "RegionOne",
+                                           "internalURL":
+                                           "http://internal_host:8774"}],
+                            "type": "compute",
+                            "name": "nova"},]''',
+                       'HTTP_X_USER_ID': 'user_id',
+                       'HTTP_X_USER_NAME': 'user_name',
+                       'HTTP_X_AUTH_TOKEN': 'token',
+                       'HTTP_X_PROJECT_ID': 'tenant_id',
+                       'HTTP_X_IDENTITY_STATUS': 'Confirmed',
+                       'REQUEST_METHOD': 'GET'}
+        req = webob.Request.blank('http://admin_host:8774/v2/'
+                                  + str(uuid.uuid4()) + '/servers',
+                                  environ=env_headers)
+        self.middleware._process_request(req)
+        payload = req.environ['cadf_event'].as_dict()
+        self.assertEqual((payload['target']['addresses'][2]['url']), "unknown")
+
+    def test_endpoint_missing_admin_url(self):
+        env_headers = {'HTTP_X_SERVICE_CATALOG':
+                       '''[{"endpoints_links": [],
+                            "endpoints": [{"region": "RegionOne",
+                                           "publicURL":
+                                           "http://public_host:8774",
+                                           "internalURL":
+                                           "http://internal_host:8774"}],
+                            "type": "compute",
+                            "name": "nova"},]''',
+                       'HTTP_X_USER_ID': 'user_id',
+                       'HTTP_X_USER_NAME': 'user_name',
+                       'HTTP_X_AUTH_TOKEN': 'token',
+                       'HTTP_X_PROJECT_ID': 'tenant_id',
+                       'HTTP_X_IDENTITY_STATUS': 'Confirmed',
+                       'REQUEST_METHOD': 'GET'}
+        req = webob.Request.blank('http://public_host:8774/v2/'
+                                  + str(uuid.uuid4()) + '/servers',
+                                  environ=env_headers)
+        self.middleware._process_request(req)
+        payload = req.environ['cadf_event'].as_dict()
+        self.assertEqual((payload['target']['addresses'][0]['url']), "unknown")

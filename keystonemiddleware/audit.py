@@ -190,13 +190,13 @@ class OpenStackAuditApi(object):
                                                            endp['name'])),
             admin_endp=endpoint.Endpoint(
                 name='admin',
-                url=endp['endpoints'][0]['adminURL']),
+                url=endp['endpoints'][0].get('adminURL', taxonomy.UNKNOWN)),
             private_endp=endpoint.Endpoint(
                 name='private',
-                url=endp['endpoints'][0]['internalURL']),
+                url=endp['endpoints'][0].get('internalURL', taxonomy.UNKNOWN)),
             public_endp=endpoint.Endpoint(
                 name='public',
-                url=endp['endpoints'][0]['publicURL']))
+                url=endp['endpoints'][0].get('publicURL', taxonomy.UNKNOWN)))
 
         return service
 
@@ -251,10 +251,11 @@ class OpenStackAuditApi(object):
 
         default_endpoint = None
         for endp in catalog:
+            endpoint_urls = endp['endpoints'][0]
             admin_urlparse = urlparse.urlparse(
-                endp['endpoints'][0]['adminURL'])
+                endpoint_urls.get('adminURL', ''))
             public_urlparse = urlparse.urlparse(
-                endp['endpoints'][0]['publicURL'])
+                endpoint_urls.get('publicURL', ''))
             req_url = urlparse.urlparse(req.host_url)
             if (req_url.netloc == admin_urlparse.netloc
                     or req_url.netloc == public_urlparse.netloc):
