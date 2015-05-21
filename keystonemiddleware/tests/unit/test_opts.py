@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pkg_resources
+import stevedore
 from testtools import matchers
 
 from keystonemiddleware import opts
@@ -74,12 +74,9 @@ class OptsTestCase(utils.TestCase):
         self._test_list_auth_token_opts(opts.list_auth_token_opts())
 
     def test_entry_point(self):
-        result = None
-        for ep in pkg_resources.iter_entry_points('oslo.config.opts'):
-            if ep.name == 'keystonemiddleware.auth_token':
-                list_fn = ep.load()
-                result = list_fn()
+        em = stevedore.ExtensionManager('oslo.config.opts',
+                                        invoke_on_load=True)
+        for extension in em:
+            if extension.name == 'keystonemiddleware.auth_token':
                 break
-
-        self.assertIsNotNone(result)
-        self._test_list_auth_token_opts(result)
+        self._test_list_auth_token_opts(extension.obj)
