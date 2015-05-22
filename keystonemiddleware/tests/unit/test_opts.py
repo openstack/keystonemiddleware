@@ -79,4 +79,7 @@ class OptsTestCase(utils.TestCase):
         for extension in em:
             if extension.name == 'keystonemiddleware.auth_token':
                 break
+        else:
+            self.fail('keystonemiddleware.auth_token not found')
+
         self._test_list_auth_token_opts(extension.obj)
