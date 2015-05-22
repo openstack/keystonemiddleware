@@ -507,6 +507,7 @@ class AuthProtocol(object):
         self._delay_auth_decision = self._conf_get('delay_auth_decision')
         self._include_service_catalog = self._conf_get(
             'include_service_catalog')
+        self._hash_algorithms = self._conf_get('hash_algorithms')
 
         self._identity_server = self._create_identity_server()
 
@@ -721,6 +722,41 @@ class AuthProtocol(object):
         start_response('401 Unauthorized', resp.headers)
         return resp.body
 
+    def _token_hashes(self, token):
+        """Generate a list of hashes that the current token may be cached as.
+
+        With PKI tokens we have multiple hashing algorithms that we test with
+        revocations. This generates that whole list.
+
+        The first element of this list is the preferred algorithm and is what
+        new cache values should be saved as.
+
+        :param str token: The token being presented by a user.
+
+        :returns: list of str token hashes.
+        """
+        if cms.is_asn1_token(token) or cms.is_pkiz(token):
+            return list(cms.cms_hash_token(token, mode=algo)
+                        for algo in self._hash_algorithms)
+        else:
+            return [token]
+
+    def _cache_get_hashes(self, token_hashes):
+        """Check if the token is cached already.
+
+        Functions takes a list of hashes that might be in the cache and matches
+        the first one that is present. If nothing is found in the cache it
+        returns None.
+
+        :returns: token data if found else None.
+        """
+
+        for token in token_hashes:
+            cached = self._token_cache.get(token)
+
+            if cached:
+                return cached
+
     def _validate_token(self, token, env):
         """Authenticate user token
 
@@ -730,11 +766,12 @@ class AuthProtocol(object):
         :raises exc.InvalidToken: if token is rejected
 
         """
-        token_id = None
+        token_hashes = None
 
         try:
-            token_ids, cached = self._token_cache.get(token)
-            token_id = token_ids[0]
+            token_hashes = self._token_hashes(token)
+            cached = self._cache_get_hashes(token_hashes)
+
             if cached:
                 # Token was retrieved from the cache. In this case, there's no
                 # need to check that the token is expired because the cache
@@ -747,7 +784,7 @@ class AuthProtocol(object):
                     # A token stored in Memcached might have been revoked
                     # regardless of initial mechanism used to validate it,
                     # and needs to be checked.
-                    self._revocations.check(token_ids)
+                    self._revocations.check(token_hashes)
                 self._confirm_token_bind(data, env)
             else:
                 verified = None
@@ -755,9 +792,10 @@ class AuthProtocol(object):
                 # checked that it's not expired, and also put in the cache.
                 try:
                     if cms.is_pkiz(token):
-                        verified = self._verify_pkiz_token(token, token_ids)
+                        verified = self._verify_pkiz_token(token, token_hashes)
                     elif cms.is_asn1_token(token):
-                        verified = self._verify_signed_token(token, token_ids)
+                        verified = self._verify_signed_token(token,
+                                                             token_hashes)
                 except exceptions.CertificateConfigError:
                     self._LOG.warn(_LW('Fetch certificate config failed, '
                                        'fallback to online validation.'))
@@ -775,7 +813,7 @@ class AuthProtocol(object):
                     # verify_token fails for expired tokens.
                     expires = _get_token_expiration(data)
                 self._confirm_token_bind(data, env)
-                self._token_cache.store(token_id, data, expires)
+                self._token_cache.store(token_hashes[0], data, expires)
             return data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
@@ -785,8 +823,8 @@ class AuthProtocol(object):
             raise
         except Exception:
             self._LOG.debug('Token validation failure.', exc_info=True)
-            if token_id:
-                self._token_cache.store_invalid(token_id)
+            if token_hashes:
+                self._token_cache.store_invalid(token_hashes[0])
             self._LOG.warn(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
 
@@ -1090,7 +1128,6 @@ class AuthProtocol(object):
 
         cache_kwargs = dict(
             cache_time=int(self._conf_get('token_cache_time')),
-            hash_algorithms=self._conf_get('hash_algorithms'),
             env_cache_name=self._conf_get('cache'),
             memcached_servers=self._conf_get('memcached_servers'),
             use_advanced_pool=self._conf_get('memcache_use_advanced_pool'),
