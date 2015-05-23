@@ -31,10 +31,8 @@ from keystoneclient import exceptions
 from keystoneclient import fixture
 from keystoneclient import session
 import mock
-from oslo_config import fixture as cfg_fixture
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
-from requests_mock.contrib import fixture as rm_fixture
 import six
 import testresources
 import testtools
@@ -47,6 +45,7 @@ from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.openstack.common import memorycache
+from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import client_fixtures
 from keystonemiddleware.tests.unit import utils
 
@@ -192,29 +191,30 @@ class FakeApp(object):
 
         self.need_service_token = need_service_token
 
-    def __call__(self, env, start_response):
+    @webob.dec.wsgify
+    def __call__(self, req):
         for k, v in self.expected_env.items():
-            assert env[k] == v, '%s != %s' % (env[k], v)
+            assert req.environ[k] == v, '%s != %s' % (req.environ[k], v)
 
         resp = webob.Response()
 
-        if (env.get('HTTP_X_IDENTITY_STATUS') == 'Invalid'
-                and env['HTTP_X_SERVICE_IDENTITY_STATUS'] == 'Invalid'):
+        if (req.environ.get('HTTP_X_IDENTITY_STATUS') == 'Invalid' and
+                req.environ['HTTP_X_SERVICE_IDENTITY_STATUS'] == 'Invalid'):
             # Simulate delayed auth forbidding access with arbitrary status
             # code to differentiate checking this code path
             resp.status = 419
             resp.body = FakeApp.FORBIDDEN
-        elif env.get('HTTP_X_SERVICE_IDENTITY_STATUS') == 'Invalid':
+        elif req.environ.get('HTTP_X_SERVICE_IDENTITY_STATUS') == 'Invalid':
             # Simulate delayed auth forbidding access with arbitrary status
             # code to differentiate checking this code path
             resp.status = 420
             resp.body = FakeApp.FORBIDDEN
-        elif env['HTTP_X_IDENTITY_STATUS'] == 'Invalid':
+        elif req.environ['HTTP_X_IDENTITY_STATUS'] == 'Invalid':
             # Simulate delayed auth forbidding access
             resp.status = 403
             resp.body = FakeApp.FORBIDDEN
         elif (self.need_service_token is True and
-                env.get('HTTP_X_SERVICE_TOKEN') is None):
+              req.environ.get('HTTP_X_SERVICE_TOKEN') is None):
             # Simulate requiring composite auth
             # Arbitrary value to allow checking this code path
             resp.status = 418
@@ -222,7 +222,7 @@ class FakeApp(object):
         else:
             resp.body = FakeApp.SUCCESS
 
-        return resp(env, start_response)
+        return resp
 
 
 class v3FakeApp(FakeApp):
@@ -274,23 +274,7 @@ class v3CompositeFakeApp(CompositeBase, v3FakeApp):
             v3_default_service_env_additions)
 
 
-def new_app(status, body, headers={}):
-
-    class _App(object):
-
-        def __init__(self, expected_env=None):
-            self.expected_env = expected_env
-
-        @webob.dec.wsgify
-        def __call__(self, req):
-            resp = webob.Response(body, status)
-            resp.headers.update(headers)
-            return resp
-
-    return _App
-
-
-class BaseAuthTokenMiddlewareTest(testtools.TestCase):
+class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
     """Base test class for auth_token middleware.
 
     All the tests allow for running with auth_token
@@ -309,7 +293,6 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.expected_env = expected_env or dict()
         self.fake_app = fake_app or FakeApp
         self.middleware = None
-        self.requests_mock = self.useFixture(rm_fixture.Fixture())
 
         signing_dir = self._setup_signing_directory()
 
@@ -324,6 +307,9 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
         self.auth_version = auth_version
         self.response_status = None
         self.response_headers = None
+
+    def call_middleware(self, **kwargs):
+        return self.call(self.middleware, **kwargs)
 
     def _setup_signing_directory(self):
         directory_name = self.useFixture(fixtures.TempDir()).path
@@ -365,10 +351,6 @@ class BaseAuthTokenMiddlewareTest(testtools.TestCase):
     def purge_service_token_expected_env(self):
         for key in six.iterkeys(self.service_token_expected_env):
             del self.middleware._app.expected_env[key]
-
-    def start_fake_response(self, status, headers, exc_info=None):
-        self.response_status = int(status.split(' ', 1)[0])
-        self.response_headers = dict(headers)
 
     def assertLastPath(self, path):
         if path:
@@ -412,11 +394,9 @@ class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.set_middleware()
 
     def test_valid_diablo_response(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.token_id
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
-        self.assertIn('keystone.token_info', req.environ)
+        resp = self.call_middleware(headers={'X-Auth-Token': self.token_id})
+        self.assertEqual(200, resp.status_int)
+        self.assertIn('keystone.token_info', resp.request.environ)
 
 
 class NoMemcacheAuthToken(BaseAuthTokenMiddlewareTest):
@@ -657,15 +637,14 @@ class CommonAuthTokenMiddlewareTest(object):
         conf = {
             'revocation_cache_time': '1'
         }
-        self.set_middleware(conf=conf)
+        self.create_simple_middleware(conf=conf)
         self.assertLastPath(None)
 
     def test_auth_with_no_token_does_not_call_http(self):
-        self.set_middleware()
-        req = webob.Request.blank('/')
-        self.middleware(req.environ, self.start_fake_response)
+        middleware = self.create_simple_middleware()
+        resp = self.call(middleware)
         self.assertLastPath(None)
-        self.assertEqual(401, self.response_status)
+        self.assertEqual(401, resp.status_int)
 
     def test_init_by_ipv6Addr_auth_host(self):
         del self.conf['identity_uri']
@@ -676,23 +655,20 @@ class CommonAuthTokenMiddlewareTest(object):
             'auth_uri': None,
             'auth_version': 'v3.0',
         }
-        self.set_middleware(conf=conf)
-        expected_auth_uri = 'http://[2001:2013:1:f101::1]:1234'
-        self.assertEqual(expected_auth_uri,
-                         self.middleware._auth_uri)
+        middleware = self.create_simple_middleware(conf=conf)
+        self.assertEqual('http://[2001:2013:1:f101::1]:1234',
+                         middleware._auth_uri)
 
     def assert_valid_request_200(self, token, with_catalog=True):
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
         if with_catalog:
-            self.assertTrue(req.headers.get('X-Service-Catalog'))
+            self.assertTrue(resp.request.headers.get('X-Service-Catalog'))
         else:
-            self.assertNotIn('X-Service-Catalog', req.headers)
-        self.assertEqual(body, [FakeApp.SUCCESS])
-        self.assertIn('keystone.token_info', req.environ)
-        return req
+            self.assertNotIn('X-Service-Catalog', resp.request.headers)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+        self.assertIn('keystone.token_info', resp.request.environ)
+        return resp.request
 
     def test_valid_uuid_request(self):
         for _ in range(2):  # Do it twice because first result was cached.
@@ -714,18 +690,16 @@ class CommonAuthTokenMiddlewareTest(object):
         # When the token is cached and revoked, 401 is returned.
         self.middleware._check_revocations_for_cached = True
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-
         # Token should be cached as ok after this.
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
 
         # Put it in revocation list.
         self.middleware._revocations._list = self.get_revocation_list_json(
             token_ids=[revoked_form or token])
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
+
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
 
     def test_cached_revoked_uuid(self):
         # When the UUID token is cached and revoked, 401 is returned.
@@ -747,20 +721,21 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_revoked_token_receives_401(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
+
+        token = self.token_dict['revoked_token']
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+
+        self.assertEqual(401, resp.status_int)
 
     def test_revoked_token_receives_401_sha256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
+
+        token = self.token_dict['revoked_token']
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
 
     def test_cached_revoked_pki(self):
         # When the PKI token is cached and revoked, 401 is returned.
@@ -782,10 +757,10 @@ class CommonAuthTokenMiddlewareTest(object):
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.token_dict['revoked_token']
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
+
+        token = self.token_dict['revoked_token']
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
 
     def _test_revoked_hashed_token(self, token_name):
         # If hash_algorithms is set as ['sha256', 'md5'],
@@ -807,17 +782,14 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # First, request is using the hashed token, is valid so goes in
         # cache using the given hash.
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token_hashed
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
+        resp = self.call_middleware(headers={'X-Auth-Token': token_hashed})
+        self.assertEqual(200, resp.status_int)
 
         # This time use the PKI(Z) token
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
 
         # Should find the token in the cache and revocation list.
-        self.assertEqual(401, self.response_status)
+        self.assertEqual(401, resp.status_int)
 
     def test_revoked_hashed_pki_token(self):
         self._test_revoked_hashed_token('signed_token_scoped')
@@ -990,91 +962,73 @@ class CommonAuthTokenMiddlewareTest(object):
         invalid_uri = "%s/v2.0/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = 'invalid-token'
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
-        self.assertEqual(self.response_headers['WWW-Authenticate'],
-                         "Keystone uri='https://keystone.example.com:1234'")
+        resp = self.call_middleware(headers={'X-Auth-Token': 'invalid-token'})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+                         resp.headers['WWW-Authenticate'])
 
     def test_request_invalid_signed_token(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.examples.INVALID_SIGNED_TOKEN
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
+        token = self.examples.INVALID_SIGNED_TOKEN
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
         self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
-                         self.response_headers['WWW-Authenticate'])
+                         resp.headers['WWW-Authenticate'])
 
     def test_request_invalid_signed_pkiz_token(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.examples.INVALID_SIGNED_PKIZ_TOKEN
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
+        token = self.examples.INVALID_SIGNED_PKIZ_TOKEN
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
         self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
-                         self.response_headers['WWW-Authenticate'])
+                         resp.headers['WWW-Authenticate'])
 
     def test_request_no_token(self):
-        req = webob.Request.blank('/')
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
-        self.assertEqual(self.response_headers['WWW-Authenticate'],
-                         "Keystone uri='https://keystone.example.com:1234'")
+        resp = self.call_middleware()
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+                         resp.headers['WWW-Authenticate'])
 
     def test_request_no_token_http(self):
-        req = webob.Request.blank('/', environ={'REQUEST_METHOD': 'HEAD'})
-        self.set_middleware()
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
-        self.assertEqual(self.response_headers['WWW-Authenticate'],
-                         "Keystone uri='https://keystone.example.com:1234'")
-        self.assertEqual(body, [''])
+        resp = self.call_middleware(method='HEAD')
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+                         resp.headers['WWW-Authenticate'])
+        self.assertEqual('', resp.body)
 
     def test_request_blank_token(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = ''
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
-        self.assertEqual(self.response_headers['WWW-Authenticate'],
-                         "Keystone uri='https://keystone.example.com:1234'")
+        resp = self.call_middleware(headers={'X-Auth-Token': ''})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+                         resp.headers['WWW-Authenticate'])
 
     def _get_cached_token(self, token, mode='md5'):
         token_id = cms.cms_hash_token(token, mode=mode)
         return self.middleware._token_cache.get(token_id)
 
     def test_memcache(self):
-        req = webob.Request.blank('/')
         token = self.token_dict['signed_token_scoped']
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
+        self.call_middleware(headers={'X-Auth-Token': token})
         self.assertIsNotNone(self._get_cached_token(token))
 
     def test_expired(self):
-        req = webob.Request.blank('/')
         token = self.token_dict['signed_token_scoped_expired']
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
 
     def test_memcache_set_invalid_uuid(self):
         invalid_uri = "%s/v2.0/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
-        req = webob.Request.blank('/')
         token = 'invalid-token'
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertRaises(exc.InvalidToken,
-                          self._get_cached_token, token)
+        self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertRaises(exc.InvalidToken, self._get_cached_token, token)
 
     def _test_memcache_set_invalid_signed(self, hash_algorithms=None,
                                           exp_mode='md5'):
-        req = webob.Request.blank('/')
         token = self.token_dict['signed_token_scoped_expired']
-        req.headers['X-Auth-Token'] = token
         if hash_algorithms:
             self.conf['hash_algorithms'] = ','.join(hash_algorithms)
             self.set_middleware()
-        self.middleware(req.environ, self.start_fake_response)
+        self.call_middleware(headers={'X-Auth-Token': token})
         self.assertRaises(exc.InvalidToken,
                           self._get_cached_token, token, mode=exp_mode)
 
@@ -1098,14 +1052,17 @@ class CommonAuthTokenMiddlewareTest(object):
         }
         conf.update(extra_conf)
         self.set_middleware(conf=conf)
-        req = webob.Request.blank('/')
+
         token = self.token_dict['signed_token_scoped']
+        self.call_middleware(headers={'X-Auth-Token': token})
+
+        req = webob.Request.blank('/')
         req.headers['X-Auth-Token'] = token
         req.environ.update(extra_environ)
 
         now = datetime.datetime.utcnow()
         self.useFixture(TimeFixture(now))
-        self.middleware(req.environ, self.start_fake_response)
+        req.get_response(self.middleware)
         self.assertIsNotNone(self._get_cached_token(token))
 
         timeutils.advance_time_seconds(token_cache_time)
@@ -1122,24 +1079,19 @@ class CommonAuthTokenMiddlewareTest(object):
         We use UUID tokens since they are the easiest one to reach
         get_http_connection.
         """
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = ERROR_TOKEN
         self.middleware._http_request_max_retries = 0
-        self.middleware(req.environ, self.start_fake_response)
+        self.call_middleware(headers={'X-Auth-Token': ERROR_TOKEN})
         self.assertIsNone(self._get_cached_token(ERROR_TOKEN))
         self.assert_valid_last_url(ERROR_TOKEN)
 
     def test_http_request_max_retries(self):
         times_retry = 10
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = ERROR_TOKEN
-
         conf = {'http_request_max_retries': '%s' % times_retry}
         self.set_middleware(conf=conf)
 
         with mock.patch('time.sleep') as mock_obj:
-            self.middleware(req.environ, self.start_fake_response)
+            self.call_middleware(headers={'X-Auth-Token': ERROR_TOKEN})
 
         self.assertEqual(mock_obj.call_count, times_retry)
 
@@ -1170,18 +1122,17 @@ class CommonAuthTokenMiddlewareTest(object):
 
             req.environ['AUTH_TYPE'] = 'Negotiate'
 
-        body = self.middleware(req.environ, self.start_fake_response)
+        resp = req.get_response(self.middleware)
 
         if success:
-            self.assertEqual(self.response_status, 200)
-            self.assertEqual(body, [FakeApp.SUCCESS])
+            self.assertEqual(200, resp.status_int)
+            self.assertEqual(FakeApp.SUCCESS, resp.body)
             self.assertIn('keystone.token_info', req.environ)
             self.assert_valid_last_url(token)
         else:
-            self.assertEqual(self.response_status, 401)
-            self.assertEqual(self.response_headers['WWW-Authenticate'],
-                             "Keystone uri='https://keystone.example.com:1234'"
-                             )
+            self.assertEqual(401, resp.status_int)
+            msg = "Keystone uri='https://keystone.example.com:1234'"
+            self.assertEqual(msg, resp.headers['WWW-Authenticate'])
 
     def test_uuid_bind_token_disabled_with_kerb_user(self):
         for use_kerberos in [True, False]:
@@ -1329,17 +1280,13 @@ class CommonAuthTokenMiddlewareTest(object):
 
         token = self.token_dict['signed_token_scoped']
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
 
         self.assertThat(1, matchers.Equals(cache.set.call_count))
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
 
         # Assert that the token wasn't cached again.
         self.assertThat(1, matchers.Equals(cache.set.call_count))
@@ -1352,13 +1299,12 @@ class CommonAuthTokenMiddlewareTest(object):
                                    json=VERSION_LIST_v3,
                                    status_code=300)
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
-        self.assertEqual([FakeApp.SUCCESS], body)
+        token = self.token_dict['uuid_token_default']
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
 
-        token_auth = req.environ['keystone.token_auth']
+        token_auth = resp.request.environ['keystone.token_auth']
         endpoint_filter = {'service_type': self.examples.SERVICE_TYPE,
                            'version': 3}
 
@@ -1584,12 +1530,10 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         The implied scope is the user's tenant ID.
 
         """
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
-        self.assertEqual(body, [FakeApp.SUCCESS])
-        self.assertIn('keystone.token_info', req.environ)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+        self.assertIn('keystone.token_info', resp.request.environ)
 
     def assert_valid_last_url(self, token_id):
         self.assertLastPath("/v2.0/tokens/%s" % token_id)
@@ -1604,12 +1548,10 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     def assert_unscoped_token_receives_401(self, token):
         """Unscoped requests with no default tenant ID should be rejected."""
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = token
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 401)
-        self.assertEqual(self.response_headers['WWW-Authenticate'],
-                         "Keystone uri='https://keystone.example.com:1234'")
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+                         resp.headers['WWW-Authenticate'])
 
     def test_unscoped_uuid_token_receives_401(self):
         self.assert_unscoped_token_receives_401(
@@ -1620,28 +1562,26 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             self.examples.SIGNED_TOKEN_UNSCOPED)
 
     def test_request_prevent_service_catalog_injection(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Service-Catalog'] = '[]'
-        req.headers['X-Auth-Token'] = (
-            self.examples.UUID_TOKEN_NO_SERVICE_CATALOG)
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
-        self.assertFalse(req.headers.get('X-Service-Catalog'))
-        self.assertEqual(body, [FakeApp.SUCCESS])
+        token = self.examples.UUID_TOKEN_NO_SERVICE_CATALOG
+        resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
+                                             'X-Auth-Token': token})
+
+        self.assertEqual(200, resp.status_int)
+        self.assertFalse(resp.request.headers.get('X-Service-Catalog'))
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
 
     def test_user_plugin_token_properties(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Service-Catalog'] = '[]'
         token = self.examples.UUID_TOKEN_DEFAULT
         token_data = self.examples.TOKEN_RESPONSES[token]
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = token
 
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
-        self.assertEqual([FakeApp.SUCCESS], body)
+        resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
+                                             'X-Auth-Token': token,
+                                             'X-Service-Token': token})
 
-        token_auth = req.environ['keystone.token_auth']
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+
+        token_auth = resp.request.environ['keystone.token_auth']
 
         self.assertTrue(token_auth.has_user_token)
         self.assertTrue(token_auth.has_service_token)
@@ -1694,10 +1634,8 @@ class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         # This tests will only work is auth_token has chosen to use the
         # lower, v2, api version
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = self.examples.UUID_TOKEN_DEFAULT
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
         self.assertEqual(url, self.requests_mock.last_request.url)
 
 
@@ -1868,18 +1806,17 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             self.token_dict['signed_token_scoped_pkiz'])
 
     def test_user_plugin_token_properties(self):
-        req = webob.Request.blank('/')
-        req.headers['X-Service-Catalog'] = '[]'
         token = self.examples.v3_UUID_TOKEN_DEFAULT
         token_data = self.examples.TOKEN_RESPONSES[token]
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = token
 
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(self.response_status, 200)
-        self.assertEqual([FakeApp.SUCCESS], body)
+        resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
+                                             'X-Auth-Token': token,
+                                             'X-Service-Token': token})
 
-        token_auth = req.environ['keystone.token_auth']
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+
+        token_auth = resp.request.environ['keystone.token_auth']
 
         self.assertTrue(token_auth.has_user_token)
         self.assertTrue(token_auth.has_service_token)
@@ -2181,51 +2118,49 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
                 'auth_version': 'v3.0',
                 'auth_uri': auth_uri}
 
-        self.fake_app = new_app('401 Unauthorized', body)
-        self.set_middleware(conf=conf)
+        middleware = self.create_simple_middleware(status='401 Unauthorized',
+                                                   body=body,
+                                                   conf=conf)
+        resp = self.call(middleware)
+        self.assertEqual(six.b(body), resp.body)
 
-        req = webob.Request.blank('/')
-        resp = self.middleware(req.environ, self.start_fake_response)
-
-        self.assertEqual([six.b(body)], resp)
-
-        self.assertEqual(401, self.response_status)
+        self.assertEqual(401, resp.status_int)
         self.assertEqual("Keystone uri='%s'" % auth_uri,
-                         self.response_headers['WWW-Authenticate'])
+                         resp.headers['WWW-Authenticate'])
 
     def test_delayed_auth_values(self):
-        fake_app = new_app('401 Unauthorized', uuid.uuid4().hex)
-        middleware = auth_token.AuthProtocol(fake_app,
-                                             {'auth_uri': 'http://local.test'})
+        conf = {'auth_uri': 'http://local.test'}
+        status = '401 Unauthorized'
+
+        middleware = self.create_simple_middleware(status=status, conf=conf)
         self.assertFalse(middleware._delay_auth_decision)
 
         for v in ('True', '1', 'on', 'yes'):
             conf = {'delay_auth_decision': v,
                     'auth_uri': 'http://local.test'}
 
-            middleware = auth_token.AuthProtocol(fake_app, conf)
+            middleware = self.create_simple_middleware(status=status,
+                                                       conf=conf)
             self.assertTrue(middleware._delay_auth_decision)
 
         for v in ('False', '0', 'no'):
             conf = {'delay_auth_decision': v,
                     'auth_uri': 'http://local.test'}
 
-            middleware = auth_token.AuthProtocol(fake_app, conf)
+            middleware = self.create_simple_middleware(status=status,
+                                                       conf=conf)
             self.assertFalse(middleware._delay_auth_decision)
 
     def test_auth_plugin_with_no_tokens(self):
         body = uuid.uuid4().hex
         auth_uri = 'http://local.test'
         conf = {'delay_auth_decision': True, 'auth_uri': auth_uri}
-        self.fake_app = new_app('200 OK', body)
-        self.set_middleware(conf=conf)
 
-        req = webob.Request.blank('/')
-        resp = self.middleware(req.environ, self.start_fake_response)
+        middleware = self.create_simple_middleware(body=body, conf=conf)
+        resp = self.call(middleware)
+        self.assertEqual(six.b(body), resp.body)
 
-        self.assertEqual([six.b(body)], resp)
-
-        token_auth = req.environ['keystone.token_auth']
+        token_auth = resp.request.environ['keystone.token_auth']
 
         self.assertFalse(token_auth.has_user_token)
         self.assertIsNone(token_auth.user)
@@ -2240,16 +2175,14 @@ class CommonCompositeAuthTests(object):
     """
 
     def test_composite_auth_ok(self):
-        req = webob.Request.blank('/')
         token = self.token_dict['uuid_token_default']
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
         fake_logger = fixtures.FakeLogger(level=logging.DEBUG)
         self.middleware.logger = self.useFixture(fake_logger)
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
-        self.assertEqual([FakeApp.SUCCESS], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
         expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
         expected_env.update(EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
         self.assertIn('Received request from user: '
@@ -2262,20 +2195,17 @@ class CommonCompositeAuthTests(object):
                       fake_logger.output)
 
     def test_composite_auth_invalid_service_token(self):
-        req = webob.Request.blank('/')
         token = self.token_dict['uuid_token_default']
         service_token = 'invalid-service-token'
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
-        self.assertEqual([b'Authentication required'], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual(b'Authentication required', resp.body)
 
     def test_composite_auth_no_service_token(self):
         self.purge_service_token_expected_env()
         req = webob.Request.blank('/')
-        token = self.token_dict['uuid_token_default']
-        req.headers['X-Auth-Token'] = token
+        req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
 
         # Ensure injection of service headers is not possible
         for key, value in six.iteritems(self.service_token_expected_env):
@@ -2283,42 +2213,36 @@ class CommonCompositeAuthTests(object):
             req.headers[header_key] = value
         # Check arbitrary headers not removed
         req.headers['X-Foo'] = 'Bar'
-        body = self.middleware(req.environ, self.start_fake_response)
+        resp = req.get_response(self.middleware)
         for key in six.iterkeys(self.service_token_expected_env):
             header_key = key[len('HTTP_'):].replace('_', '-')
             self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
-        self.assertEqual(418, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        self.assertEqual(418, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
     def test_composite_auth_invalid_user_token(self):
-        req = webob.Request.blank('/')
         token = 'invalid-token'
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
-        self.assertEqual([b'Authentication required'], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual(b'Authentication required', resp.body)
 
     def test_composite_auth_no_user_token(self):
-        req = webob.Request.blank('/')
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(401, self.response_status)
-        self.assertEqual([b'Authentication required'], body)
+        resp = self.call_middleware(headers={'X-Service-Token': service_token})
+        self.assertEqual(401, resp.status_int)
+        self.assertEqual(b'Authentication required', resp.body)
 
     def test_composite_auth_delay_ok(self):
         self.middleware._delay_auth_decision = True
-        req = webob.Request.blank('/')
         token = self.token_dict['uuid_token_default']
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(200, self.response_status)
-        self.assertEqual([FakeApp.SUCCESS], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
 
     def test_composite_auth_delay_invalid_service_token(self):
         self.middleware._delay_auth_decision = True
@@ -2328,14 +2252,12 @@ class CommonCompositeAuthTests(object):
         }
         self.update_expected_env(expected_env)
 
-        req = webob.Request.blank('/')
         token = self.token_dict['uuid_token_default']
         service_token = 'invalid-service-token'
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(420, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(420, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
     def test_composite_auth_delay_invalid_service_and_user_tokens(self):
         self.middleware._delay_auth_decision = True
@@ -2347,22 +2269,19 @@ class CommonCompositeAuthTests(object):
         }
         self.update_expected_env(expected_env)
 
-        req = webob.Request.blank('/')
         token = 'invalid-user-token'
         service_token = 'invalid-service-token'
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(419, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(419, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
     def test_composite_auth_delay_no_service_token(self):
         self.middleware._delay_auth_decision = True
         self.purge_service_token_expected_env()
 
         req = webob.Request.blank('/')
-        token = self.token_dict['uuid_token_default']
-        req.headers['X-Auth-Token'] = token
+        req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
 
         # Ensure injection of service headers is not possible
         for key, value in six.iteritems(self.service_token_expected_env):
@@ -2370,13 +2289,13 @@ class CommonCompositeAuthTests(object):
             req.headers[header_key] = value
         # Check arbitrary headers not removed
         req.headers['X-Foo'] = 'Bar'
-        body = self.middleware(req.environ, self.start_fake_response)
+        resp = req.get_response(self.middleware)
         for key in six.iterkeys(self.service_token_expected_env):
             header_key = key[len('HTTP_'):].replace('_', '-')
             self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
-        self.assertEqual(418, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        self.assertEqual(418, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
     def test_composite_auth_delay_invalid_user_token(self):
         self.middleware._delay_auth_decision = True
@@ -2386,14 +2305,12 @@ class CommonCompositeAuthTests(object):
         }
         self.update_expected_env(expected_env)
 
-        req = webob.Request.blank('/')
         token = 'invalid-token'
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Auth-Token'] = token
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(403, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        resp = self.call_middleware(headers={'X-Auth-Token': token,
+                                             'X-Service-Token': service_token})
+        self.assertEqual(403, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
     def test_composite_auth_delay_no_user_token(self):
         self.middleware._delay_auth_decision = True
@@ -2403,12 +2320,10 @@ class CommonCompositeAuthTests(object):
         }
         self.update_expected_env(expected_env)
 
-        req = webob.Request.blank('/')
         service_token = self.token_dict['uuid_service_token_default']
-        req.headers['X-Service-Token'] = service_token
-        body = self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(403, self.response_status)
-        self.assertEqual([FakeApp.FORBIDDEN], body)
+        resp = self.call_middleware(headers={'X-Service-Token': service_token})
+        self.assertEqual(403, resp.status_int)
+        self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
 
 class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
@@ -2533,7 +2448,6 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
     def setUp(self):
         super(OtherTests, self).setUp()
         self.logger = self.useFixture(fixtures.FakeLogger())
-        self.cfg = self.useFixture(cfg_fixture.Config())
 
     def test_unknown_server_versions(self):
         versions = fixture.DiscoveryList(v2=False, v3_id='v4', href=BASE_URI)
@@ -2541,10 +2455,8 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
 
         self.requests_mock.get(BASE_URI, json=versions, status_code=300)
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = uuid.uuid4().hex
-        self.middleware(req.environ, self.start_fake_response)
-        self.assertEqual(503, self.response_status)
+        resp = self.call_middleware(headers={'X-Auth-Token': uuid.uuid4().hex})
+        self.assertEqual(503, resp.status_int)
 
         self.assertIn('versions [v3.0, v2.0]', self.logger.output)
 
@@ -2593,7 +2505,6 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
     def setUp(self):
         super(AuthProtocolLoadingTests, self).setUp()
-        self.cfg = self.useFixture(cfg_fixture.Config())
 
         self.project_id = uuid.uuid4().hex
 
@@ -2632,11 +2543,8 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
                                json=user_token,
                                headers={'X-Subject-Token': uuid.uuid4().hex})
 
-        req = webob.Request.blank('/')
-        req.headers['X-Auth-Token'] = user_token_id
-        resp = app(req.environ, self.start_fake_response)
-
-        self.assertEqual(200, self.response_status)
+        resp = self.call(app, headers={'X-Auth-Token': user_token_id})
+        self.assertEqual(200, resp.status_int)
         return resp
 
     def test_loading_password_plugin(self):
@@ -2657,10 +2565,10 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
                         group=_base.AUTHTOKEN_GROUP)
 
         body = uuid.uuid4().hex
-        app = auth_token.AuthProtocol(new_app('200 OK', body)(), {})
+        app = self.create_simple_middleware(body=body)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp[0])
+        self.assertEqual(six.b(body), resp.body)
 
     @staticmethod
     def get_plugin(app):
@@ -2672,7 +2580,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
         self.assertRaises(
             exceptions.NoMatchingPlugin,
-            lambda: auth_token.AuthProtocol(new_app('200 OK', '')(), {}))
+            self.create_simple_middleware)
 
     def test_plugin_loading_mixed_opts(self):
         # some options via override and some via conf
@@ -2692,10 +2600,10 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         conf = {'username': username, 'auth_url': self.AUTH_URL}
 
         body = uuid.uuid4().hex
-        app = auth_token.AuthProtocol(new_app('200 OK', body)(), conf)
+        app = self.create_simple_middleware(body=body, conf=conf)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp[0])
+        self.assertEqual(six.b(body), resp.body)
 
         plugin = self.get_plugin(app)
 
@@ -2725,10 +2633,10 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         conf = {'username': username, 'auth_url': self.AUTH_URL}
 
         body = uuid.uuid4().hex
-        app = auth_token.AuthProtocol(new_app('200 OK', body)(), conf)
+        app = self.create_simple_middleware(body=body, conf=conf)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp[0])
+        self.assertEqual(six.b(body), resp.body)
 
         plugin = self.get_plugin(app)
 
