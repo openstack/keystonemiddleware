@@ -11,6 +11,7 @@
 # under the License.
 
 import contextlib
+import hashlib
 
 from keystoneclient.common import cms
 from oslo_serialization import jsonutils
@@ -21,6 +22,22 @@ from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.i18n import _, _LE
 from keystonemiddleware.openstack.common import memorycache
+
+
+def _hash_key(key):
+    """Turn a set of arguments into a SHA256 hash.
+
+    Using a known-length cache key is important to ensure that memcache
+    maximum key length is not exceeded causing failures to validate.
+    """
+    if isinstance(key, six.text_type):
+        # NOTE(morganfainberg): Ensure we are always working with a bytes
+        # type required for the hasher. In python 2.7 it is possible to
+        # get a text_type (unicode). In python 3.4 all strings are
+        # text_type and not bytes by default. This encode coerces the
+        # text_type to the appropriate bytes values.
+        key = key.encode('utf-8')
+    return hashlib.sha256(key).hexdigest()
 
 
 class _CachePool(list):
@@ -217,7 +234,7 @@ class TokenCache(object):
         # NOTE(jamielennox): in the basic implementation there is no need for
         # a context so just pass None as it will only get passed back later.
         unused_context = None
-        return self._CACHE_KEY_TEMPLATE % token_id, unused_context
+        return self._CACHE_KEY_TEMPLATE % _hash_key(token_id), unused_context
 
     def _deserialize(self, data, context):
         """Deserialize data from the cache back into python objects.

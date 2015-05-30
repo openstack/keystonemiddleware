@@ -521,6 +521,21 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         token_response = self.examples.TOKEN_RESPONSES[token]
         self.assertTrue(auth_token._token_is_v3(token_response))
 
+    def test_fixed_cache_key_length(self):
+        self.set_middleware()
+        short_string = uuid.uuid4().hex
+        long_string = 8 * uuid.uuid4().hex
+
+        token_cache = self.middleware._token_cache
+        hashed_short_string_key, context_ = token_cache._get_cache_key(
+            short_string)
+        hashed_long_string_key, context_ = token_cache._get_cache_key(
+            long_string)
+
+        # The hash keys should always match in length
+        self.assertThat(hashed_short_string_key,
+                        matchers.HasLength(len(hashed_long_string_key)))
+
     @testtools.skipUnless(memcached_available(), 'memcached not available')
     def test_encrypt_cache_data(self):
         conf = {
