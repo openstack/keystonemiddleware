@@ -13,6 +13,7 @@
 import logging
 import sys
 import time
+import warnings
 
 import fixtures
 import mock
@@ -22,7 +23,14 @@ import uuid
 
 
 class BaseTestCase(oslotest.BaseTestCase):
-    pass
+    def setUp(self):
+        super(BaseTestCase, self).setUp()
+
+        # If keystonemiddleware calls any deprecated function this will raise
+        # an exception.
+        warnings.filterwarnings('error', category=DeprecationWarning,
+                                module='^keystonemiddleware\\.')
+        self.addCleanup(warnings.resetwarnings)
 
 
 class TestCase(BaseTestCase):
