@@ -16,12 +16,16 @@ import time
 
 import fixtures
 import mock
+import oslotest.base as oslotest
 import requests
-import testtools
 import uuid
 
 
-class TestCase(testtools.TestCase):
+class BaseTestCase(oslotest.BaseTestCase):
+    pass
+
+
+class TestCase(BaseTestCase):
     TEST_DOMAIN_ID = '1'
     TEST_DOMAIN_NAME = 'aDomain'
     TEST_GROUP_ID = uuid.uuid4().hex

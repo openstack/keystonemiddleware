@@ -18,12 +18,12 @@ from keystoneclient import fixture
 from keystoneclient import session
 from requests_mock.contrib import fixture as rm_fixture
 import six
-import testtools
 
 from keystonemiddleware.auth_token import _auth
+from keystonemiddleware.tests.unit import utils
 
 
-class DefaultAuthPluginTests(testtools.TestCase):
+class DefaultAuthPluginTests(utils.BaseTestCase):
 
     def new_plugin(self, auth_host=None, auth_port=None, auth_protocol=None,
                    auth_admin_prefix=None, admin_user=None,
