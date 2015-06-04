@@ -544,8 +544,7 @@ class AuthProtocol(object):
 
             try:
                 self._LOG.debug('Authenticating user token')
-                user_token_info = self._get_user_token_from_header(
-                    request.environ)
+                user_token_info = self._get_user_token_from_request(request)
                 user_auth_ref, user_token_info = self._validate_token(
                     user_token_info, request.environ)
                 request.environ['keystone.token_info'] = user_token_info
@@ -565,8 +564,7 @@ class AuthProtocol(object):
 
             try:
                 self._LOG.debug('Authenticating service token')
-                serv_token = self._get_service_token_from_header(
-                    request.environ)
+                serv_token = request.headers.get('X-Service-Token')
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
                         serv_token, request.environ)
@@ -635,7 +633,7 @@ class AuthProtocol(object):
                         ','.join(self._auth_headers))
         self._remove_headers(env, self._auth_headers)
 
-    def _get_user_token_from_header(self, env):
+    def _get_user_token_from_request(self, request):
         """Get token id from request.
 
         :param env: wsgi request environment
@@ -643,23 +641,14 @@ class AuthProtocol(object):
         :raises exc.InvalidToken: if no token is provided in request
 
         """
-        token = self._get_header(env, 'X-Auth-Token',
-                                 self._get_header(env, 'X-Storage-Token'))
+        token = request.headers.get('X-Auth-Token',
+                                    request.headers.get('X-Storage-Token'))
         if token:
             return token
         else:
             if not self._delay_auth_decision:
-                self._LOG.debug('Headers: %s', env)
+                self._LOG.debug('Headers: %s', dict(request.headers))
             raise exc.InvalidToken(_('Unable to find token in headers'))
-
-    def _get_service_token_from_header(self, env):
-        """Get service token id from request.
-
-        :param env: wsgi request environment
-        :returns: service token id or None if not present
-
-        """
-        return self._get_header(env, 'X-Service-Token')
 
     @property
     def _reject_auth_headers(self):
