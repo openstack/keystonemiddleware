@@ -1978,14 +1978,21 @@ class CommonCompositeAuthTests(object):
         self.assertEqual(FakeApp.SUCCESS, resp.body)
         expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
         expected_env.update(EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
-        self.assertIn('Received request from user: '
-                      'user_id %(HTTP_X_USER_ID)s, '
+
+        # role list may get reordered, check for string pieces individually
+        self.assertIn('Received request from user: ', fake_logger.output)
+        self.assertIn('user_id %(HTTP_X_USER_ID)s, '
                       'project_id %(HTTP_X_TENANT_ID)s, '
-                      'roles %(HTTP_X_ROLES)s '
-                      'service: user_id %(HTTP_X_SERVICE_USER_ID)s, '
+                      'roles ' % expected_env, fake_logger.output)
+        self.assertIn('service: user_id %(HTTP_X_SERVICE_USER_ID)s, '
                       'project_id %(HTTP_X_SERVICE_PROJECT_ID)s, '
-                      'roles %(HTTP_X_SERVICE_ROLES)s' % expected_env,
-                      fake_logger.output)
+                      'roles ' % expected_env, fake_logger.output)
+
+        roles = ','.join([expected_env['HTTP_X_SERVICE_ROLES'],
+                          expected_env['HTTP_X_ROLES']])
+
+        for r in roles.split(','):
+            self.assertIn(r, fake_logger.output)
 
     def test_composite_auth_invalid_service_token(self):
         token = self.token_dict['uuid_token_default']
