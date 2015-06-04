@@ -985,7 +985,6 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertEqual(401, resp.status_int)
         self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
                          resp.headers['WWW-Authenticate'])
-        self.assertEqual('', resp.body)
 
     def test_request_blank_token(self):
         resp = self.call_middleware(headers={'X-Auth-Token': ''})
