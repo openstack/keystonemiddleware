@@ -19,3 +19,7 @@ testrepository>=0.0.18
 testresources>=0.2.4
 testtools>=0.9.36,!=1.2.0
 python-memcached>=1.48
+
+# Bandit security code scanner
+bandit>=0.10.1
+
