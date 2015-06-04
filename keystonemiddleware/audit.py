@@ -46,6 +46,7 @@ from pycadf import reporterstep
 from pycadf import resource
 from pycadf import tag
 from pycadf import timestamp
+import six
 from six.moves import configparser
 from six.moves.urllib import parse as urlparse
 import webob.dec
@@ -79,6 +80,16 @@ AuditMap = collections.namedtuple('AuditMap',
                                    'default_target_endpoint_type'])
 
 
+# NOTE(blk-u): Compatibility for Python 2. SafeConfigParser and
+# SafeConfigParser.readfp are deprecated in Python 3. Remove this when we drop
+# support for Python 2.
+if six.PY2:
+    class ConfigParser(configparser.SafeConfigParser):
+        read_file = configparser.SafeConfigParser.readfp
+else:
+    ConfigParser = configparser.ConfigParser
+
+
 class OpenStackAuditApi(object):
 
     def __init__(self, cfg_file):
@@ -90,8 +101,8 @@ class OpenStackAuditApi(object):
 
         if cfg_file:
             try:
-                map_conf = configparser.SafeConfigParser()
-                map_conf.readfp(open(cfg_file))
+                map_conf = ConfigParser()
+                map_conf.read_file(open(cfg_file))
 
                 try:
                     default_target_endpoint_type = map_conf.get(

@@ -735,11 +735,11 @@ class AuthProtocol(object):
                         verified = self._verify_signed_token(token,
                                                              token_hashes)
                 except exceptions.CertificateConfigError:
-                    self._LOG.warn(_LW('Fetch certificate config failed, '
-                                       'fallback to online validation.'))
+                    self._LOG.warning(_LW('Fetch certificate config failed, '
+                                          'fallback to online validation.'))
                 except exc.RevocationListError:
-                    self._LOG.warn(_LW('Fetch revocation list failed, '
-                                       'fallback to online validation.'))
+                    self._LOG.warning(_LW('Fetch revocation list failed, '
+                                          'fallback to online validation.'))
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
@@ -764,7 +764,7 @@ class AuthProtocol(object):
             return auth_ref, data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self._LOG.debug('Token validation failure.', exc_info=True)
-            self._LOG.warn(_LW('Authorization failed for token'))
+            self._LOG.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
         except exc.ServiceError:
             raise
@@ -772,7 +772,7 @@ class AuthProtocol(object):
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.store_invalid(token_hashes[0])
-            self._LOG.warn(_LW('Authorization failed for token'))
+            self._LOG.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
 
     def _build_user_headers(self, auth_ref):
