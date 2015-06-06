@@ -672,7 +672,7 @@ class AuthProtocol(object):
                 msg = _('Unable to determine service tenancy.')
                 raise exc.InvalidToken(msg)
 
-            self._confirm_token_bind(data, request)
+            self._confirm_token_bind(auth_ref, request)
 
             if not cached:
                 self._token_cache.store(token_hashes[0], data)
@@ -698,17 +698,17 @@ class AuthProtocol(object):
 
         raise exc.InvalidToken(msg)
 
-    def _confirm_token_bind(self, data, req):
+    def _confirm_token_bind(self, auth_ref, req):
         bind_mode = self._conf_get('enforce_token_bind')
 
         if bind_mode == _BIND_MODE.DISABLED:
             return
 
         try:
-            if _token_is_v2(data):
-                bind = data['access']['token']['bind']
-            elif _token_is_v3(data):
-                bind = data['token']['bind']
+            if auth_ref.version == 'v2.0':
+                bind = auth_ref['token']['bind']
+            elif auth_ref.version == 'v3':
+                bind = auth_ref['bind']
             else:
                 self._invalid_user_token()
         except KeyError:
