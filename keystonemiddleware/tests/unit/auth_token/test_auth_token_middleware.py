@@ -2374,7 +2374,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
     def get_plugin(app):
         return app._identity_server._adapter.auth
 
-    def test_invalid_plugin_fails_to_intialize(self):
+    def test_invalid_plugin_fails_to_initialize(self):
         self.cfg.config(auth_plugin=uuid.uuid4().hex,
                         group=_base.AUTHTOKEN_GROUP)
 
