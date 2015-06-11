@@ -13,7 +13,7 @@ oslotest>=1.5.1  # Apache-2.0
 oslo.messaging>=1.8.0  # Apache-2.0
 requests-mock>=0.6.0  # Apache-2.0
 sphinx>=1.1.2,!=1.2.0,!=1.3b1,<1.3
-stevedore>=1.3.0  # Apache-2.0
+stevedore>=1.5.0  # Apache-2.0
 testrepository>=0.0.18
 testresources>=0.2.4
 testtools>=0.9.36,!=1.2.0
