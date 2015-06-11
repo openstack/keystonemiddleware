@@ -219,6 +219,7 @@ from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _identity
+from keystonemiddleware.auth_token import _request
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
@@ -363,26 +364,6 @@ CONF.register_opts(_OPTS, group=_base.AUTHTOKEN_GROUP)
 
 _LOG = logging.getLogger(__name__)
 
-_HEADER_TEMPLATE = {
-    'X%s-Domain-Id': 'domain_id',
-    'X%s-Domain-Name': 'domain_name',
-    'X%s-Project-Id': 'project_id',
-    'X%s-Project-Name': 'project_name',
-    'X%s-Project-Domain-Id': 'project_domain_id',
-    'X%s-Project-Domain-Name': 'project_domain_name',
-    'X%s-User-Id': 'user_id',
-    'X%s-User-Name': 'username',
-    'X%s-User-Domain-Id': 'user_domain_id',
-    'X%s-User-Domain-Name': 'user_domain_name',
-}
-
-_DEPRECATED_HEADER_TEMPLATE = {
-    'X-User': 'username',
-    'X-Tenant-Id': 'project_id',
-    'X-Tenant-Name': 'project_name',
-    'X-Tenant': 'project_name',
-}
-
 
 class _BIND_MODE(object):
     DISABLED = 'disabled'
@@ -398,42 +379,6 @@ def _token_is_v2(token_info):
 
 def _token_is_v3(token_info):
     return ('token' in token_info)
-
-
-def _v3_to_v2_catalog(catalog):
-    """Convert a catalog to v2 format.
-
-    X_SERVICE_CATALOG must be specified in v2 format. If you get a token
-    that is in v3 convert it.
-    """
-    v2_services = []
-    for v3_service in catalog:
-        # first copy over the entries we allow for the service
-        v2_service = {'type': v3_service['type']}
-        try:
-            v2_service['name'] = v3_service['name']
-        except KeyError:
-            pass
-
-        # now convert the endpoints. Because in v3 we specify region per
-        # URL not per group we have to collect all the entries of the same
-        # region together before adding it to the new service.
-        regions = {}
-        for v3_endpoint in v3_service.get('endpoints', []):
-            region_name = v3_endpoint.get('region')
-            try:
-                region = regions[region_name]
-            except KeyError:
-                region = {'region': region_name} if region_name else {}
-                regions[region_name] = region
-
-            interface_name = v3_endpoint['interface'].lower() + 'URL'
-            region[interface_name] = v3_endpoint['url']
-
-        v2_service['endpoints'] = list(regions.values())
-        v2_services.append(v2_service)
-
-    return v2_services
 
 
 def _conf_values_type_convert(conf):
@@ -518,7 +463,6 @@ class AuthProtocol(object):
 
         self._check_revocations_for_cached = self._conf_get(
             'check_revocations_for_cached')
-        self._init_auth_headers()
 
     def _conf_get(self, name, group=_base.AUTHTOKEN_GROUP):
         # try config from paste-deploy first
@@ -527,7 +471,7 @@ class AuthProtocol(object):
         else:
             return CONF[group][name]
 
-    @webob.dec.wsgify
+    @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, request):
         """Handle incoming request.
 
@@ -536,7 +480,7 @@ class AuthProtocol(object):
 
         """
         self._token_cache.initialize(request.environ)
-        self._remove_auth_headers(request)
+        request.remove_auth_headers()
 
         try:
             user_auth_ref = None
@@ -548,8 +492,8 @@ class AuthProtocol(object):
                 user_auth_ref, user_token_info = self._validate_token(
                     user_token_info, request.environ)
                 request.environ['keystone.token_info'] = user_token_info
-                user_headers = self._build_user_headers(user_auth_ref)
-                request.headers.update(user_headers)
+                request.set_user_headers(user_auth_ref,
+                                         self._include_service_catalog)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
@@ -567,8 +511,7 @@ class AuthProtocol(object):
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
                         serv_token, request.environ)
-                    serv_headers = self._build_service_headers(serv_auth_ref)
-                    request.headers.update(serv_headers)
+                    request.set_service_headers(serv_auth_ref)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self._LOG.info(
@@ -596,41 +539,6 @@ class AuthProtocol(object):
             response.headers.extend(self._reject_auth_headers)
 
         return response
-
-    def _init_auth_headers(self):
-        """Initialize auth header list.
-
-        Both user and service token headers are generated.
-        """
-        auth_headers = ['X-Service-Catalog',
-                        'X-Identity-Status',
-                        'X-Service-Identity-Status',
-                        'X-Roles',
-                        'X-Service-Roles']
-        for key in six.iterkeys(_HEADER_TEMPLATE):
-            auth_headers.append(key % '')
-            # Service headers
-            auth_headers.append(key % '-Service')
-
-        # Deprecated headers
-        auth_headers.append('X-Role')
-        for key in six.iterkeys(_DEPRECATED_HEADER_TEMPLATE):
-            auth_headers.append(key)
-
-        self._auth_headers = auth_headers
-
-    def _remove_auth_headers(self, request):
-        """Remove headers so a user can't fake authentication.
-
-        Both user and service token headers are removed.
-
-        :param env: wsgi request environment
-
-        """
-        self._LOG.debug('Removing headers from request environment: %s',
-                        ','.join(self._auth_headers))
-        for k in self._auth_headers:
-            request.headers.pop(k, None)
 
     def _get_user_token_from_request(self, request):
         """Get token id from request.
@@ -782,61 +690,6 @@ class AuthProtocol(object):
                 self._token_cache.store_invalid(token_hashes[0])
             self._LOG.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
-
-    def _build_user_headers(self, auth_ref):
-        """Convert token object into headers.
-
-        Build headers that represent authenticated user - see main
-        doc info at start of file for details of headers to be defined.
-
-        :param token_info: token object returned by identity
-                           server on authentication
-        :raises exc.InvalidToken: when unable to parse token object
-
-        """
-        roles = ','.join(auth_ref.role_names)
-
-        rval = {
-            'X-Identity-Status': 'Confirmed',
-            'X-Roles': roles,
-        }
-
-        for header_tmplt, attr in six.iteritems(_HEADER_TEMPLATE):
-            rval[header_tmplt % ''] = getattr(auth_ref, attr)
-
-        # Deprecated headers
-        rval['X-Role'] = roles
-        for header_tmplt, attr in six.iteritems(_DEPRECATED_HEADER_TEMPLATE):
-            rval[header_tmplt] = getattr(auth_ref, attr)
-
-        if self._include_service_catalog and auth_ref.has_service_catalog():
-            catalog = auth_ref.service_catalog.get_data()
-            if auth_ref.version == 'v3':
-                catalog = _v3_to_v2_catalog(catalog)
-            rval['X-Service-Catalog'] = jsonutils.dumps(catalog)
-
-        return rval
-
-    def _build_service_headers(self, auth_ref):
-        """Convert token object into service headers.
-
-        Build headers that represent authenticated user - see main
-        doc info at start of file for details of headers to be defined.
-
-        :param auth_ref: authentication information
-        """
-
-        roles = ','.join(auth_ref.role_names)
-        rval = {
-            'X-Service-Identity-Status': 'Confirmed',
-            'X-Service-Roles': roles,
-        }
-
-        header_type = '-Service'
-        for header_tmplt, attr in six.iteritems(_HEADER_TEMPLATE):
-            rval[header_tmplt % header_type] = getattr(auth_ref, attr)
-
-        return rval
 
     def _invalid_user_token(self, msg=False):
         # NOTE(jamielennox): use False as the default so that None is valid
