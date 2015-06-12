@@ -809,26 +809,28 @@ class AuthProtocol(BaseAuthProtocol):
 
         :raises exc.InvalidToken: if token is rejected
         """
-        data = None
-        token_hashes = None
-
         try:
             token_hashes = self._token_hashes(token)
+            offline_data = self._validate_offline(token, token_hashes)
+
+            if offline_data:
+                # NOTE(jamielennox): If we've validated a PKI token we don't
+                # need to cache it, and revocation check was already performed.
+                return offline_data
+
             cached = self._token_cache.get_first(*token_hashes)
 
             if cached:
-                data = cached
-
                 if self._check_revocations_for_cached:
                     # A token might have been revoked, regardless of initial
                     # mechanism used to validate it, and needs to be checked.
                     self._revocations.check(token_hashes)
-            else:
-                data = self._validate_offline(token, token_hashes)
-                if not data:
-                    data = self._identity_server.verify_token(token)
 
-                self._token_cache.store(token_hashes[0], data)
+                return cached
+
+            data = self._identity_server.verify_token(token)
+            self._token_cache.store(token_hashes[0], data)
+            return data
 
         except (ksa_exceptions.ConnectFailure,
                 ksa_exceptions.RequestTimeout,
@@ -845,8 +847,6 @@ class AuthProtocol(BaseAuthProtocol):
         except Exception:
             self.log.critical(_LC('Unable to validate token'), exc_info=True)
             raise webob.exc.HTTPInternalServerError()
-
-        return data
 
     def _validate_offline(self, token, token_hashes):
         try:

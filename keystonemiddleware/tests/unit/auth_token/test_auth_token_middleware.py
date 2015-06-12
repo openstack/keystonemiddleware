@@ -1015,7 +1015,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_memcache(self):
         self.mock_memcache()
         self.set_middleware(conf={'memcached_servers': ['127.0.0.1:4444']})
-        token = self.token_dict['signed_token_scoped']
+        token = self.token_dict['uuid_token_default']
         self.call_middleware(headers={'X-Auth-Token': token})
         self.assertIsNotNone(self._get_cached_token(token))
 
@@ -1048,7 +1048,7 @@ class CommonAuthTokenMiddlewareTest(object):
         conf.update(extra_conf)
         self.set_middleware(conf=conf)
 
-        token = self.token_dict['signed_token_scoped']
+        token = self.token_dict['uuid_token_default']
         self.call_middleware(headers={'X-Auth-Token': token})
 
         req = webob.Request.blank('/')
@@ -1275,7 +1275,7 @@ class CommonAuthTokenMiddlewareTest(object):
         orig_cache_set = cache.set
         cache.set = mock.Mock(side_effect=orig_cache_set)
 
-        token = self.token_dict['signed_token_scoped']
+        token = self.token_dict['uuid_token_default']
 
         self.call_middleware(headers={'X-Auth-Token': token})
 
@@ -1285,6 +1285,21 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # Assert that the token wasn't cached again.
         self.assertThat(1, matchers.Equals(cache.set.call_count))
+
+    def test_dont_cache_pki_tokens(self):
+        cache = mock.Mock()
+        cache.get.return_value = '{}'
+
+        self.middleware._token_cache._env_cache_name = 'cache'
+        self.middleware._token_cache.initialize(env={'cache': cache})
+
+        token = self.token_dict['signed_token_scoped']
+
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
+
+        cache.get.assert_not_called()
+        cache.set.assert_not_called()
 
     def test_auth_plugin(self):
 
