@@ -16,13 +16,13 @@ import fixtures
 from oslo_config import fixture as cfg_fixture
 from requests_mock.contrib import fixture as rm_fixture
 import six
-import testtools
 import webob.dec
 
 from keystonemiddleware import auth_token
+from keystonemiddleware.tests.unit import utils
 
 
-class BaseAuthTokenTestCase(testtools.TestCase):
+class BaseAuthTokenTestCase(utils.BaseTestCase):
 
     def setUp(self):
         super(BaseAuthTokenTestCase, self).setUp()

@@ -15,12 +15,11 @@ import shutil
 import stat
 import uuid
 
-import testtools
-
 from keystonemiddleware.auth_token import _signing_dir
+from keystonemiddleware.tests.unit import utils
 
 
-class SigningDirectoryTests(testtools.TestCase):
+class SigningDirectoryTests(utils.BaseTestCase):
 
     def test_directory_created_when_doesnt_exist(self):
         # When _SigningDirectory is created, if the directory doesn't exist

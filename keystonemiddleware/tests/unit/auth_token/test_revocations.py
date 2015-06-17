@@ -18,14 +18,14 @@ import shutil
 import uuid
 
 import mock
-import testtools
 
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
+from keystonemiddleware.tests.unit import utils
 
 
-class RevocationsTests(testtools.TestCase):
+class RevocationsTests(utils.BaseTestCase):
 
     def _check_with_list(self, revoked_list, token_ids):
         directory_name = '/tmp/%s' % uuid.uuid4().hex

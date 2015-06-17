@@ -18,11 +18,11 @@ import uuid
 import mock
 from oslo_config import cfg
 from pycadf import identifier
-import testtools
 from testtools import matchers
 import webob
 
 from keystonemiddleware import audit
+from keystonemiddleware.tests.unit import utils
 
 
 class FakeApp(object):
@@ -40,7 +40,7 @@ class FakeFailingApp(object):
         raise Exception('It happens!')
 
 
-class BaseAuditMiddlewareTest(testtools.TestCase):
+class BaseAuditMiddlewareTest(utils.BaseTestCase):
     def setUp(self):
         super(BaseAuditMiddlewareTest, self).setUp()
         self.fd, self.audit_map = tempfile.mkstemp()

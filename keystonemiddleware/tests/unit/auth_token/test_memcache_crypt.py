@@ -11,12 +11,12 @@
 #    under the License.
 
 import six
-import testtools
 
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
+from keystonemiddleware.tests.unit import utils
 
 
-class MemcacheCryptPositiveTests(testtools.TestCase):
+class MemcacheCryptPositiveTests(utils.BaseTestCase):
     def _setup_keys(self, strategy):
         return memcache_crypt.derive_keys(b'token', b'secret', strategy)
 

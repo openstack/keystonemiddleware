@@ -17,7 +17,6 @@ from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture
 import six
-import testtools
 import webob
 
 from keystonemiddleware import s3_token
@@ -222,7 +221,7 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
         self.assertEqual(resp.status_int, s3_invalid_req.status_int)
 
 
-class S3TokenMiddlewareTestUtil(testtools.TestCase):
+class S3TokenMiddlewareTestUtil(utils.BaseTestCase):
     def test_split_path_failed(self):
         self.assertRaises(ValueError, s3_token._split_path, '')
         self.assertRaises(ValueError, s3_token._split_path, '/')
