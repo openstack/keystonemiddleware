@@ -419,8 +419,8 @@ class AuthProtocol(object):
     _SIGNING_CA_FILE_NAME = 'cacert.pem'
 
     def __init__(self, app, conf):
-        self._LOG = logging.getLogger(conf.get('log_name', __name__))
-        self._LOG.info(_LI('Starting Keystone auth_token middleware'))
+        self.log = logging.getLogger(conf.get('log_name', __name__))
+        self.log.info(_LI('Starting Keystone auth_token middleware'))
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
@@ -438,7 +438,7 @@ class AuthProtocol(object):
 
         self._auth_uri = self._conf_get('auth_uri')
         if not self._auth_uri:
-            self._LOG.warning(
+            self.log.warning(
                 _LW('Configuring auth_uri to point to the public identity '
                     'endpoint is required; clients may not be able to '
                     'authenticate against an admin endpoint'))
@@ -449,7 +449,7 @@ class AuthProtocol(object):
             self._auth_uri = self._identity_server.auth_uri
 
         self._signing_directory = _signing_dir.SigningDirectory(
-            directory_name=self._conf_get('signing_dir'), log=self._LOG)
+            directory_name=self._conf_get('signing_dir'), log=self.log)
 
         self._token_cache = self._token_cache_factory()
 
@@ -459,7 +459,7 @@ class AuthProtocol(object):
                                                      self._signing_directory,
                                                      self._identity_server,
                                                      self._cms_verify,
-                                                     self._LOG)
+                                                     self.log)
 
         self._check_revocations_for_cached = self._conf_get(
             'check_revocations_for_cached')
@@ -487,7 +487,7 @@ class AuthProtocol(object):
             serv_auth_ref = None
 
             try:
-                self._LOG.debug('Authenticating user token')
+                self.log.debug('Authenticating user token')
                 user_token_info = self._get_user_token_from_request(request)
                 user_auth_ref, user_token_info = self._validate_token(
                     user_token_info, request.environ)
@@ -496,17 +496,17 @@ class AuthProtocol(object):
                                          self._include_service_catalog)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
-                    self._LOG.info(
+                    self.log.info(
                         _LI('Invalid user token - deferring reject '
                             'downstream'))
                     request.headers['X-Identity-Status'] = 'Invalid'
                 else:
-                    self._LOG.info(
+                    self.log.info(
                         _LI('Invalid user token - rejecting request'))
                     self._reject_request()
 
             try:
-                self._LOG.debug('Authenticating service token')
+                self.log.debug('Authenticating service token')
                 serv_token = request.headers.get('X-Service-Token')
                 if serv_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
@@ -514,12 +514,12 @@ class AuthProtocol(object):
                     request.set_service_headers(serv_auth_ref)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
-                    self._LOG.info(
+                    self.log.info(
                         _LI('Invalid service token - deferring reject '
                             'downstream'))
                     request.headers['X-Service-Identity-Status'] = 'Invalid'
                 else:
-                    self._LOG.info(
+                    self.log.info(
                         _LI('Invalid service token - rejecting request'))
                     self._reject_request()
 
@@ -527,11 +527,11 @@ class AuthProtocol(object):
             request.environ['keystone.token_auth'] = p
 
         except exc.ServiceError as e:
-            self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
+            self.log.critical(_LC('Unable to obtain admin token: %s'), e)
             raise webob.exc.HTTPServiceUnavailable()
 
-        if self._LOG.isEnabledFor(logging.DEBUG):
-            self._LOG.debug('Received request from %s' % p._log_format)
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug('Received request from %s' % p._log_format)
 
         response = request.get_response(self._app)
 
@@ -554,7 +554,7 @@ class AuthProtocol(object):
             return token
         else:
             if not self._delay_auth_decision:
-                self._LOG.debug('Headers: %s', dict(request.headers))
+                self.log.debug('Headers: %s', dict(request.headers))
             raise exc.InvalidToken(_('Unable to find token in headers'))
 
     @property
@@ -644,11 +644,11 @@ class AuthProtocol(object):
                         verified = self._verify_signed_token(token,
                                                              token_hashes)
                 except exceptions.CertificateConfigError:
-                    self._LOG.warning(_LW('Fetch certificate config failed, '
-                                          'fallback to online validation.'))
+                    self.log.warning(_LW('Fetch certificate config failed, '
+                                         'fallback to online validation.'))
                 except exc.RevocationListError:
-                    self._LOG.warning(_LW('Fetch revocation list failed, '
-                                          'fallback to online validation.'))
+                    self.log.warning(_LW('Fetch revocation list failed, '
+                                         'fallback to online validation.'))
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
@@ -679,16 +679,16 @@ class AuthProtocol(object):
 
             return auth_ref, data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
-            self._LOG.debug('Token validation failure.', exc_info=True)
-            self._LOG.warning(_LW('Authorization failed for token'))
+            self.log.debug('Token validation failure.', exc_info=True)
+            self.log.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
         except exc.ServiceError:
             raise
         except Exception:
-            self._LOG.debug('Token validation failure.', exc_info=True)
+            self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.store_invalid(token_hashes[0])
-            self._LOG.warning(_LW('Authorization failed for token'))
+            self.log.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
 
     def _invalid_user_token(self, msg=False):
@@ -722,7 +722,7 @@ class AuthProtocol(object):
                 # no bind provided and none required
                 return
             else:
-                self._LOG.info(_LI('No bind information present in token.'))
+                self.log.info(_LI('No bind information present in token.'))
                 self._invalid_user_token()
 
         # get the named mode if bind_mode is not one of the predefined
@@ -732,32 +732,32 @@ class AuthProtocol(object):
             name = bind_mode
 
         if name and name not in bind:
-            self._LOG.info(_LI('Named bind mode %s not in bind information'),
-                           name)
+            self.log.info(_LI('Named bind mode %s not in bind information'),
+                          name)
             self._invalid_user_token()
 
         for bind_type, identifier in six.iteritems(bind):
             if bind_type == _BIND_MODE.KERBEROS:
                 if not env.get('AUTH_TYPE', '').lower() == 'negotiate':
-                    self._LOG.info(_LI('Kerberos credentials required and '
-                                       'not present.'))
+                    self.log.info(_LI('Kerberos credentials required and '
+                                      'not present.'))
                     self._invalid_user_token()
 
                 if not env.get('REMOTE_USER') == identifier:
-                    self._LOG.info(_LI('Kerberos credentials do not match '
-                                       'those in bind.'))
+                    self.log.info(_LI('Kerberos credentials do not match '
+                                      'those in bind.'))
                     self._invalid_user_token()
 
-                self._LOG.debug('Kerberos bind authentication successful.')
+                self.log.debug('Kerberos bind authentication successful.')
 
             elif bind_mode == _BIND_MODE.PERMISSIVE:
-                self._LOG.debug('Ignoring Unknown bind for permissive mode: '
-                                '%(bind_type)s: %(identifier)s.',
-                                {'bind_type': bind_type,
-                                 'identifier': identifier})
+                self.log.debug('Ignoring Unknown bind for permissive mode: '
+                               '%(bind_type)s: %(identifier)s.',
+                               {'bind_type': bind_type,
+                                'identifier': identifier})
 
             else:
-                self._LOG.info(
+                self.log.info(
                     _LI('Couldn`t verify unknown bind: %(bind_type)s: '
                         '%(identifier)s.'),
                     {'bind_type': bind_type, 'identifier': identifier})
@@ -779,7 +779,7 @@ class AuthProtocol(object):
                                       signing_ca_path,
                                       inform=inform).decode('utf-8')
             except cms.subprocess.CalledProcessError as err:
-                self._LOG.warning(_LW('Verify error: %s'), err)
+                self.log.warning(_LW('Verify error: %s'), err)
                 raise
 
         try:
@@ -795,7 +795,7 @@ class AuthProtocol(object):
             except exceptions.CertificateConfigError as err:
                 # if this is still occurring, something else is wrong and we
                 # need err.output to identify the problem
-                self._LOG.error(_LE('CMS Verify output: %s'), err.output)
+                self.log.error(_LE('CMS Verify output: %s'), err.output)
                 raise
 
     def _verify_signed_token(self, signed_text, token_ids):
@@ -848,7 +848,7 @@ class AuthProtocol(object):
         else:
             plugin_class = _auth.AuthTokenPlugin
             # logger object is a required parameter of the default plugin
-            plugin_kwargs['log'] = self._LOG
+            plugin_kwargs['log'] = self.log
 
         plugin_opts = plugin_class.get_options()
         CONF.register_opts(plugin_opts, group=group)
@@ -887,7 +887,7 @@ class AuthProtocol(object):
         if auth_version is not None:
             auth_version = discover.normalize_version_number(auth_version)
         return _identity.IdentityServer(
-            self._LOG,
+            self.log,
             adap,
             include_service_catalog=self._include_service_catalog,
             requested_auth_version=auth_version)
@@ -913,12 +913,12 @@ class AuthProtocol(object):
 
         if security_strategy:
             secret_key = self._conf_get('memcache_secret_key')
-            return _cache.SecureTokenCache(self._LOG,
+            return _cache.SecureTokenCache(self.log,
                                            security_strategy,
                                            secret_key,
                                            **cache_kwargs)
         else:
-            return _cache.TokenCache(self._LOG, **cache_kwargs)
+            return _cache.TokenCache(self.log, **cache_kwargs)
 
 
 def filter_factory(global_conf, **local_conf):
