@@ -53,7 +53,16 @@ def _v3_to_v2_catalog(catalog):
     return v2_services
 
 
+# NOTE(jamielennox): this should probably be moved into its own file, but at
+# the moment there's no real logic here so just keep it locally.
+class _AuthTokenResponse(webob.Response):
+
+    default_content_type = None  # prevents webob assigning a content type
+
+
 class _AuthTokenRequest(webob.Request):
+
+    ResponseClass = _AuthTokenResponse
 
     _HEADER_TEMPLATE = {
         'X%s-Domain-Id': 'domain_id',

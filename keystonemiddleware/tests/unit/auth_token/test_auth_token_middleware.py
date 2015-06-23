@@ -1321,6 +1321,29 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertFalse(token_auth.has_service_token)
         self.assertIsNone(token_auth.service)
 
+    def test_doesnt_auto_set_content_type(self):
+        # webob will set content_type = 'text/html' by default if nothing is
+        # provided. We don't want our middleware messing with the content type
+        # of the underlying applications.
+
+        text = uuid.uuid4().hex
+
+        def _middleware(environ, start_response):
+            start_response(200, [])
+            return text
+
+        def _start_response(status_code, headerlist, exc_info=None):
+            self.assertIn('200', status_code)  # will be '200 OK'
+            self.assertEqual([], headerlist)
+
+        m = auth_token.AuthProtocol(_middleware, self.conf)
+
+        env = {'REQUEST_METHOD': 'GET',
+               'HTTP_X_AUTH_TOKEN': self.token_dict['uuid_token_default']}
+
+        r = m(env, _start_response)
+        self.assertEqual(text, r)
+
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                    testresources.ResourcedTestCase):
