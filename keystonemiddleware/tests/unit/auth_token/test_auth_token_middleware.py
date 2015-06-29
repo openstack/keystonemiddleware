@@ -131,6 +131,11 @@ def cleanup_revoked_file(filename):
         pass
 
 
+def strtime(at=None):
+    at = at or timeutils.utcnow()
+    return at.strftime(timeutils.PERFECT_TIME_FORMAT)
+
+
 class TimezoneFixture(fixtures.Fixture):
     @staticmethod
     def supported():
@@ -1848,7 +1853,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.middleware._token_cache.initialize({})
         now = datetime.datetime.utcnow()
         delta = datetime.timedelta(hours=1)
-        expires = timeutils.strtime(at=(now + delta))
+        expires = strtime(at=(now + delta))
         self.middleware._token_cache.store(token, (data, expires))
         self.assertEqual(self.middleware._token_cache.get(token), data)
 
