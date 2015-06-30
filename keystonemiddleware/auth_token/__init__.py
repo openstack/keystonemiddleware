@@ -457,6 +457,38 @@ class _BaseAuthProtocol(object):
 
         By default this method does not return a value.
         """
+        request.remove_auth_headers()
+
+        user_auth_ref = None
+        serv_auth_ref = None
+
+        if request.user_token:
+            self.log.debug('Authenticating user token')
+            try:
+                data, user_auth_ref = self._do_fetch_token(request.user_token)
+                self._validate_token(user_auth_ref)
+                self._confirm_token_bind(user_auth_ref, request)
+            except exc.InvalidToken:
+                self.log.info(_LI('Invalid user token'))
+                request.user_token_valid = False
+            else:
+                request.user_token_valid = True
+                request.environ['keystone.token_info'] = data
+
+        if request.service_token:
+            self.log.debug('Authenticating service token')
+            try:
+                _, serv_auth_ref = self._do_fetch_token(request.service_token)
+                self._validate_token(serv_auth_ref)
+                self._confirm_token_bind(serv_auth_ref, request)
+            except exc.InvalidToken:
+                self.log.info(_LI('Invalid service token'))
+                request.service_token_valid = False
+            else:
+                request.service_token_valid = True
+
+        p = _user_plugin.UserAuthPlugin(user_auth_ref, serv_auth_ref)
+        request.environ['keystone.token_auth'] = p
 
     def _validate_token(self, auth_ref):
         """Perform the validation steps on the token.
@@ -649,57 +681,39 @@ class AuthProtocol(_BaseAuthProtocol):
         depending on configuration.
         """
         self._token_cache.initialize(request.environ)
-        request.remove_auth_headers()
 
-        user_auth_ref = None
-        serv_auth_ref = None
+        resp = super(AuthProtocol, self).process_request(request)
+        if resp:
+            return resp
 
-        self.log.debug('Authenticating user token')
-        try:
-            user_token = self._get_user_token_from_request(request)
-            data, user_auth_ref = self._do_fetch_token(user_token)
-            self._validate_token(user_auth_ref)
-            self._confirm_token_bind(user_auth_ref, request)
-        except exc.InvalidToken:
+        if not request.user_token:
+            # if no user token is present then that's an invalid request
+            request.user_token_valid = False
+
+        # NOTE(jamielennox): The service status is allowed to be missing if a
+        # service token is not passed. If the service status is missing that's
+        # a valid request. We should find a better way to expose this from the
+        # request object.
+        user_status = request.user_token and request.user_token_valid
+        service_status = request.headers.get('X-Service-Identity-Status',
+                                             'Confirmed')
+
+        if not (user_status and service_status == 'Confirmed'):
             if self._delay_auth_decision:
-                self.log.info(
-                    _LI('Invalid user token - deferring reject '
-                        'downstream'))
-                request.user_token_valid = False
+                self.log.info(_LI('Deferring reject downstream'))
             else:
-                self.log.info(
-                    _LI('Invalid user token - rejecting request'))
+                self.log.info(_LI('Rejecting request'))
                 self._reject_request()
-        else:
-            request.environ['keystone.token_info'] = data
-            request.set_user_headers(user_auth_ref,
+
+        if request.user_token_valid:
+            request.set_user_headers(request.token_auth._user_auth_ref,
                                      self._include_service_catalog)
 
-        if request.service_token is not None:
-            self.log.debug('Authenticating service token')
-            try:
-                _ignore, serv_auth_ref = self._do_fetch_token(
-                    request.service_token)
-                self._validate_token(serv_auth_ref)
-                self._confirm_token_bind(serv_auth_ref, request)
-            except exc.InvalidToken:
-                if self._delay_auth_decision:
-                    self.log.info(
-                        _LI('Invalid service token - deferring reject '
-                            'downstream'))
-                    request.service_token_valid = False
-                else:
-                    self.log.info(
-                        _LI('Invalid service token - rejecting request'))
-                    self._reject_request()
-            else:
-                request.set_service_headers(serv_auth_ref)
-
-        request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
-                                                         serv_auth_ref)
+        if request.service_token and request.service_token_valid:
+            request.set_service_headers(request.token_auth._serv_auth_ref)
 
         if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug('Received request from %s' %
+            self.log.debug('Received request from %s',
                            request.token_auth._log_format)
 
     def process_response(self, response):
@@ -712,23 +726,6 @@ class AuthProtocol(_BaseAuthProtocol):
             response.headers.extend(self._reject_auth_headers)
 
         return response
-
-    def _get_user_token_from_request(self, request):
-        """Get token id from request.
-
-        :param env: wsgi request environment
-        :returns: token id
-        :raises exc.InvalidToken: if no token is provided in request
-
-        """
-        token = request.user_token
-
-        if token:
-            return token
-        else:
-            if not self._delay_auth_decision:
-                self.log.debug('Headers: %s', dict(request.headers))
-            raise exc.InvalidToken(_('Unable to find token in headers'))
 
     @property
     def _reject_auth_headers(self):
