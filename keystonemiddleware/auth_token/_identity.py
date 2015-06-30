@@ -72,7 +72,14 @@ class _V2RequestStrategy(_RequestStrategy):
         super(_V2RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v2_client.Client(session=adap)
 
-        self.verify_token = self._client.tokens.validate_access_info
+    def verify_token(self, token):
+        auth_ref = self._client.tokens.validate_access_info(token)
+
+        if not auth_ref:
+            msg = _('Failed to fetch token data from identity server')
+            raise exc.InvalidToken(msg)
+
+        return {'access': auth_ref}
 
     def _fetch_signing_cert(self):
         return self._client.certificates.get_signing_certificate()
@@ -92,9 +99,16 @@ class _V3RequestStrategy(_RequestStrategy):
         super(_V3RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v3_client.Client(session=adap)
 
-        self.verify_token = functools.partial(
-            self._client.tokens.validate,
+    def verify_token(self, token):
+        auth_ref = self._client.tokens.validate(
+            token,
             include_catalog=self._include_service_catalog)
+
+        if not auth_ref:
+            msg = _('Failed to fetch token data from identity server')
+            raise exc.InvalidToken(msg)
+
+        return {'token': auth_ref}
 
     def _fetch_signing_cert(self):
         return self._client.simple_cert.get_certificates()
@@ -213,6 +227,9 @@ class IdentityServer(object):
             self._LOG.warn(_LW('Identity response: %s'), e.response.text)
         else:
             return auth_ref
+
+        msg = _('Failed to fetch token data from identity server')
+        raise exc.InvalidToken(msg)
 
     def fetch_revocation_list(self):
         try:

@@ -1033,29 +1033,6 @@ class CommonAuthTokenMiddlewareTest(object):
         self.call_middleware(headers={'X-Auth-Token': token})
         self.assertRaises(exc.InvalidToken, self._get_cached_token, token)
 
-    def _test_memcache_set_invalid_signed(self, hash_algorithms=None,
-                                          exp_mode='md5'):
-        token = self.token_dict['signed_token_scoped_expired']
-        if hash_algorithms:
-            self.conf['hash_algorithms'] = ','.join(hash_algorithms)
-            self.set_middleware()
-        self.call_middleware(headers={'X-Auth-Token': token})
-        self.assertRaises(exc.InvalidToken,
-                          self._get_cached_token, token, mode=exp_mode)
-
-    def test_memcache_set_invalid_signed(self):
-        self._test_memcache_set_invalid_signed()
-
-    def test_memcache_set_invalid_signed_sha256_md5(self):
-        hash_algorithms = ['sha256', 'md5']
-        self._test_memcache_set_invalid_signed(hash_algorithms=hash_algorithms,
-                                               exp_mode='sha256')
-
-    def test_memcache_set_invalid_signed_sha256(self):
-        hash_algorithms = ['sha256']
-        self._test_memcache_set_invalid_signed(hash_algorithms=hash_algorithms,
-                                               exp_mode='sha256')
-
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
         token_cache_time = 10
         conf = {
