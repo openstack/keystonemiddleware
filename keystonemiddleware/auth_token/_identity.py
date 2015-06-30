@@ -24,6 +24,18 @@ from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.i18n import _, _LE, _LI, _LW
 
 
+def _convert_fetch_cert_exception(fetch_cert):
+    @functools.wraps(fetch_cert)
+    def wrapper(self):
+        try:
+            text = fetch_cert(self)
+        except exceptions.HTTPError as e:
+            raise exceptions.CertificateConfigError(e.details)
+        return text
+
+    return wrapper
+
+
 class _RequestStrategy(object):
 
     AUTH_VERSION = None
@@ -34,7 +46,18 @@ class _RequestStrategy(object):
     def verify_token(self, user_token):
         pass
 
-    def fetch_cert_file(self, cert_type):
+    @_convert_fetch_cert_exception
+    def fetch_signing_cert(self):
+        return self._fetch_signing_cert()
+
+    def _fetch_signing_cert(self):
+        pass
+
+    @_convert_fetch_cert_exception
+    def fetch_ca_cert(self):
+        return self._fetch_ca_cert()
+
+    def _fetch_ca_cert(self):
         pass
 
     def fetch_revocation_list(self):
@@ -51,11 +74,11 @@ class _V2RequestStrategy(_RequestStrategy):
 
         self.verify_token = self._client.tokens.validate_access_info
 
-    def fetch_cert_file(self, cert_type):
-        if cert_type == 'ca':
-            return self._client.certificates.get_ca_certificate()
-        elif cert_type == 'signing':
-            return self._client.certificates.get_signing_certificate()
+    def _fetch_signing_cert(self):
+        return self._client.certificates.get_signing_certificate()
+
+    def _fetch_ca_cert(self):
+        return self._client.certificates.get_ca_certificate()
 
     def fetch_revocation_list(self):
         return self._client.tokens.get_revoked()
@@ -73,11 +96,11 @@ class _V3RequestStrategy(_RequestStrategy):
             self._client.tokens.validate,
             include_catalog=self._include_service_catalog)
 
-    def fetch_cert_file(self, cert_type):
-        if cert_type == 'ca':
-            return self._client.simple_cert.get_ca_certificates()
-        elif cert_type == 'signing':
-            return self._client.simple_cert.get_certificates()
+    def _fetch_signing_cert(self):
+        return self._client.simple_cert.get_certificates()
+
+    def _fetch_ca_cert(self):
+        return self._client.simple_cert.get_ca_certificates()
 
     def fetch_revocation_list(self):
         return self._client.tokens.get_revoked()
@@ -203,14 +226,7 @@ class IdentityServer(object):
         return data['signed']
 
     def fetch_signing_cert(self):
-        return self._fetch_cert_file('signing')
+        return self._request_strategy.fetch_signing_cert()
 
     def fetch_ca_cert(self):
-        return self._fetch_cert_file('ca')
-
-    def _fetch_cert_file(self, cert_type):
-        try:
-            text = self._request_strategy.fetch_cert_file(cert_type)
-        except exceptions.HTTPError as e:
-            raise exceptions.CertificateConfigError(e.details)
-        return text
+        return self._request_strategy.fetch_ca_cert()
