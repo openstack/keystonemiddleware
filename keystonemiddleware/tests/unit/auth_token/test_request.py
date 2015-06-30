@@ -181,6 +181,14 @@ class RequestObjectTests(utils.TestCase):
         self.request.headers['X-Service-Token'] = token
         self.assertEqual(token, self.request.service_token)
 
+    def test_token_auth(self):
+        plugin = object()
+
+        self.assertNotIn('keystone.token_auth', self.request.environ)
+        self.request.token_auth = plugin
+        self.assertIs(plugin, self.request.environ['keystone.token_auth'])
+        self.assertIs(plugin, self.request.token_auth)
+
 
 class CatalogConversionTests(utils.TestCase):
 

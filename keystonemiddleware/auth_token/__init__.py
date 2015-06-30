@@ -567,15 +567,16 @@ class AuthProtocol(_BaseAuthProtocol):
                         _LI('Invalid service token - rejecting request'))
                     self._reject_request()
 
-            p = _user_plugin.UserAuthPlugin(user_auth_ref, serv_auth_ref)
-            request.environ['keystone.token_auth'] = p
+            request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
+                                                             serv_auth_ref)
 
         except exc.ServiceError as e:
             self.log.critical(_LC('Unable to obtain admin token: %s'), e)
             raise webob.exc.HTTPServiceUnavailable()
 
         if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug('Received request from %s' % p._log_format)
+            self.log.debug('Received request from %s' %
+                           request.token_auth._log_format)
 
     def process_response(self, response):
         """Process Response.

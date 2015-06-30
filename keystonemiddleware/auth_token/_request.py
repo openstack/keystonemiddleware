@@ -77,6 +77,7 @@ class _AuthTokenRequest(webob.Request):
     _SERVICE_STATUS_HEADER = 'X-Service-Identity-Status'
 
     _SERVICE_CATALOG_HEADER = 'X-Service-Catalog'
+    _TOKEN_AUTH = 'keystone.token_auth'
 
     _CONFIRMED = 'Confirmed'
     _INVALID = 'Invalid'
@@ -203,3 +204,12 @@ class _AuthTokenRequest(webob.Request):
             return None
         else:
             return auth_type.lower()
+
+    @property
+    def token_auth(self):
+        """The auth plugin that will be associated with this request"""
+        return self.environ.get(self._TOKEN_AUTH)
+
+    @token_auth.setter
+    def token_auth(self, v):
+        self.environ[self._TOKEN_AUTH] = v
