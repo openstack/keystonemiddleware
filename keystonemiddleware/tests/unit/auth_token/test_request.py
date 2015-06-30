@@ -159,6 +159,28 @@ class RequestObjectTests(utils.TestCase):
         self.request.environ['AUTH_TYPE'] = 'NeGoTiatE'
         self.assertEqual('negotiate', self.request.auth_type)
 
+    def test_user_token(self):
+        token = uuid.uuid4().hex
+        self.assertIsNone(self.request.user_token)
+        self.request.headers['X-Auth-Token'] = token
+        self.assertEqual(token, self.request.user_token)
+
+    def test_storage_token(self):
+        storage_token = uuid.uuid4().hex
+        user_token = uuid.uuid4().hex
+
+        self.assertIsNone(self.request.user_token)
+        self.request.headers['X-Storage-Token'] = storage_token
+        self.assertEqual(storage_token, self.request.user_token)
+        self.request.headers['X-Auth-Token'] = user_token
+        self.assertEqual(user_token, self.request.user_token)
+
+    def test_service_token(self):
+        token = uuid.uuid4().hex
+        self.assertIsNone(self.request.service_token)
+        self.request.headers['X-Service-Token'] = token
+        self.assertEqual(token, self.request.service_token)
+
 
 class CatalogConversionTests(utils.TestCase):
 

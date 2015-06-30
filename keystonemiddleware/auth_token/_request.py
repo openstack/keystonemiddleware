@@ -107,6 +107,11 @@ class _AuthTokenRequest(webob.Request):
         self.headers[self._USER_STATUS_HEADER] = self._confirmed(value)
 
     @property
+    def user_token(self):
+        return self.headers.get('X-Auth-Token',
+                                self.headers.get('X-Storage-Token'))
+
+    @property
     def service_token_valid(self):
         """Service token is marked as valid.
 
@@ -119,6 +124,10 @@ class _AuthTokenRequest(webob.Request):
     @service_token_valid.setter
     def service_token_valid(self, value):
         self.headers[self._SERVICE_STATUS_HEADER] = self._confirmed(value)
+
+    @property
+    def service_token(self):
+        return self.headers.get('X-Service-Token')
 
     def _set_auth_headers(self, auth_ref, prefix):
         names = ','.join(auth_ref.role_names)

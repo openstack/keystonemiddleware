@@ -552,10 +552,9 @@ class AuthProtocol(_BaseAuthProtocol):
 
             try:
                 self.log.debug('Authenticating service token')
-                serv_token = request.headers.get('X-Service-Token')
-                if serv_token is not None:
+                if request.service_token is not None:
                     serv_auth_ref, serv_token_info = self._validate_token(
-                        serv_token, request)
+                        request.service_token, request)
                     request.set_service_headers(serv_auth_ref)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
@@ -597,8 +596,8 @@ class AuthProtocol(_BaseAuthProtocol):
         :raises exc.InvalidToken: if no token is provided in request
 
         """
-        token = request.headers.get('X-Auth-Token',
-                                    request.headers.get('X-Storage-Token'))
+        token = request.user_token
+
         if token:
             return token
         else:
