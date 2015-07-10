@@ -447,6 +447,32 @@ class _BaseAuthProtocol(object):
         By default this method does not return a value.
         """
 
+    def _do_fetch_token(self, token):
+        """Helper method to fetch a token and convert it into an AccessInfo"""
+        data = self._fetch_token(token)
+
+        try:
+            return data, access.AccessInfo.factory(body=data, auth_token=token)
+        except Exception:
+            self.log.warning(_LW('Invalid token contents.'), exc_info=True)
+            raise exc.InvalidToken(_('Token authorization failed'))
+
+    def _fetch_token(self, token):
+        """Fetch the token data based on the value in the header.
+
+        Retrieve the data associated with the token value that was in the
+        header. This can be from PKI, contacting the identity server or
+        whatever is required.
+
+        :param str token: The token present in the request header.
+
+        :raises exc.InvalidToken: if token is invalid.
+
+        :returns: The token data
+        :rtype: dict
+        """
+        raise NotImplemented()
+
     def process_response(self, response):
         """Do whatever you'd like to the response.
 
@@ -527,52 +553,52 @@ class AuthProtocol(_BaseAuthProtocol):
         self._token_cache.initialize(request.environ)
         request.remove_auth_headers()
 
+        user_auth_ref = None
+        serv_auth_ref = None
+
+        self.log.debug('Authenticating user token')
         try:
-            user_auth_ref = None
-            serv_auth_ref = None
+            user_token = self._get_user_token_from_request(request)
+            data, user_auth_ref = self._do_fetch_token(user_token)
+            self._validate_token(user_auth_ref)
+            self._confirm_token_bind(user_auth_ref, request)
+        except exc.InvalidToken:
+            if self._delay_auth_decision:
+                self.log.info(
+                    _LI('Invalid user token - deferring reject '
+                        'downstream'))
+                request.user_token_valid = False
+            else:
+                self.log.info(
+                    _LI('Invalid user token - rejecting request'))
+                self._reject_request()
+        else:
+            request.environ['keystone.token_info'] = data
+            request.set_user_headers(user_auth_ref,
+                                     self._include_service_catalog)
 
+        if request.service_token is not None:
+            self.log.debug('Authenticating service token')
             try:
-                self.log.debug('Authenticating user token')
-                user_token_info = self._get_user_token_from_request(request)
-                user_auth_ref, user_token_info = self._validate_token(
-                    user_token_info, request)
-                request.environ['keystone.token_info'] = user_token_info
-                request.set_user_headers(user_auth_ref,
-                                         self._include_service_catalog)
-            except exc.InvalidToken:
-                if self._delay_auth_decision:
-                    self.log.info(
-                        _LI('Invalid user token - deferring reject '
-                            'downstream'))
-                    request.headers['X-Identity-Status'] = 'Invalid'
-                else:
-                    self.log.info(
-                        _LI('Invalid user token - rejecting request'))
-                    self._reject_request()
-
-            try:
-                self.log.debug('Authenticating service token')
-                if request.service_token is not None:
-                    serv_auth_ref, serv_token_info = self._validate_token(
-                        request.service_token, request)
-                    request.set_service_headers(serv_auth_ref)
+                _ignore, serv_auth_ref = self._do_fetch_token(
+                    request.service_token)
+                self._validate_token(serv_auth_ref)
+                self._confirm_token_bind(serv_auth_ref, request)
             except exc.InvalidToken:
                 if self._delay_auth_decision:
                     self.log.info(
                         _LI('Invalid service token - deferring reject '
                             'downstream'))
-                    request.headers['X-Service-Identity-Status'] = 'Invalid'
+                    request.service_token_valid = False
                 else:
                     self.log.info(
                         _LI('Invalid service token - rejecting request'))
                     self._reject_request()
+            else:
+                request.set_service_headers(serv_auth_ref)
 
-            request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
-                                                             serv_auth_ref)
-
-        except exc.ServiceError as e:
-            self.log.critical(_LC('Unable to obtain admin token: %s'), e)
-            raise webob.exc.HTTPServiceUnavailable()
+        request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
+                                                         serv_auth_ref)
 
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug('Received request from %s' %
@@ -657,15 +683,14 @@ class AuthProtocol(_BaseAuthProtocol):
             if cached:
                 return cached
 
-    def _validate_token(self, token, request):
-        """Authenticate user token
+    def _fetch_token(self, token):
+        """Retrieve a token from either a PKI bundle or the identity server.
 
-        :param token: token id
-        :param request: incoming request
-        :returns: uncrypted body of the token if the token is valid
+        :param str token: token id
+
         :raises exc.InvalidToken: if token is rejected
-
         """
+        data = None
         token_hashes = None
 
         try:
@@ -680,9 +705,6 @@ class AuthProtocol(_BaseAuthProtocol):
                     # regardless of initial mechanism used to validate it,
                     # and needs to be checked.
                     self._revocations.check(token_hashes)
-
-                auth_ref = access.AccessInfo.factory(body=data,
-                                                     auth_token=token)
             else:
                 verified = None
 
@@ -701,44 +723,35 @@ class AuthProtocol(_BaseAuthProtocol):
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
-                    auth_ref = access.AccessInfo.factory(body=data,
-                                                         auth_token=token)
                 else:
-                    auth_ref = self._identity_server.verify_token(token)
-                    if auth_ref:
-                        if auth_ref.version == 'v2.0':
-                            data = {'access': auth_ref}
-                        else:  # it's v3.
-                            data = {'token': auth_ref}
-                    else:
-                        data = None
+                    data = self._identity_server.verify_token(token)
 
-            # 0 seconds of validity means is it valid right now.
-            if auth_ref.will_expire_soon(stale_duration=0):
-                raise exc.InvalidToken(_('Token authorization failed'))
-
-            if _token_is_v2(data) and not auth_ref.project_id:
-                msg = _('Unable to determine service tenancy.')
-                raise exc.InvalidToken(msg)
-
-            self._confirm_token_bind(auth_ref, request)
-
-            if not cached:
                 self._token_cache.store(token_hashes[0], data)
 
-            return auth_ref, data
         except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
             self.log.debug('Token validation failure.', exc_info=True)
             self.log.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
-        except exc.ServiceError:
-            raise
+        except exc.ServiceError as e:
+            self.log.critical(_LC('Unable to obtain admin token: %s'), e)
+            raise webob.exc.HTTPServiceUnavailable()
         except Exception:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.store_invalid(token_hashes[0])
             self.log.warning(_LW('Authorization failed for token'))
             raise exc.InvalidToken(_('Token authorization failed'))
+
+        return data
+
+    def _validate_token(self, auth_ref):
+        # 0 seconds of validity means is it valid right now.
+        if auth_ref.will_expire_soon(stale_duration=0):
+            raise exc.InvalidToken(_('Token authorization failed'))
+
+        if auth_ref.version == 'v2.0' and not auth_ref.project_id:
+            msg = _('Unable to determine service tenancy.')
+            raise exc.InvalidToken(msg)
 
     def _invalid_user_token(self, msg=False):
         # NOTE(jamielennox): use False as the default so that None is valid
