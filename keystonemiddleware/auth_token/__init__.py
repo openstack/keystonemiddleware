@@ -419,11 +419,17 @@ class _BaseAuthProtocol(object):
     :param logging.Logger log: The logging object to use for output. By default
                                it will use a logger in the
                                keystonemiddleware.auth_token namespace.
+    :param str enforce_token_bind: The style of token binding enforcement to
+                                   perform.
     """
 
-    def __init__(self, app, log=_LOG):
+    def __init__(self,
+                 app,
+                 log=_LOG,
+                 enforce_token_bind=_BIND_MODE.PERMISSIVE):
         self.log = log
         self._app = app
+        self._enforce_token_bind = enforce_token_bind
 
     @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):
@@ -446,6 +452,18 @@ class _BaseAuthProtocol(object):
 
         By default this method does not return a value.
         """
+
+    def _validate_token(self, auth_ref):
+        """Perform the validation steps on the token.
+
+        :param auth_ref: The token data
+        :type auth_ref: keystoneclient.access.AccessInfo
+
+        :raises exc.InvalidToken: if token is rejected
+        """
+        # 0 seconds of validity means is it valid right now.
+        if auth_ref.will_expire_soon(stale_duration=0):
+            raise exc.InvalidToken(_('Token authorization failed'))
 
     def _do_fetch_token(self, token):
         """Helper method to fetch a token and convert it into an AccessInfo"""
@@ -480,6 +498,77 @@ class _BaseAuthProtocol(object):
         """
         return response
 
+    def _invalid_user_token(self, msg=False):
+        # NOTE(jamielennox): use False as the default so that None is valid
+        if msg is False:
+            msg = _('Token authorization failed')
+
+        raise exc.InvalidToken(msg)
+
+    def _confirm_token_bind(self, auth_ref, req):
+        if self._enforce_token_bind == _BIND_MODE.DISABLED:
+            return
+
+        try:
+            if auth_ref.version == 'v2.0':
+                bind = auth_ref['token']['bind']
+            elif auth_ref.version == 'v3':
+                bind = auth_ref['bind']
+            else:
+                self._invalid_user_token()
+        except KeyError:
+            bind = {}
+
+        # permissive and strict modes don't require there to be a bind
+        permissive = self._enforce_token_bind in (_BIND_MODE.PERMISSIVE,
+                                                  _BIND_MODE.STRICT)
+
+        if not bind:
+            if permissive:
+                # no bind provided and none required
+                return
+            else:
+                self.log.info(_LI('No bind information present in token.'))
+                self._invalid_user_token()
+
+        # get the named mode if bind_mode is not one of the predefined
+        if permissive or self._enforce_token_bind == _BIND_MODE.REQUIRED:
+            name = None
+        else:
+            name = self._enforce_token_bind
+
+        if name and name not in bind:
+            self.log.info(_LI('Named bind mode %s not in bind information'),
+                          name)
+            self._invalid_user_token()
+
+        for bind_type, identifier in six.iteritems(bind):
+            if bind_type == _BIND_MODE.KERBEROS:
+                if req.auth_type != 'negotiate':
+                    self.log.info(_LI('Kerberos credentials required and '
+                                      'not present.'))
+                    self._invalid_user_token()
+
+                if req.remote_user != identifier:
+                    self.log.info(_LI('Kerberos credentials do not match '
+                                      'those in bind.'))
+                    self._invalid_user_token()
+
+                self.log.debug('Kerberos bind authentication successful.')
+
+            elif self._enforce_token_bind == _BIND_MODE.PERMISSIVE:
+                self.log.debug('Ignoring Unknown bind for permissive mode: '
+                               '%(bind_type)s: %(identifier)s.',
+                               {'bind_type': bind_type,
+                                'identifier': identifier})
+
+            else:
+                self.log.info(
+                    _LI('Couldn`t verify unknown bind: %(bind_type)s: '
+                        '%(identifier)s.'),
+                    {'bind_type': bind_type, 'identifier': identifier})
+                self._invalid_user_token()
+
 
 class AuthProtocol(_BaseAuthProtocol):
     """Middleware that handles authenticating client calls."""
@@ -490,12 +579,16 @@ class AuthProtocol(_BaseAuthProtocol):
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get('log_name', __name__))
         log.info(_LI('Starting Keystone auth_token middleware'))
-        super(AuthProtocol, self).__init__(app, log=log)
 
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
         self._conf = _conf_values_type_convert(conf)
+
+        super(AuthProtocol, self).__init__(
+            app,
+            log=log,
+            enforce_token_bind=self._conf_get('enforce_token_bind'))
 
         # delay_auth_decision means we still allow unauthenticated requests
         # through and we let the downstream service make the final decision
@@ -745,85 +838,11 @@ class AuthProtocol(_BaseAuthProtocol):
         return data
 
     def _validate_token(self, auth_ref):
-        # 0 seconds of validity means is it valid right now.
-        if auth_ref.will_expire_soon(stale_duration=0):
-            raise exc.InvalidToken(_('Token authorization failed'))
+        super(AuthProtocol, self)._validate_token(auth_ref)
 
         if auth_ref.version == 'v2.0' and not auth_ref.project_id:
             msg = _('Unable to determine service tenancy.')
             raise exc.InvalidToken(msg)
-
-    def _invalid_user_token(self, msg=False):
-        # NOTE(jamielennox): use False as the default so that None is valid
-        if msg is False:
-            msg = _('Token authorization failed')
-
-        raise exc.InvalidToken(msg)
-
-    def _confirm_token_bind(self, auth_ref, req):
-        bind_mode = self._conf_get('enforce_token_bind')
-
-        if bind_mode == _BIND_MODE.DISABLED:
-            return
-
-        try:
-            if auth_ref.version == 'v2.0':
-                bind = auth_ref['token']['bind']
-            elif auth_ref.version == 'v3':
-                bind = auth_ref['bind']
-            else:
-                self._invalid_user_token()
-        except KeyError:
-            bind = {}
-
-        # permissive and strict modes don't require there to be a bind
-        permissive = bind_mode in (_BIND_MODE.PERMISSIVE, _BIND_MODE.STRICT)
-
-        if not bind:
-            if permissive:
-                # no bind provided and none required
-                return
-            else:
-                self.log.info(_LI('No bind information present in token.'))
-                self._invalid_user_token()
-
-        # get the named mode if bind_mode is not one of the predefined
-        if permissive or bind_mode == _BIND_MODE.REQUIRED:
-            name = None
-        else:
-            name = bind_mode
-
-        if name and name not in bind:
-            self.log.info(_LI('Named bind mode %s not in bind information'),
-                          name)
-            self._invalid_user_token()
-
-        for bind_type, identifier in six.iteritems(bind):
-            if bind_type == _BIND_MODE.KERBEROS:
-                if req.auth_type != 'negotiate':
-                    self.log.info(_LI('Kerberos credentials required and '
-                                      'not present.'))
-                    self._invalid_user_token()
-
-                if req.remote_user != identifier:
-                    self.log.info(_LI('Kerberos credentials do not match '
-                                      'those in bind.'))
-                    self._invalid_user_token()
-
-                self.log.debug('Kerberos bind authentication successful.')
-
-            elif bind_mode == _BIND_MODE.PERMISSIVE:
-                self.log.debug('Ignoring Unknown bind for permissive mode: '
-                               '%(bind_type)s: %(identifier)s.',
-                               {'bind_type': bind_type,
-                                'identifier': identifier})
-
-            else:
-                self.log.info(
-                    _LI('Couldn`t verify unknown bind: %(bind_type)s: '
-                        '%(identifier)s.'),
-                    {'bind_type': bind_type, 'identifier': identifier})
-                self._invalid_user_token()
 
     def _cms_verify(self, data, inform=cms.PKI_ASN1_FORM):
         """Verifies the signature of the provided data's IAW CMS syntax.
