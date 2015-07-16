@@ -918,7 +918,7 @@ class AuthProtocol(_BaseAuthProtocol):
     def _determine_project(self):
         """Determine a project name from all available config sources.
 
-        The sources are checked in the following order::
+        The sources are checked in the following order:
 
           1. The paste-deploy config for auth_token middleware
           2. The keystone_authtoken in the project's config
