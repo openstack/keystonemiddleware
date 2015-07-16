@@ -29,6 +29,7 @@ from keystoneclient import exceptions
 from keystoneclient import fixture
 from keystoneclient import session
 import mock
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
@@ -2400,6 +2401,73 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         self.assertEqual(username, plugin._username)
         self.assertEqual(password, plugin._password)
         self.assertEqual(self.project_id, plugin._project_id)
+
+
+class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
+
+    def setUp(self):
+        super(TestAuthPluginUserAgentGeneration, self).setUp()
+        self.auth_url = uuid.uuid4().hex
+        self.project_id = uuid.uuid4().hex
+        self.username = uuid.uuid4().hex
+        self.password = uuid.uuid4().hex
+        self.section = uuid.uuid4().hex
+        self.user_domain_id = uuid.uuid4().hex
+
+        auth.register_conf_options(self.cfg.conf, group=self.section)
+        opts = auth.get_plugin_options('password')
+        self.cfg.register_opts(opts, group=self.section)
+
+        # configure the authentication options
+        self.cfg.config(auth_section=self.section, group=_base.AUTHTOKEN_GROUP)
+        self.cfg.config(auth_plugin='password',
+                        password=self.password,
+                        project_id=self.project_id,
+                        user_domain_id=self.user_domain_id,
+                        group=self.section)
+
+    def test_no_project_configured(self):
+        ksm_version = uuid.uuid4().hex
+        conf = {'username': self.username, 'auth_url': self.auth_url}
+
+        app = self._create_app(conf, ksm_version)
+        self._assert_user_agent(app, '', ksm_version)
+
+    def test_project_in_configuration(self):
+        project = uuid.uuid4().hex
+        project_version = uuid.uuid4().hex
+
+        conf = {'username': self.username,
+                'auth_url': self.auth_url,
+                'project': project}
+        app = self._create_app(conf, project_version)
+        project_with_version = '{0}/{1} '.format(project, project_version)
+        self._assert_user_agent(app, project_with_version, project_version)
+
+    def test_project_in_oslo_configuration(self):
+        project = uuid.uuid4().hex
+        project_version = uuid.uuid4().hex
+
+        conf = {'username': self.username, 'auth_url': self.auth_url}
+        with mock.patch.object(cfg.CONF, 'project', new=project, create=True):
+            app = self._create_app(conf, project_version)
+        project = '{0}/{1} '.format(project, project_version)
+        self._assert_user_agent(app, project, project_version)
+
+    def _create_app(self, conf, project_version):
+        fake_pkg_resources = mock.Mock()
+        fake_pkg_resources.get_distribution().version = project_version
+
+        body = uuid.uuid4().hex
+        with mock.patch('keystonemiddleware.auth_token.pkg_resources',
+                        new=fake_pkg_resources):
+            return self.create_simple_middleware(body=body, conf=conf)
+
+    def _assert_user_agent(self, app, project, ksm_version):
+        sess = app._identity_server._adapter.session
+        expected_ua = ('{0}keystonemiddleware.auth_token/{1}'
+                       .format(project, ksm_version))
+        self.assertEqual(expected_ua, sess.user_agent)
 
 
 def load_tests(loader, tests, pattern):
