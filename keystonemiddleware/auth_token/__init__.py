@@ -804,24 +804,8 @@ class AuthProtocol(_BaseAuthProtocol):
                     # and needs to be checked.
                     self._revocations.check(token_hashes)
             else:
-                verified = None
-
-                try:
-                    if cms.is_pkiz(token):
-                        verified = self._verify_pkiz_token(token, token_hashes)
-                    elif cms.is_asn1_token(token):
-                        verified = self._verify_signed_token(token,
-                                                             token_hashes)
-                except exceptions.CertificateConfigError:
-                    self.log.warning(_LW('Fetch certificate config failed, '
-                                         'fallback to online validation.'))
-                except exc.RevocationListError:
-                    self.log.warning(_LW('Fetch revocation list failed, '
-                                         'fallback to online validation.'))
-
-                if verified is not None:
-                    data = jsonutils.loads(verified)
-                else:
+                data = self._validate_offline(token, token_hashes)
+                if not data:
                     data = self._identity_server.verify_token(token)
 
                 self._token_cache.store(token_hashes[0], data)
@@ -841,6 +825,25 @@ class AuthProtocol(_BaseAuthProtocol):
             raise exc.InvalidToken(_('Token authorization failed'))
 
         return data
+
+    def _validate_offline(self, token, token_hashes):
+        try:
+            if cms.is_pkiz(token):
+                verified = self._verify_pkiz_token(token, token_hashes)
+            elif cms.is_asn1_token(token):
+                verified = self._verify_signed_token(token, token_hashes)
+            else:
+                # Can't do offline validation for this type of token.
+                return
+        except exceptions.CertificateConfigError:
+            self.log.warning(_LW('Fetch certificate config failed, '
+                                 'fallback to online validation.'))
+        except exc.RevocationListError:
+            self.log.warning(_LW('Fetch revocation list failed, '
+                                 'fallback to online validation.'))
+        else:
+            data = jsonutils.loads(verified)
+            return data
 
     def _validate_token(self, auth_ref):
         super(AuthProtocol, self)._validate_token(auth_ref)
