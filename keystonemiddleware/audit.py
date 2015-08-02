@@ -84,10 +84,10 @@ AuditMap = collections.namedtuple('AuditMap',
 # SafeConfigParser.readfp are deprecated in Python 3. Remove this when we drop
 # support for Python 2.
 if six.PY2:
-    class ConfigParser(configparser.SafeConfigParser):
+    class _ConfigParser(configparser.SafeConfigParser):
         read_file = configparser.SafeConfigParser.readfp
 else:
-    ConfigParser = configparser.ConfigParser
+    _ConfigParser = configparser.ConfigParser
 
 
 class OpenStackAuditApi(object):
@@ -101,7 +101,7 @@ class OpenStackAuditApi(object):
 
         if cfg_file:
             try:
-                map_conf = ConfigParser()
+                map_conf = _ConfigParser()
                 map_conf.read_file(open(cfg_file))
 
                 try:
@@ -141,12 +141,19 @@ class OpenStackAuditApi(object):
         """Take a given Request, parse url path to calculate action type.
 
         Depending on req.method:
-        if POST: path ends with 'action', read the body and use as action;
-                 path ends with known custom_action, take action from config;
-                 request ends with known path, assume is create action;
-                 request ends with unknown path, assume is update action.
-        if GET: request ends with known path, assume is list action;
-                request ends with unknown path, assume is read action.
+
+        if POST:
+
+        - path ends with 'action', read the body and use as action;
+        - path ends with known custom_action, take action from config;
+        - request ends with known path, assume is create action;
+        - request ends with unknown path, assume is update action.
+
+        if GET:
+
+        - request ends with known path, assume is list action;
+        - request ends with unknown path, assume is read action.
+
         if PUT, assume update action.
         if DELETE, assume delete action.
         if HEAD, assume read action.

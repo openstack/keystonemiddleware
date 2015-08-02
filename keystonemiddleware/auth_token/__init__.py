@@ -21,10 +21,10 @@ This WSGI component:
 * Verifies that incoming client requests have valid tokens by validating
   tokens with the auth service.
 * Rejects unauthenticated requests unless the auth_token middleware is in
-  'delay_auth_decision' mode, which means the final decision is delegated to
+  ``delay_auth_decision`` mode, which means the final decision is delegated to
   the downstream WSGI component (usually the OpenStack service).
 * Collects and forwards identity information based on a valid token
-  such as user name, tenant, etc
+  such as user name, domain, project, etc.
 
 Refer to: http://docs.openstack.org/developer/keystonemiddleware/\
 middlewarearchitecture.html
@@ -50,7 +50,7 @@ Used for communication between components
 
 WWW-Authenticate
     HTTP header returned to a user indicating which endpoint to use
-    to retrieve a new token
+    to retrieve a new token.
 
 What auth_token adds to the request for use by the OpenStack service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,34 +58,35 @@ What auth_token adds to the request for use by the OpenStack service
 When using composite authentication (a user and service token are
 present) additional service headers relating to the service user
 will be added. They take the same form as the standard headers but add
-'_SERVICE_'. These headers will not exist in the environment if no
+``_SERVICE_``. These headers will not exist in the environment if no
 service token is present.
 
 HTTP_X_IDENTITY_STATUS, HTTP_X_SERVICE_IDENTITY_STATUS
-    'Confirmed' or 'Invalid'
-    The underlying service will only see a value of 'Invalid' if the Middleware
-    is configured to run in 'delay_auth_decision' mode. As with all such
-    headers, HTTP_X_SERVICE_IDENTITY_STATUS will only exist in the
+    Will be set to either ``Confirmed`` or ``Invalid``.
+
+    The underlying service will only see a value of 'Invalid' if the middleware
+    is configured to run in ``delay_auth_decision`` mode. As with all such
+    headers, ``HTTP_X_SERVICE_IDENTITY_STATUS`` will only exist in the
     environment if a service token is presented. This is different than
-    HTTP_X_IDENTITY_STATUS which is always set even if no user token is
+    ``HTTP_X_IDENTITY_STATUS`` which is always set even if no user token is
     presented. This allows the underlying service to determine if a
-    denial should use 401 or 403.
+    denial should use ``401 Unauthenticated`` or ``403 Forbidden``.
 
 HTTP_X_DOMAIN_ID, HTTP_X_SERVICE_DOMAIN_ID
     Identity service managed unique identifier, string. Only present if
-    this is a domain-scoped v3 token.
+    this is a domain-scoped token.
 
 HTTP_X_DOMAIN_NAME, HTTP_X_SERVICE_DOMAIN_NAME
     Unique domain name, string. Only present if this is a domain-scoped
-    v3 token.
+    token.
 
 HTTP_X_PROJECT_ID, HTTP_X_SERVICE_PROJECT_ID
     Identity service managed unique identifier, string. Only present if
-    this is a project-scoped v3 token, or a tenant-scoped v2 token.
+    this is a project-scoped token.
 
 HTTP_X_PROJECT_NAME, HTTP_X_SERVICE_PROJECT_NAME
     Project name, unique within owning domain, string. Only present if
-    this is a project-scoped v3 token, or a tenant-scoped v2 token.
+    this is a project-scoped token.
 
 HTTP_X_PROJECT_DOMAIN_ID, HTTP_X_SERVICE_PROJECT_DOMAIN_ID
     Identity service managed unique identifier of owning domain of
@@ -99,10 +100,10 @@ HTTP_X_PROJECT_DOMAIN_NAME, HTTP_X_SERVICE_PROJECT_DOMAIN_NAME
     the PROJECT_NAME can only be assumed to be unique within this domain.
 
 HTTP_X_USER_ID, HTTP_X_SERVICE_USER_ID
-    Identity-service managed unique identifier, string
+    Identity-service managed unique identifier, string.
 
 HTTP_X_USER_NAME, HTTP_X_SERVICE_USER_NAME
-    User identifier, unique within owning domain, string
+    User identifier, unique within owning domain, string.
 
 HTTP_X_USER_DOMAIN_ID, HTTP_X_SERVICE_USER_DOMAIN_ID
     Identity service managed unique identifier of owning domain of
@@ -115,39 +116,45 @@ HTTP_X_USER_DOMAIN_NAME, HTTP_X_SERVICE_USER_DOMAIN_NAME
     this domain.
 
 HTTP_X_ROLES, HTTP_X_SERVICE_ROLES
-    Comma delimited list of case-sensitive role names
+    Comma delimited list of case-sensitive role names.
 
 HTTP_X_SERVICE_CATALOG
-    json encoded service catalog (optional).
+    service catalog (optional, JSON string).
+
     For compatibility reasons this catalog will always be in the V2 catalog
     format even if it is a v3 token.
 
-    Note: This is an exception in that it contains 'SERVICE' but relates to a
-          user token, not a service token. The existing user's
-          catalog can be very large; it was decided not to present a catalog
-          relating to the service token to avoid using more HTTP header space.
+    .. note:: This is an exception in that it contains 'SERVICE' but relates to
+        a user token, not a service token. The existing user's catalog can be
+        very large; it was decided not to present a catalog relating to the
+        service token to avoid using more HTTP header space.
 
 HTTP_X_TENANT_ID
-    *Deprecated* in favor of HTTP_X_PROJECT_ID
+    *Deprecated* in favor of HTTP_X_PROJECT_ID.
+
     Identity service managed unique identifier, string. For v3 tokens, this
-    will be set to the same value as HTTP_X_PROJECT_ID
+    will be set to the same value as HTTP_X_PROJECT_ID.
 
 HTTP_X_TENANT_NAME
-    *Deprecated* in favor of HTTP_X_PROJECT_NAME
+    *Deprecated* in favor of HTTP_X_PROJECT_NAME.
+
     Project identifier, unique within owning domain, string. For v3 tokens,
-    this will be set to the same value as HTTP_X_PROJECT_NAME
+    this will be set to the same value as HTTP_X_PROJECT_NAME.
 
 HTTP_X_TENANT
-    *Deprecated* in favor of HTTP_X_TENANT_ID and HTTP_X_TENANT_NAME
-    identity server-assigned unique identifier, string. For v3 tokens, this
-    will be set to the same value as HTTP_X_PROJECT_ID
+    *Deprecated* in favor of HTTP_X_TENANT_ID and HTTP_X_TENANT_NAME.
+
+    Identity server-assigned unique identifier, string. For v3 tokens, this
+    will be set to the same value as HTTP_X_PROJECT_ID.
 
 HTTP_X_USER
-    *Deprecated* in favor of HTTP_X_USER_ID and HTTP_X_USER_NAME
-    User name, unique within owning domain, string
+    *Deprecated* in favor of HTTP_X_USER_ID and HTTP_X_USER_NAME.
+
+    User name, unique within owning domain, string.
 
 HTTP_X_ROLE
-    *Deprecated* in favor of HTTP_X_ROLES
+    *Deprecated* in favor of HTTP_X_ROLES.
+
     Will contain the same values as HTTP_X_ROLES.
 
 Environment Variables
@@ -159,7 +166,7 @@ WSGI component.
 keystone.token_info
     Information about the token discovered in the process of validation.  This
     may include extended information returned by the token validation call, as
-    well as basic information about the tenant and user.
+    well as basic information about the project and user.
 
 keystone.token_auth
     A keystoneclient auth plugin that may be used with a
@@ -170,8 +177,8 @@ keystone.token_auth
 Configuration
 -------------
 
-Middleware configuration can be in the main application's configuration file,
-e.g. in ``nova.conf``:
+auth_token middleware configuration can be in the main application's
+configuration file, e.g. in ``nova.conf``:
 
 .. code-block:: ini
 
@@ -190,12 +197,12 @@ but this is discouraged.
 Swift
 -----
 
-When deploy Keystone auth_token middleware with Swift, user may elect to use
-Swift memcache instead of the local auth_token memcache. Swift memcache is
-passed in from the request environment and it's identified by the
-``swift.cache`` key. However it could be different, depending on deployment. To
-use Swift memcache, you must set the ``cache`` option to the environment key
-where the Swift cache object is stored.
+When deploy auth_token middleware with Swift, user may elect to use Swift
+memcache instead of the local auth_token memcache. Swift memcache is passed in
+from the request environment and it's identified by the ``swift.cache`` key.
+However it could be different, depending on deployment. To use Swift memcache,
+you must set the ``cache`` option to the environment key where the Swift cache
+object is stored.
 
 """
 
@@ -458,6 +465,10 @@ class _BaseAuthProtocol(object):
         process_response will be called with the generated response.
 
         By default this method does not return a value.
+
+        :param request: Incoming request
+        :type request: _request.AuthTokenRequest
+
         """
         request.remove_auth_headers()
 
@@ -534,6 +545,9 @@ class _BaseAuthProtocol(object):
         """Do whatever you'd like to the response.
 
         By default the response is returned unmodified.
+
+        :param response: Response object
+        :type response: ._request._AuthTokenResponse
         """
         return response
 
@@ -700,10 +714,9 @@ class AuthProtocol(_BaseAuthProtocol):
         """Process request.
 
         Evaluate the headers in a request and attempt to authenticate the
-        request against the identity server. If authenticated then additional
-        headers are added to the request for use by applications. If not
-        authenticated the request will be rejected or marked unauthenticated
-        depending on configuration.
+        request. If authenticated then additional headers are added to the
+        request for use by applications. If not authenticated the request will
+        be rejected or marked unauthenticated depending on configuration.
         """
         self._token_cache.initialize(request.environ)
 
@@ -744,8 +757,9 @@ class AuthProtocol(_BaseAuthProtocol):
     def process_response(self, response):
         """Process Response.
 
-        Add WWW-Authenticate headers to failed requests so users know where to
-        authenticate for future requests.
+        Add ``WWW-Authenticate`` headers to requests that failed with
+        ``401 Unauthenticated`` so users know where to authenticate for future
+        requests.
         """
         if response.status_int == 401:
             response.headers.extend(self._reject_auth_headers)
