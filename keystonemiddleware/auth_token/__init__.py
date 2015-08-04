@@ -622,6 +622,27 @@ class AuthProtocol(_BaseAuthProtocol):
         # conf value into correct type.
         self._conf = _conf_values_type_convert(conf)
 
+        # NOTE(sileht): If we don't want to use oslo.config global object
+        # we can set the paste "oslo_config_project" and the middleware
+        # will load the configuration with a local oslo.config object.
+        self._local_oslo_config = None
+        if 'oslo_config_project' in conf:
+            if 'oslo_config_file' in conf:
+                default_config_files = [conf['oslo_config_file']]
+            else:
+                default_config_files = None
+
+            self._local_oslo_config = cfg.ConfigOpts()
+            self._local_oslo_config(
+                {}, project=conf['oslo_config_project'],
+                default_config_files=default_config_files,
+                validate_default_values=True)
+
+            self._local_oslo_config.register_opts(
+                _OPTS, group=_base.AUTHTOKEN_GROUP)
+            auth.register_conf_options(self._local_oslo_config,
+                                       group=_base.AUTHTOKEN_GROUP)
+
         super(AuthProtocol, self).__init__(
             app,
             log=log,
@@ -668,6 +689,8 @@ class AuthProtocol(_BaseAuthProtocol):
         # try config from paste-deploy first
         if name in self._conf:
             return self._conf[name]
+        elif self._local_oslo_config:
+            return self._local_oslo_config[group][name]
         else:
             return CONF[group][name]
 
@@ -937,7 +960,8 @@ class AuthProtocol(_BaseAuthProtocol):
             plugin_kwargs['log'] = self.log
 
         plugin_opts = plugin_class.get_options()
-        CONF.register_opts(plugin_opts, group=group)
+        (self._local_oslo_config or CONF).register_opts(plugin_opts,
+                                                        group=group)
 
         for opt in plugin_opts:
             val = self._conf_get(opt.dest, group=group)
@@ -960,6 +984,9 @@ class AuthProtocol(_BaseAuthProtocol):
         try:
             return self._conf_get('project')
         except cfg.NoSuchOptError:
+            # Prefer local oslo config object
+            if self._local_oslo_config:
+                return self._local_oslo_config.project
             try:
                 # CONF.project will exist only if the service uses
                 # oslo.config. It will only be set when the project

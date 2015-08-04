@@ -32,6 +32,7 @@ import mock
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
+from oslotest import createfile
 import six
 import testresources
 import testtools
@@ -2468,6 +2469,36 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         expected_ua = ('{0}keystonemiddleware.auth_token/{1}'
                        .format(project, ksm_version))
         self.assertEqual(expected_ua, sess.user_agent)
+
+
+class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
+    def test_project_in_local_oslo_configuration(self):
+        options = {
+            'auth_plugin': 'password',
+            'auth_uri': uuid.uuid4().hex,
+            'password': uuid.uuid4().hex,
+        }
+
+        content = ("[keystone_authtoken]\n"
+                   "auth_plugin=%(auth_plugin)s\n"
+                   "auth_uri=%(auth_uri)s\n"
+                   "password=%(password)s\n" % options)
+        conf_file_fixture = self.useFixture(
+            createfile.CreateFileWithContent("my_app", content))
+        conf = {'oslo_config_project': 'my_app',
+                'oslo_config_file': conf_file_fixture.path}
+        app = self._create_app(conf, uuid.uuid4().hex)
+        for option in options:
+            self.assertEqual(options[option], app._conf_get(option))
+
+    def _create_app(self, conf, project_version):
+        fake_pkg_resources = mock.Mock()
+        fake_pkg_resources.get_distribution().version = project_version
+
+        body = uuid.uuid4().hex
+        with mock.patch('keystonemiddleware.auth_token.pkg_resources',
+                        new=fake_pkg_resources):
+            return self.create_simple_middleware(body=body, conf=conf)
 
 
 def load_tests(loader, tests, pattern):

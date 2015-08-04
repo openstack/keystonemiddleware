@@ -271,6 +271,20 @@ and set in ``nova.conf``:
 Note that middleware parameters in paste config take priority, they must be
 removed to use values in [keystone_authtoken] section.
 
+If the service doesn't use the global oslo.config object (CONF), then the
+olso config project name can be set it in paste config and
+keystonemiddleware will load the project configuration itself.
+Optionally the location of the configuration file can be set if oslo.config
+is not able to discover it.
+
+.. code-block:: ini
+
+    [filter:authtoken]
+    paste.filter_factory = keystonemiddleware.auth_token:filter_factory
+    oslo_config_project = nova
+    # oslo_config_file = /not_discoverable_location/nova.conf
+
+
 Configuration Options
 ---------------------
 
