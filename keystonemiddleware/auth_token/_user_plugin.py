@@ -126,8 +126,13 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
 
     def __init__(self, user_auth_ref, serv_auth_ref):
         super(UserAuthPlugin, self).__init__(reauthenticate=False)
+
+        # NOTE(jamielennox): _user_auth_ref and _serv_auth_ref are private
+        # because this object ends up in the environ that is passed to the
+        # service, however they are used within auth_token middleware.
         self._user_auth_ref = user_auth_ref
         self._serv_auth_ref = serv_auth_ref
+
         self._user_data = None
         self._serv_data = None
 
