@@ -1050,15 +1050,11 @@ class AuthProtocol(_BaseAuthProtocol):
             env_cache_name=self._conf_get('cache'),
             memcached_servers=self._conf_get('memcached_servers'),
             use_advanced_pool=self._conf_get('memcache_use_advanced_pool'),
-            memcache_pool_dead_retry=self._conf_get(
-                'memcache_pool_dead_retry'),
-            memcache_pool_maxsize=self._conf_get('memcache_pool_maxsize'),
-            memcache_pool_unused_timeout=self._conf_get(
-                'memcache_pool_unused_timeout'),
-            memcache_pool_conn_get_timeout=self._conf_get(
-                'memcache_pool_conn_get_timeout'),
-            memcache_pool_socket_timeout=self._conf_get(
-                'memcache_pool_socket_timeout'),
+            dead_retry=self._conf_get('memcache_pool_dead_retry'),
+            maxsize=self._conf_get('memcache_pool_maxsize'),
+            unused_timeout=self._conf_get('memcache_pool_unused_timeout'),
+            conn_get_timeout=self._conf_get('memcache_pool_conn_get_timeout'),
+            socket_timeout=self._conf_get('memcache_pool_socket_timeout'),
         )
 
         if security_strategy:
