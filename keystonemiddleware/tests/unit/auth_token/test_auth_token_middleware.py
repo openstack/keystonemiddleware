@@ -34,6 +34,7 @@ from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 from oslotest import createfile
+from oslotest import mockpatch
 import six
 import testresources
 import testtools
@@ -45,9 +46,9 @@ from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _revocations
-from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import client_fixtures
+from keystonemiddleware.tests.unit import utils
 
 
 EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
@@ -337,6 +338,11 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         else:
             self.assertIsNone(self.requests_mock.last_request)
 
+    def mock_memcache(self):
+        return self.useFixture(mockpatch.Patch(
+            'keystonemiddleware.auth_token._cache._create_memcache_client',
+            return_value=utils.FakeMemcache()))
+
 
 class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                     testresources.ResourcedTestCase):
@@ -392,14 +398,16 @@ class CachePoolTest(BaseAuthTokenMiddlewareTest):
     def test_not_use_cache_from_env(self):
         # If `swift.cache` is set in the environment but `cache` isn't set
         # initialize the config then the env cache isn't used.
-        self.set_middleware()
+        self.mock_memcache()
+        self.set_middleware(conf={'memcached_servers': ['localhost:4444']})
+
         env = {'swift.cache': 'CACHE_TEST'}
         self.middleware._token_cache.initialize(env)
         with self.middleware._token_cache._cache_pool.reserve() as cache:
             self.assertNotEqual(cache, 'CACHE_TEST')
 
     def test_multiple_context_managers_share_single_client(self):
-        self.set_middleware()
+        self.set_middleware(conf={'memcached_servers': ['localhost:4444']})
         token_cache = self.middleware._token_cache
         env = {}
         token_cache.initialize(env)
@@ -416,7 +424,8 @@ class CachePoolTest(BaseAuthTokenMiddlewareTest):
         self.assertEqual(set(caches), set(token_cache._cache_pool))
 
     def test_nested_context_managers_create_multiple_clients(self):
-        self.set_middleware()
+        self.set_middleware(conf={'memcached_servers': ['localhost:4444']})
+
         env = {}
         self.middleware._token_cache.initialize(env)
         token_cache = self.middleware._token_cache
@@ -461,7 +470,8 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertTrue(auth_token._token_is_v3(token_response))
 
     def test_fixed_cache_key_length(self):
-        self.set_middleware()
+        self.set_middleware(conf={'memcached_servers': ['localhost:4444']})
+
         short_string = uuid.uuid4().hex
         long_string = 8 * uuid.uuid4().hex
 
@@ -636,6 +646,9 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def _test_cache_revoked(self, token, revoked_form=None):
         # When the token is cached and revoked, 401 is returned.
+        self.mock_memcache()
+        self.set_middleware(conf={'memcached_servers': ['127.0.0.1:4444']})
+
         self.middleware._check_revocations_for_cached = True
 
         # Token should be cached as ok after this.
@@ -649,6 +662,9 @@ class CommonAuthTokenMiddlewareTest(object):
                              expected_status=401)
 
     def test_cached_revoked_error(self):
+        self.mock_memcache()
+        self.set_middleware(conf={'memcached_servers': ['127.0.0.1:4444']})
+
         # When the token is cached and revocation list retrieval fails,
         # 503 is returned
         token = self.token_dict['uuid_token_default']
@@ -997,6 +1013,8 @@ class CommonAuthTokenMiddlewareTest(object):
         return self.middleware._token_cache.get(token_id)
 
     def test_memcache(self):
+        self.mock_memcache()
+        self.set_middleware(conf={'memcached_servers': ['127.0.0.1:4444']})
         token = self.token_dict['signed_token_scoped']
         self.call_middleware(headers={'X-Auth-Token': token})
         self.assertIsNotNone(self._get_cached_token(token))
@@ -1007,6 +1025,9 @@ class CommonAuthTokenMiddlewareTest(object):
                              expected_status=401)
 
     def test_memcache_set_invalid_uuid(self):
+        self.mock_memcache()
+        self.set_middleware(conf={'memcached_servers': ['127.0.0.1:4444']})
+
         invalid_uri = "%s/v2.0/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
@@ -1017,8 +1038,11 @@ class CommonAuthTokenMiddlewareTest(object):
                           self._get_cached_token, token)
 
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
+        self.mock_memcache()
+
         token_cache_time = 10
         conf = {
+            'memcached_servers': ['127.0.0.1:4444'],
             'token_cache_time': '%s' % token_cache_time,
         }
         conf.update(extra_conf)
@@ -1041,7 +1065,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_swift_memcache_set_expired(self):
         extra_conf = {'cache': 'swift.cache'}
-        extra_environ = {'swift.cache': memorycache.Client()}
+        extra_environ = {'swift.cache': utils.FakeMemcache()}
         self.test_memcache_set_expired(extra_conf, extra_environ)
 
     def test_http_error_not_cached_token(self):
@@ -1243,8 +1267,8 @@ class CommonAuthTokenMiddlewareTest(object):
         # When the token is cached it isn't cached again when it's verified.
 
         # The token cache has to be initialized with our cache instance.
-        self.middleware._token_cache._env_cache_name = 'cache'
-        cache = memorycache.Client()
+        self.set_middleware(conf={'cache': 'cache'})
+        cache = utils.FakeMemcache()
         self.middleware._token_cache.initialize(env={'cache': cache})
 
         # Mock cache.set since then the test can verify call_count.
@@ -1825,9 +1849,11 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def test_expire_stored_in_cache(self):
         # tests the upgrade path from storing a tuple vs just the data in the
         # cache. Can be removed in the future.
+        self.mock_memcache()
+
         token = 'mytoken'
         data = 'this_data'
-        self.set_middleware()
+        self.set_middleware(conf={'memcached_servers': ['localhost:4444']})
         self.middleware._token_cache.initialize({})
         now = datetime.datetime.utcnow()
         delta = datetime.timedelta(hours=1)
