@@ -143,6 +143,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
     def test_process_request_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
+        req.context = {}
         with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             self.middleware._process_request(req)
@@ -151,6 +152,7 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
     def test_process_response_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
+        req.context = {}
         with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             self.middleware._process_response(req, webob.response.Response())
@@ -199,6 +201,25 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
                 self.assertEqual('audit.http.response',
                                  call_args[1]['event_type'])
 
+    def test_cadf_event_context_scoped(self):
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self.get_environ_header('GET'))
+        with mock.patch('oslo_messaging.Notifier.info') as notify:
+            middleware(req)
+
+            self.assertEqual(2, notify.call_count)
+            first, second = [a[0] for a in notify.call_args_list]
+
+            # the Context is the first argument. Let's verify it.
+            self.assertIsInstance(first[0], dict)
+
+            # ensure exact same context is used between request and response
+            self.assertIs(first[0], second[0])
+
     def test_cadf_event_scoped_to_request(self):
         middleware = audit.AuditMiddleware(
             FakeApp(),
@@ -221,12 +242,14 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
             service_name='pycadf')
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
+        req.context = {}
         with mock.patch('oslo_messaging.Notifier.info',
                         side_effect=Exception('error')) as notify:
             middleware._process_request(req)
             self.assertTrue(notify.called)
         req2 = webob.Request.blank('/foo/bar',
                                    environ=self.get_environ_header('GET'))
+        req2.context = {}
         with mock.patch('oslo_messaging.Notifier.info') as notify:
             middleware._process_response(req2, webob.response.Response())
             self.assertTrue(notify.called)
@@ -241,6 +264,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
     def api_request(self, method, url):
         req = webob.Request.blank(url, environ=self.get_environ_header(method),
                                   remote_addr='192.168.0.1')
+        req.context = {}
         self.middleware._process_request(req)
         return req
 
@@ -374,6 +398,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
                                   environ=self.get_environ_header('POST'))
         req.body = b'{"createImage" : {"name" : "new-image","metadata": ' \
                    b'{"ImageType": "Gold","ImageVersion": "2.0"}}}'
+        req.context = {}
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual(payload['target']['typeURI'],
@@ -417,6 +442,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
     def test_response_mod_msg(self):
         req = self.api_request('GET', 'http://admin_host:8774/v2/'
                                + str(uuid.uuid4()) + '/servers')
+        req.context = {}
         payload = req.environ['cadf_event'].as_dict()
         self.middleware._process_response(req, webob.Response())
         payload2 = req.environ['cadf_event'].as_dict()
@@ -433,6 +459,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
     def test_no_response(self):
         req = self.api_request('GET', 'http://admin_host:8774/v2/'
                                + str(uuid.uuid4()) + '/servers')
+        req.context = {}
         payload = req.environ['cadf_event'].as_dict()
         self.middleware._process_response(req, None)
         payload2 = req.environ['cadf_event'].as_dict()
@@ -449,6 +476,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://admin_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=self.get_environ_header('GET'))
+        req.context = {}
         self.assertNotIn('cadf_event', req.environ)
         self.middleware._process_response(req, webob.Response())
         self.assertIn('cadf_event', req.environ)
@@ -479,6 +507,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://admin_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=env_headers)
+        req.context = {}
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual(payload['target']['id'], 'nova')
@@ -502,6 +531,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://admin_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=env_headers)
+        req.context = {}
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual((payload['target']['addresses'][1]['url']), "unknown")
@@ -525,6 +555,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://admin_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=env_headers)
+        req.context = {}
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual((payload['target']['addresses'][2]['url']), "unknown")
@@ -548,6 +579,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://public_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=env_headers)
+        req.context = {}
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual((payload['target']['addresses'][0]['url']), "unknown")
