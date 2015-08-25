@@ -20,5 +20,5 @@ testtools>=1.4.0
 python-memcached>=1.56
 
 # Bandit security code scanner
-bandit>=0.10.1
+bandit>=0.13.2
 
