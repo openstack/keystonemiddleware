@@ -270,6 +270,8 @@ _OPTS = [
                help='A PEM encoded Certificate Authority to use when '
                     'verifying HTTPs connections. Defaults to system CAs.'),
     cfg.BoolOpt('insecure', default=False, help='Verify HTTPS connections.'),
+    cfg.StrOpt('region_name', default=None,
+               help='The region in which the identity server can be found.'),
     cfg.StrOpt('signing_dir',
                help='Directory used to cache files related to PKI tokens.'),
     cfg.ListOpt('memcached_servers',
@@ -1031,6 +1033,7 @@ class AuthProtocol(_BaseAuthProtocol):
             auth=auth_plugin,
             service_type='identity',
             interface='admin',
+            region_name=self._conf_get('region_name'),
             connect_retries=self._conf_get('http_request_max_retries'))
 
         auth_version = self._conf_get('auth_version')

@@ -46,6 +46,7 @@ class OptsTestCase(utils.TestCase):
             'certfile',
             'keyfile',
             'cafile',
+            'region_name',
             'insecure',
             'signing_dir',
             'memcached_servers',

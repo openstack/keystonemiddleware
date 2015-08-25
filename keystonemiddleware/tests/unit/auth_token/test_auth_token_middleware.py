@@ -643,6 +643,64 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertRaises(exc.ConfigurationError,
                           auth_token.AuthProtocol, self.fake_app, conf)
 
+    def test_auth_region_name(self):
+        token = fixture.V3Token()
+
+        auth_url = 'http://keystone-auth.example.com:5000'
+        east_url = 'http://keystone-east.example.com:5000'
+        west_url = 'http://keystone-west.example.com:5000'
+
+        auth_versions = fixture.DiscoveryList(href=auth_url)
+        east_versions = fixture.DiscoveryList(href=east_url)
+        west_versions = fixture.DiscoveryList(href=west_url)
+
+        s = token.add_service('identity')
+        s.add_endpoint(interface='admin', url=east_url, region='east')
+        s.add_endpoint(interface='admin', url=west_url, region='west')
+
+        self.requests_mock.get(auth_url, json=auth_versions)
+        self.requests_mock.get(east_url, json=east_versions)
+        self.requests_mock.get(west_url, json=west_versions)
+
+        self.requests_mock.post(
+            '%s/v3/auth/tokens' % auth_url,
+            headers={'X-Subject-Token': uuid.uuid4().hex},
+            json=token)
+
+        east_mock = self.requests_mock.get(
+            '%s/v3/auth/tokens' % east_url,
+            headers={'X-Subject-Token': uuid.uuid4().hex},
+            json=fixture.V3Token())
+
+        west_mock = self.requests_mock.get(
+            '%s/v3/auth/tokens' % west_url,
+            headers={'X-Subject-Token': uuid.uuid4().hex},
+            json=fixture.V3Token())
+
+        conf = {'auth_uri': auth_url,
+                'auth_url': auth_url + '/v3',
+                'auth_plugin': 'v3password',
+                'username': 'user',
+                'password': 'pass'}
+
+        self.assertEqual(0, east_mock.call_count)
+        self.assertEqual(0, west_mock.call_count)
+
+        east_app = self.create_simple_middleware(conf=dict(region_name='east',
+                                                           **conf))
+        self.call(east_app, headers={'X-Auth-Token': uuid.uuid4().hex})
+
+        self.assertEqual(1, east_mock.call_count)
+        self.assertEqual(0, west_mock.call_count)
+
+        west_app = self.create_simple_middleware(conf=dict(region_name='west',
+                                                           **conf))
+
+        self.call(west_app, headers={'X-Auth-Token': uuid.uuid4().hex})
+
+        self.assertEqual(1, east_mock.call_count)
+        self.assertEqual(1, west_mock.call_count)
+
 
 class CommonAuthTokenMiddlewareTest(object):
     """These tests are run once using v2 tokens and again using v3 tokens."""
