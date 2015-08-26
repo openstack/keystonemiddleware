@@ -206,6 +206,7 @@ object is stored.
 
 """
 
+import binascii
 import datetime
 import logging
 
@@ -849,19 +850,19 @@ class AuthProtocol(_BaseAuthProtocol):
 
                 self._token_cache.store(token_hashes[0], data)
 
-        except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
-            self.log.debug('Token validation failure.', exc_info=True)
-            self.log.warning(_LW('Authorization failed for token'))
-            raise exc.InvalidToken(_('Token authorization failed'))
-        except exc.ServiceError as e:
-            self.log.critical(_LC('Unable to obtain admin token: %s'), e)
+        except (exceptions.ConnectionRefused, exceptions.RequestTimeout,
+                exc.RevocationListError, exc.ServiceError) as e:
+            self.log.critical(_LC('Unable to validate token: %s'), e)
             raise webob.exc.HTTPServiceUnavailable()
-        except Exception:
+        except exc.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.store_invalid(token_hashes[0])
             self.log.warning(_LW('Authorization failed for token'))
-            raise exc.InvalidToken(_('Token authorization failed'))
+            raise
+        except Exception:
+            self.log.critical(_LC('Unable to validate token'), exc_info=True)
+            raise webob.exc.HTTPInternalServerError()
 
         return data
 
@@ -906,9 +907,10 @@ class AuthProtocol(_BaseAuthProtocol):
                 return cms.cms_verify(data, signing_cert_path,
                                       signing_ca_path,
                                       inform=inform).decode('utf-8')
-            except cms.subprocess.CalledProcessError as err:
+            except (exceptions.CMSError,
+                    cms.subprocess.CalledProcessError) as err:
                 self.log.warning(_LW('Verify error: %s'), err)
-                raise
+                raise exc.InvalidToken(_('Token authorization failed'))
 
         try:
             return verify()
@@ -940,7 +942,8 @@ class AuthProtocol(_BaseAuthProtocol):
             verified = self._cms_verify(uncompressed, inform=cms.PKIZ_CMS_FORM)
             return verified
         # TypeError If the signed_text is not zlib compressed
-        except TypeError:
+        # binascii.Error if signed_text has incorrect base64 padding (py34)
+        except (TypeError, binascii.Error):
             raise exc.InvalidToken(signed_text)
 
     def _fetch_signing_cert(self):
