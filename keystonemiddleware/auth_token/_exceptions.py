@@ -25,3 +25,12 @@ class ConfigurationError(Exception):
 
 class RevocationListError(Exception):
     pass
+
+
+# NOTE(jamielennox): This exception is only available in this version to
+# maintain compatibility of a backported patch. In newer auth_token middleware
+# where webob is available it corresponds to raise
+# webob.exc.HTTPInternalServerError(). It is not available in later versions of
+# auth_token middleware and should not be used.
+class _InternalServiceError(Exception):
+    pass

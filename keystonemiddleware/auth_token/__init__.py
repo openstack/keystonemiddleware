@@ -176,6 +176,7 @@ keystone.token_auth
 
 """
 
+import binascii
 import datetime
 import logging
 
@@ -628,10 +629,18 @@ class AuthProtocol(object):
         except exc.ServiceError as e:
             self._LOG.critical(_LC('Unable to obtain admin token: %s'), e)
             return self._do_503_error(env, start_response)
+        except exc._InternalServiceError:
+            return self._do_500_error(env, start_response)
 
         self._LOG.debug("Received request from %s", _fmt_msg(env))
 
         return self._call_app(env, start_response)
+
+    def _do_500_error(self, env, start_response):
+        resp = _utils.MiniResp('Service unavailable', env)
+        start_response('500 The server is currently unavailable. '
+                       'Please try again at a later time.', resp.headers)
+        return resp.body
 
     def _do_503_error(self, env, start_response):
         resp = _utils.MiniResp('Service unavailable', env)
@@ -773,18 +782,19 @@ class AuthProtocol(object):
                 self._confirm_token_bind(data, env)
                 self._token_cache.store(token_id, data, expires)
             return data
-        except (exceptions.ConnectionRefused, exceptions.RequestTimeout):
-            self._LOG.debug('Token validation failure.', exc_info=True)
-            self._LOG.warn(_LW('Authorization failed for token'))
-            raise exc.InvalidToken(_('Token authorization failed'))
-        except exc.ServiceError:
-            raise
-        except Exception:
+        except (exceptions.ConnectionRefused, exceptions.RequestTimeout,
+                exc.RevocationListError, exc.ServiceError) as e:
+            self._LOG.critical(_LC('Unable to validate token: %s'), e)
+            raise ServiceError()
+        except exc.InvalidToken:
             self._LOG.debug('Token validation failure.', exc_info=True)
             if token_id:
                 self._token_cache.store_invalid(token_id)
-            self._LOG.warn(_LW('Authorization failed for token'))
-            raise exc.InvalidToken(_('Token authorization failed'))
+            self._LOG.warning(_LW('Authorization failed for token'))
+            raise
+        except Exception:
+            self._LOG.critical(_LC('Unable to validate token'), exc_info=True)
+            raise exc._InternalServiceError()
 
     def _build_user_headers(self, auth_ref, token_info):
         """Convert token object into headers.
@@ -967,9 +977,10 @@ class AuthProtocol(object):
                 return cms.cms_verify(data, signing_cert_path,
                                       signing_ca_path,
                                       inform=inform).decode('utf-8')
-            except cms.subprocess.CalledProcessError as err:
+            except (exceptions.CMSError,
+                    cms.subprocess.CalledProcessError) as err:
                 self._LOG.warning(_LW('Verify error: %s'), err)
-                raise
+                raise exc.InvalidToken(_('Token authorization failed'))
 
         try:
             return verify()
@@ -1001,7 +1012,8 @@ class AuthProtocol(object):
             verified = self._cms_verify(uncompressed, inform=cms.PKIZ_CMS_FORM)
             return verified
         # TypeError If the signed_text is not zlib compressed
-        except TypeError:
+        # binascii.Error if signed_text has incorrect base64 padding (py34)
+        except (TypeError, binascii.Error):
             raise exc.InvalidToken(signed_text)
 
     def _fetch_signing_cert(self):

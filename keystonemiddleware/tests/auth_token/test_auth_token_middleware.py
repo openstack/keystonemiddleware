@@ -741,6 +741,38 @@ class CommonAuthTokenMiddlewareTest(object):
         self.middleware(req.environ, self.start_fake_response)
         self.assertEqual(401, self.response_status)
 
+    def test_cached_revoked_error(self):
+        # When the token is cached and revocation list retrieval fails,
+        # 503 is returned
+        self.middleware._check_revocations_for_cached = True
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
+
+        # Token should be cached as ok after this.
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(200, self.response_status)
+
+        # Cause the revocation list to be fetched again next time so we can
+        # test the case where that retrieval fails
+        self.middleware._revocations._fetched_time = datetime.datetime.min
+        with mock.patch.object(self.middleware._revocations, '_fetch',
+                               side_effect=exc.RevocationListError):
+            self.middleware(req.environ, self.start_fake_response)
+            self.assertEqual(503, self.response_status)
+
+    def test_unexpected_exception_in_validate_offline(self):
+        # When an unexpected exception is hit during _validate_offline,
+        # 500 is returned
+        req = webob.Request.blank('/')
+        token = self.token_dict['signed_token_scoped_pkiz']
+        req.headers['X-Auth-Token'] = token
+
+        with mock.patch.object(self.middleware, '_verify_pkiz_token',
+                               side_effect=Exception):
+            self.middleware(req.environ, self.start_fake_response)
+            self.assertEqual(500, self.response_status)
+
     def test_cached_revoked_uuid(self):
         # When the UUID token is cached and revoked, 401 is returned.
         self._test_cache_revoked(self.token_dict['uuid_token_default'])
@@ -2367,7 +2399,7 @@ class CommonCompositeAuthTests(object):
         self.update_expected_env(expected_env)
 
         req = webob.Request.blank('/')
-        token = 'invalid-user-token'
+        token = 'invalid-token'
         service_token = 'invalid-service-token'
         req.headers['X-Auth-Token'] = token
         req.headers['X-Service-Token'] = service_token
