@@ -212,24 +212,27 @@ class IdentityServer(object):
         try:
             auth_ref = self._request_strategy.verify_token(user_token)
         except exceptions.NotFound as e:
-            self._LOG.warn(_LW('Authorization failed for token'))
-            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
+            self._LOG.warning(_LW('Authorization failed for token'))
+            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
+            raise exc.InvalidToken(_('Token authorization failed'))
         except exceptions.Unauthorized as e:
             self._LOG.info(_LI('Identity server rejected authorization'))
-            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
+            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
             if retry:
                 self._LOG.info(_LI('Retrying validation'))
                 return self.verify_token(user_token, False)
+            msg = _('Identity server rejected authorization necessary to '
+                    'fetch token data')
+            raise exc.ServiceError(msg)
         except exceptions.HttpError as e:
             self._LOG.error(
                 _LE('Bad response code while validating token: %s'),
                 e.http_status)
-            self._LOG.warn(_LW('Identity response: %s'), e.response.text)
+            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
+            msg = _('Failed to fetch token data from identity server')
+            raise exc.ServiceError(msg)
         else:
             return auth_ref
-
-        msg = _('Failed to fetch token data from identity server')
-        raise exc.InvalidToken(msg)
 
     def fetch_revocation_list(self):
         try:
