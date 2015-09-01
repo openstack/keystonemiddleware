@@ -242,6 +242,15 @@ a WSGI component. Example for the auth_token middleware:
     # value)
     #enforce_token_bind=permissive
 
+    # The plugin used for authentication, such as password, token (string
+    # value)
+    #auth_plugin=password
+
+If the ``auth_plugin`` configuration option is set, you may need to refer to
+the `Authentication Plugins <http://docs.openstack.org/developer/
+python-keystoneclient/authentication-plugins.html>`_ document for how to
+configure the auth_token middleware.
+
 For services which have a separate paste-deploy ini file, auth_token middleware
 can be alternatively configured in [keystone_authtoken] section in the main
 config file. For example in Nova, all middleware parameters can be removed
@@ -268,8 +277,24 @@ and set in ``nova.conf``:
     admin_tenant_name = service
     # Any of the options that could be set in api-paste.ini can be set here.
 
-Note that middleware parameters in paste config take priority, they must be
-removed to use values in [keystone_authtoken] section.
+.. NOTE::
+    Middleware parameters in paste config take priority and must be removed
+    to use options in the [keystone_authtoken] section.
+
+The following is an example of a service's auth_token middleware configuration
+when ``auth_plugin`` is set to ``password``.
+
+.. code-block:: ini
+
+    [keystone_authtoken]
+    auth_plugin = password
+    project_domain_name = Default
+    project_name = service
+    user_domain_name = Default
+    username = nova
+    password = ServicePassword
+    auth_url = http://127.0.0.1:35357
+    # Any of the options that could be set in api-paste.ini can be set here.
 
 If the service doesn't use the global oslo.config object (CONF), then the
 olso config project name can be set it in paste config and
@@ -288,6 +313,10 @@ is not able to discover it.
 Configuration Options
 ---------------------
 
+* ``auth_plugin``: This is the plugin used for authentication, such as
+  password and token. For example, if the ``auth_plugin`` configuration option
+  is set to ``password`` then set ``username``, ``password``, ``project_name``,
+  ``project_domain_name``, ``user_domain_name`` and ``auth_url`` accordingly.
 * ``auth_admin_prefix``: Prefix to prepend at the beginning of the path
 * ``auth_host``: (required) the host providing the keystone service API endpoint
   for validating and requesting tokens
@@ -364,8 +393,8 @@ invalidated tokens may continue to work if they are still in the token cache,
 so token_cache_time is configurable. For larger deployments, the middleware
 also supports memcache based caching.
 
-* ``memcached_servers``: (optonal) if defined, the memcached server(s) to use for
-  cacheing. It will be ignored if Swift MemcacheRing is used instead.
+* ``memcached_servers``: (optional) if defined, the memcached server(s) to use for
+  caching. It will be ignored if Swift MemcacheRing is used instead.
 * ``token_cache_time``: (optional, default 300 seconds) Set to -1 to disable
   caching completely.
 
