@@ -15,6 +15,7 @@ import uuid
 from keystoneclient import auth
 from keystoneclient import fixture
 
+from keystonemiddleware.auth_token import _base
 from keystonemiddleware.tests.unit.auth_token import base
 
 # NOTE(jamielennox): just some sample values that we can use for testing
@@ -30,6 +31,11 @@ class BaseUserPluginTests(object):
                              **kwargs):
         opts = auth.get_plugin_class(auth_plugin).get_options()
         self.cfg.register_opts(opts, group=group)
+
+        # Since these tests cfg.config() themselves rather than waiting for
+        # auth_token to do it on __init__ we need to register the base auth
+        # options (e.g., auth_plugin)
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
 
         self.cfg.config(group=group,
                         auth_plugin=auth_plugin,

@@ -648,7 +648,10 @@ class AuthProtocol(_BaseAuthProtocol):
             else:
                 default_config_files = None
 
-            self._local_oslo_config = cfg.ConfigOpts()
+            # For unit tests, support passing in a ConfigOpts in
+            # oslo_config_config.
+            self._local_oslo_config = conf.get('oslo_config_config',
+                                               cfg.ConfigOpts())
             self._local_oslo_config(
                 {}, project=conf['oslo_config_project'],
                 default_config_files=default_config_files,

@@ -2371,6 +2371,9 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
         project_id = uuid.uuid4().hex
 
+        # Register the authentication options
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+
         # configure the authentication options
         self.cfg.config(auth_plugin='password',
                         username='testuser',
@@ -2391,6 +2394,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         return app._identity_server._adapter.auth
 
     def test_invalid_plugin_fails_to_initialize(self):
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
         self.cfg.config(auth_plugin=uuid.uuid4().hex,
                         group=_base.AUTHTOKEN_GROUP)
 
@@ -2405,6 +2409,9 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
         username = 'testuser'
         password = 'testpass'
+
+        # Register the authentication options
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
         self.cfg.config(auth_plugin='password',
@@ -2437,6 +2444,9 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         auth.register_conf_options(self.cfg.conf, group=section)
         opts = auth.get_plugin_options('password')
         self.cfg.register_opts(opts, group=section)
+
+        # Register the authentication options
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
         self.cfg.config(auth_section=section, group=_base.AUTHTOKEN_GROUP)
@@ -2476,6 +2486,9 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         auth.register_conf_options(self.cfg.conf, group=self.section)
         opts = auth.get_plugin_options('password')
         self.cfg.register_opts(opts, group=self.section)
+
+        # Register the authentication options
+        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
         self.cfg.config(auth_section=self.section, group=_base.AUTHTOKEN_GROUP)
@@ -2520,7 +2533,8 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         body = uuid.uuid4().hex
         with mock.patch('keystonemiddleware.auth_token.pkg_resources',
                         new=fake_pkg_resources):
-            return self.create_simple_middleware(body=body, conf=conf)
+            return self.create_simple_middleware(body=body, conf=conf,
+                                                 use_global_conf=True)
 
     def _assert_user_agent(self, app, project, ksm_version):
         sess = app._identity_server._adapter.session

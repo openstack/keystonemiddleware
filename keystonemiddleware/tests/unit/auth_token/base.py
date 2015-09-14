@@ -13,6 +13,7 @@
 import logging
 
 import fixtures
+from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
 from requests_mock.contrib import fixture as rm_fixture
 import six
@@ -28,29 +29,36 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
         super(BaseAuthTokenTestCase, self).setUp()
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
         self.logger = fixtures.FakeLogger(level=logging.DEBUG)
-        self.cfg = self.useFixture(cfg_fixture.Config())
+        self.cfg = self.useFixture(cfg_fixture.Config(conf=cfg.ConfigOpts()))
 
-    @classmethod
-    def create_middleware(cls, cb, conf=None):
+    def create_middleware(self, cb, conf=None, use_global_conf=False):
 
         @webob.dec.wsgify
         def _do_cb(req):
             return cb(req)
 
-        return auth_token.AuthProtocol(_do_cb, conf or {})
+        if use_global_conf:
+            opts = conf or {}
+        else:
+            opts = {
+                'oslo_config_project': 'keystonemiddleware',
+                'oslo_config_config': self.cfg.conf,
+            }
+            opts.update(conf or {})
 
-    @classmethod
-    def create_simple_middleware(cls,
+        return auth_token.AuthProtocol(_do_cb, opts)
+
+    def create_simple_middleware(self,
                                  status='200 OK',
                                  body='',
                                  headers=None,
-                                 conf=None):
+                                 **kwargs):
         def cb(req):
             resp = webob.Response(body, status)
             resp.headers.update(headers or {})
             return resp
 
-        return cls.create_middleware(cb, conf)
+        return self.create_middleware(cb, **kwargs)
 
     @classmethod
     def call(cls, middleware, method='GET', path='/', headers=None):
