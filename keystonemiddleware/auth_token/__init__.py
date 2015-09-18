@@ -511,7 +511,7 @@ class _BaseAuthProtocol(object):
 
         :raises exc.InvalidToken: if token is rejected
         """
-        # 0 seconds of validity means is it valid right now.
+        # 0 seconds of validity means it is invalid right now
         if auth_ref.will_expire_soon(stale_duration=0):
             raise exc.InvalidToken(_('Token authorization failed'))
 
@@ -838,9 +838,8 @@ class AuthProtocol(_BaseAuthProtocol):
                 data = cached
 
                 if self._check_revocations_for_cached:
-                    # A token stored in Memcached might have been revoked
-                    # regardless of initial mechanism used to validate it,
-                    # and needs to be checked.
+                    # A token might have been revoked, regardless of initial
+                    # mechanism used to validate it, and needs to be checked.
                     self._revocations.check(token_hashes)
             else:
                 data = self._validate_offline(token, token_hashes)
