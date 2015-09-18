@@ -63,7 +63,9 @@ class OptsTestCase(utils.TestCase):
             'include_service_catalog',
             'enforce_token_bind',
             'check_revocations_for_cached',
-            'hash_algorithms'
+            'hash_algorithms',
+            'auth_plugin',
+            'auth_section',
         ]
         opt_names = [o.name for (g, l) in result for o in l]
         self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
