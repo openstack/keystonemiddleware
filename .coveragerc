@@ -4,4 +4,4 @@ source = keystonemiddleware
 omit = keystonemiddleware/tests/*,keystonemiddleware/openstack/*
 
 [report]
-ignore-errors = True
+ignore_errors = True
