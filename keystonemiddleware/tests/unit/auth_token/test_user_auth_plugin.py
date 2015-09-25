@@ -60,7 +60,6 @@ class BaseUserPluginTests(object):
         m = self.create_simple_middleware()
 
         resp = self.call(m, headers=headers)
-        self.assertEqual(200, resp.status_int)
         return resp.request.environ['keystone.token_auth']
 
     def test_user_information(self):

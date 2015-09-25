@@ -17,6 +17,7 @@ from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
 from requests_mock.contrib import fixture as rm_fixture
 import six
+from six.moves import http_client
 import webob.dec
 
 from keystonemiddleware import auth_token
@@ -60,8 +61,8 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
 
         return self.create_middleware(cb, **kwargs)
 
-    @classmethod
-    def call(cls, middleware, method='GET', path='/', headers=None):
+    def call(self, middleware, method='GET', path='/', headers=None,
+             expected_status=http_client.OK):
         req = webob.Request.blank(path)
         req.method = method
 
@@ -69,5 +70,6 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
             req.headers[k] = v
 
         resp = req.get_response(middleware)
+        self.assertEqual(expected_status, resp.status_int)
         resp.request = req
         return resp
