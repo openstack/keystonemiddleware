@@ -24,6 +24,14 @@ API, the Keystone team also provides `Identity Service`_, as well as
 .. _`Identity Service`: http://docs.openstack.org/developer/keystone/
 .. _`Python Client Library`: http://docs.openstack.org/developer/python-keystoneclient/
 
+Release Notes
+=============
+
+.. toctree::
+   :maxdepth: 1
+
+   history
+
 Contributing
 ============
 
