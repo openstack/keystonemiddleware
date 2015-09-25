@@ -1,6 +1,14 @@
 Middleware for the OpenStack Identity API (Keystone)
 ====================================================
 
+.. image:: https://img.shields.io/pypi/v/keystonemiddleware.svg
+    :target: https://pypi.python.org/pypi/keystonemiddleware/
+    :alt: Latest Version
+
+.. image:: https://img.shields.io/pypi/dm/keystonemiddleware.svg
+    :target: https://pypi.python.org/pypi/keystonemiddleware/
+    :alt: Downloads
+
 This package contains middleware modules designed to provide authentication and
 authorization features to web services other than `Keystone
 <https://github.com/openstack/keystone>`. The most prominent module is
