@@ -773,6 +773,33 @@ class CommonAuthTokenMiddlewareTest(object):
         resp = self.call_middleware(headers={'X-Auth-Token': token})
         self.assertEqual(401, resp.status_int)
 
+    def test_cached_revoked_error(self):
+        # When the token is cached and revocation list retrieval fails,
+        # 503 is returned
+        token = self.token_dict['uuid_token_default']
+        self.middleware._check_revocations_for_cached = True
+
+        # Token should be cached as ok after this.
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(200, resp.status_int)
+
+        # Cause the revocation list to be fetched again next time so we can
+        # test the case where that retrieval fails
+        self.middleware._revocations._fetched_time = datetime.datetime.min
+        with mock.patch.object(self.middleware._revocations, '_fetch',
+                               side_effect=exc.RevocationListError):
+            resp = self.call_middleware(headers={'X-Auth-Token': token})
+            self.assertEqual(503, resp.status_int)
+
+    def test_unexpected_exception_in_validate_offline(self):
+        # When an unexpected exception is hit during _validate_offline,
+        # 500 is returned
+        token = self.token_dict['uuid_token_default']
+        with mock.patch.object(self.middleware, '_validate_offline',
+                               side_effect=Exception):
+            resp = self.call_middleware(headers={'X-Auth-Token': token})
+            self.assertEqual(500, resp.status_int)
+
     def test_cached_revoked_uuid(self):
         # When the UUID token is cached and revoked, 401 is returned.
         self._test_cache_revoked(self.token_dict['uuid_token_default'])
@@ -2085,7 +2112,7 @@ class CommonCompositeAuthTests(object):
         }
         self.update_expected_env(expected_env)
 
-        token = 'invalid-user-token'
+        token = 'invalid-token'
         service_token = 'invalid-service-token'
         resp = self.call_middleware(headers={'X-Auth-Token': token,
                                              'X-Service-Token': service_token})
