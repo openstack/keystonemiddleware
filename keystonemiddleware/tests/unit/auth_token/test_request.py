@@ -189,6 +189,14 @@ class RequestObjectTests(utils.TestCase):
         self.assertIs(plugin, self.request.environ['keystone.token_auth'])
         self.assertIs(plugin, self.request.token_auth)
 
+    def test_token_info(self):
+        info = fixture.V3Token()
+
+        self.assertNotIn('keystone.token_info', self.request.environ)
+        self.request.token_info = info
+        self.assertIs(info, self.request.environ['keystone.token_info'])
+        self.assertIs(info, self.request.token_info)
+
 
 class CatalogConversionTests(utils.TestCase):
 
