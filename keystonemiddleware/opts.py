@@ -12,9 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-__all__ = [
+__all__ = (
     'list_auth_token_opts',
-]
+)
 
 import copy
 
