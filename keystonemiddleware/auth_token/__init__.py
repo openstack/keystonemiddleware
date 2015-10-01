@@ -471,8 +471,6 @@ class _BaseAuthProtocol(object):
         :type request: _request.AuthTokenRequest
 
         """
-        request.remove_auth_headers()
-
         user_auth_ref = None
         serv_auth_ref = None
 
@@ -722,6 +720,7 @@ class AuthProtocol(_BaseAuthProtocol):
         request for use by applications. If not authenticated the request will
         be rejected or marked unauthenticated depending on configuration.
         """
+        request.remove_auth_headers()
         self._token_cache.initialize(request.environ)
 
         resp = super(AuthProtocol, self).process_request(request)
