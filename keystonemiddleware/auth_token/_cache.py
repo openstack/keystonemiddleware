@@ -18,6 +18,7 @@ import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
+from keystonemiddleware.auth_token import _memcache_pool as memcache_pool
 from keystonemiddleware.i18n import _, _LE
 from keystonemiddleware.openstack.common import memorycache
 
@@ -74,13 +75,8 @@ class _CachePool(list):
 class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
     def __init__(self, memcache_servers, **kwargs):
-        # NOTE(morganfainberg): import here to avoid hard dependency on
-        # python-memcached library.
-        global _memcache_pool
-        from keystonemiddleware.auth_token import _memcache_pool
-
-        self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
-                                                       **kwargs)
+        self._pool = memcache_pool.MemcacheClientPool(memcache_servers,
+                                                      **kwargs)
 
     @contextlib.contextmanager
     def reserve(self):
