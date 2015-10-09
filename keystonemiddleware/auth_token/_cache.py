@@ -38,21 +38,27 @@ def _hash_key(key):
     return hashlib.sha256(key).hexdigest()
 
 
+class _EnvCachePool(object):
+    """A cache pool that has been passed through ENV variables."""
+
+    def __init__(self, cache):
+        self._environment_cache = cache
+
+    @contextlib.contextmanager
+    def reserve(self):
+        """Context manager to manage a pooled cache reference."""
+        yield self._environment_cache
+
+
 class _CachePool(list):
     """A lazy pool of cache references."""
 
-    def __init__(self, cache, memcached_servers):
-        self._environment_cache = cache
+    def __init__(self, memcached_servers):
         self._memcached_servers = memcached_servers
 
     @contextlib.contextmanager
     def reserve(self):
         """Context manager to manage a pooled cache reference."""
-        if self._environment_cache is not None:
-            # skip pooling and just use the cache from the upstream filter
-            yield self._environment_cache
-            return  # otherwise the context manager will continue!
-
         try:
             c = self.pop()
         except IndexError:
@@ -115,14 +121,15 @@ class TokenCache(object):
         self._initialized = False
 
     def _get_cache_pool(self, cache):
-        if (self._use_advanced_pool is True and
-                self._memcached_servers and
-                cache is None):
+        if cache:
+            return _EnvCachePool(cache)
+
+        elif self._use_advanced_pool and self._memcached_servers:
             return _MemcacheClientPool(self._memcached_servers,
                                        **self._memcache_pool_options)
 
         else:
-            return _CachePool(cache, self._memcached_servers)
+            return _CachePool(self._memcached_servers)
 
     def initialize(self, env):
         if self._initialized:
