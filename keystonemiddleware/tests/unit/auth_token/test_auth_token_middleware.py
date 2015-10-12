@@ -47,7 +47,6 @@ from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import client_fixtures
-from keystonemiddleware.tests.unit import utils
 
 
 EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
@@ -97,33 +96,6 @@ VERSION_LIST_v3 = fixture.DiscoveryList(href=BASE_URI)
 VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
 
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
-MEMCACHED_SERVERS = ['localhost:11211']
-MEMCACHED_AVAILABLE = None
-
-
-def memcached_available():
-    """Do a sanity check against memcached.
-
-    Returns ``True`` if the following conditions are met (otherwise, returns
-    ``False``):
-
-    - ``python-memcached`` is installed
-    - a usable ``memcached`` instance is available via ``MEMCACHED_SERVERS``
-    - the client is able to set and get a key/value pair
-
-    """
-    global MEMCACHED_AVAILABLE
-
-    if MEMCACHED_AVAILABLE is None:
-        try:
-            import memcache
-            c = memcache.Client(MEMCACHED_SERVERS)
-            c.set('ping', 'pong', time=1)
-            MEMCACHED_AVAILABLE = c.get('ping') == 'pong'
-        except ImportError:
-            MEMCACHED_AVAILABLE = False
-
-    return MEMCACHED_AVAILABLE
 
 
 def cleanup_revoked_file(filename):
@@ -403,25 +375,6 @@ class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertIn('keystone.token_info', resp.request.environ)
 
 
-class NoMemcacheAuthToken(BaseAuthTokenMiddlewareTest):
-    """These tests will not have the memcache module available."""
-
-    def setUp(self):
-        super(NoMemcacheAuthToken, self).setUp()
-        self.useFixture(utils.DisableModuleFixture('memcache'))
-
-    def test_nomemcache(self):
-        conf = {
-            'admin_token': 'admin_token1',
-            'auth_host': 'keystone.example.com',
-            'auth_port': '1234',
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'auth_uri': 'https://keystone.example.com:1234',
-        }
-
-        auth_token.AuthProtocol(FakeApp(), conf)
-
-
 class CachePoolTest(BaseAuthTokenMiddlewareTest):
     def test_use_cache_from_env(self):
         """If `swift.cache` is set in the environment and `cache` is set in the
@@ -521,87 +474,6 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertThat(hashed_short_string_key,
                         matchers.HasLength(len(hashed_long_string_key)))
 
-    @testtools.skipUnless(memcached_available(), 'memcached not available')
-    def test_encrypt_cache_data(self):
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'encrypt',
-            'memcache_secret_key': 'mysecret'
-        }
-        self.set_middleware(conf=conf)
-        token = b'my_token'
-        data = 'this_data'
-        token_cache = self.middleware._token_cache
-        token_cache.initialize({})
-        token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data)
-
-    @testtools.skipUnless(memcached_available(), 'memcached not available')
-    def test_sign_cache_data(self):
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mac',
-            'memcache_secret_key': 'mysecret'
-        }
-        self.set_middleware(conf=conf)
-        token = b'my_token'
-        data = 'this_data'
-        token_cache = self.middleware._token_cache
-        token_cache.initialize({})
-        token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data)
-
-    @testtools.skipUnless(memcached_available(), 'memcached not available')
-    def test_no_memcache_protection(self):
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_secret_key': 'mysecret'
-        }
-        self.set_middleware(conf=conf)
-        token = 'my_token'
-        data = 'this_data'
-        token_cache = self.middleware._token_cache
-        token_cache.initialize({})
-        token_cache._cache_store(token, data)
-        self.assertEqual(token_cache.get(token), data)
-
-    def test_assert_valid_memcache_protection_config(self):
-        # test missing memcache_secret_key
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'Encrypt'
-        }
-        self.assertRaises(exc.ConfigurationError, self.set_middleware,
-                          conf=conf)
-        # test invalue memcache_security_strategy
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'whatever'
-        }
-        self.assertRaises(exc.ConfigurationError, self.set_middleware,
-                          conf=conf)
-        # test missing memcache_secret_key
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mac'
-        }
-        self.assertRaises(exc.ConfigurationError, self.set_middleware,
-                          conf=conf)
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'Encrypt',
-            'memcache_secret_key': ''
-        }
-        self.assertRaises(exc.ConfigurationError, self.set_middleware,
-                          conf=conf)
-        conf = {
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mAc',
-            'memcache_secret_key': ''
-        }
-        self.assertRaises(exc.ConfigurationError, self.set_middleware,
-                          conf=conf)
-
     def test_config_revocation_cache_timeout(self):
         conf = {
             'revocation_cache_time': '24',
@@ -627,13 +499,14 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertEqual('0', middleware._conf['nonexsit_option'])
 
     def test_deprecated_conf_values(self):
+        servers = 'localhost:11211'
+
         conf = {
-            'memcache_servers': ','.join(MEMCACHED_SERVERS),
+            'memcache_servers': servers
         }
 
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
-        self.assertEqual(MEMCACHED_SERVERS,
-                         middleware._conf_get('memcached_servers'))
+        self.assertEqual([servers], middleware._conf_get('memcached_servers'))
 
     def test_conf_values_type_convert_with_wrong_value(self):
         conf = {
