@@ -487,7 +487,7 @@ class _BaseAuthProtocol(object):
                 request.user_token_valid = False
             else:
                 request.user_token_valid = True
-                request.environ['keystone.token_info'] = data
+                request.token_info = data
 
         if request.service_token:
             self.log.debug('Authenticating service token')
@@ -501,8 +501,8 @@ class _BaseAuthProtocol(object):
             else:
                 request.service_token_valid = True
 
-        p = _user_plugin.UserAuthPlugin(user_auth_ref, serv_auth_ref)
-        request.environ['keystone.token_auth'] = p
+        request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
+                                                         serv_auth_ref)
 
     def _validate_token(self, auth_ref):
         """Perform the validation steps on the token.

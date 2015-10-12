@@ -87,6 +87,7 @@ class _AuthTokenRequest(webob.Request):
 
     _SERVICE_CATALOG_HEADER = 'X-Service-Catalog'
     _TOKEN_AUTH = 'keystone.token_auth'
+    _TOKEN_INFO = 'keystone.token_info'
 
     _CONFIRMED = 'Confirmed'
     _INVALID = 'Invalid'
@@ -222,3 +223,12 @@ class _AuthTokenRequest(webob.Request):
     @token_auth.setter
     def token_auth(self, v):
         self.environ[self._TOKEN_AUTH] = v
+
+    @property
+    def token_info(self):
+        """The raw token dictionary retrieved by the middleware"""
+        return self.environ.get(self._TOKEN_INFO)
+
+    @token_info.setter
+    def token_info(self, v):
+        self.environ[self._TOKEN_INFO] = v
