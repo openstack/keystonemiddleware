@@ -200,3 +200,20 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
         m = FetchingMiddleware(_do_cb, token_dict=token_dict)
         self.call(m, headers={'X-Service-Token': token_id})
+
+    def test_base_doesnt_block_project_id(self):
+        # X-Project-Id and X-Domain-Id must pass for tokenless/x509 auth
+        project_id = uuid.uuid4().hex
+        domain_id = uuid.uuid4().hex
+        body = uuid.uuid4().hex
+
+        @webob.dec.wsgify
+        def _do_cb(req):
+            self.assertEqual(project_id, req.headers['X-Project-Id'])
+            self.assertEqual(domain_id, req.headers['X-Domain-Id'])
+            return webob.Response(body, 200)
+
+        m = FetchingMiddleware(_do_cb)
+        resp = self.call(m, headers={'X-Project-Id': project_id,
+                                     'X-Domain-Id': domain_id})
+        self.assertEqual(body, resp.text)
