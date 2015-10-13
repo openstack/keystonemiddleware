@@ -17,7 +17,6 @@ import uuid
 
 import mock
 from oslo_config import cfg
-from pycadf import identifier
 from testtools import matchers
 import webob
 
@@ -255,17 +254,17 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         self.assertEqual(payload['outcome'], 'pending')
         self.assertEqual(payload['eventType'], 'activity')
         self.assertEqual(payload['target']['name'], 'nova')
-        self.assertEqual(payload['target']['id'], 'openstack:resource_id')
+        self.assertEqual(payload['target']['id'], 'resource_id')
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
         self.assertEqual(len(payload['target']['addresses']), 3)
         self.assertEqual(payload['target']['addresses'][0]['name'], 'admin')
         self.assertEqual(payload['target']['addresses'][0]['url'],
                          'http://admin_host:8774')
-        self.assertEqual(payload['initiator']['id'], 'openstack:user_id')
+        self.assertEqual(payload['initiator']['id'], 'user_id')
         self.assertEqual(payload['initiator']['name'], 'user_name')
         self.assertEqual(payload['initiator']['project_id'],
-                         'openstack:tenant_id')
+                         'tenant_id')
         self.assertEqual(payload['initiator']['host']['address'],
                          '192.168.0.1')
         self.assertEqual(payload['initiator']['typeURI'],
@@ -318,7 +317,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         self.assertEqual(payload['action'], 'read/list')
         self.assertEqual(payload['outcome'], 'pending')
         self.assertEqual(payload['target']['name'], 'nova')
-        self.assertEqual(payload['target']['id'], 'openstack:resource_id')
+        self.assertEqual(payload['target']['id'], 'resource_id')
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
 
@@ -482,7 +481,7 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
                                   environ=env_headers)
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
-        self.assertEqual(payload['target']['id'], identifier.norm_ns('nova'))
+        self.assertEqual(payload['target']['id'], 'nova')
 
     def test_endpoint_missing_internal_url(self):
         env_headers = {'HTTP_X_SERVICE_CATALOG':

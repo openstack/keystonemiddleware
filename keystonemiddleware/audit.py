@@ -204,8 +204,7 @@ class OpenStackAuditApi(object):
                 endp['type'],
                 taxonomy.UNKNOWN),
             name=endp['name'],
-            id=identifier.norm_ns(endp['endpoints'][0].get('id',
-                                                           endp['name'])),
+            id=endp['endpoints'][0].get('id', endp['name']),
             admin_endp=endpoint.Endpoint(
                 name='admin',
                 url=endp['endpoints'][0].get('adminURL', taxonomy.UNKNOWN)),
@@ -366,13 +365,13 @@ class AuditMiddleware(object):
 
         initiator = ClientResource(
             typeURI=taxonomy.ACCOUNT_USER,
-            id=identifier.norm_ns(str(req.environ['HTTP_X_USER_ID'])),
+            id=req.environ['HTTP_X_USER_ID'],
             name=req.environ['HTTP_X_USER_NAME'],
             host=host.Host(address=req.client_addr, agent=req.user_agent),
             credential=KeystoneCredential(
                 token=req.environ['HTTP_X_AUTH_TOKEN'],
                 identity_status=req.environ['HTTP_X_IDENTITY_STATUS']),
-            project_id=identifier.norm_ns(req.environ['HTTP_X_PROJECT_ID']))
+            project_id=req.environ['HTTP_X_PROJECT_ID'])
         target = self._cadf_audit.get_target_resource(req)
 
         event = factory.EventFactory().new_event(
