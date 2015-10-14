@@ -25,7 +25,7 @@ import uuid
 import fixtures
 from keystoneclient import auth
 from keystoneclient.common import cms
-from keystoneclient import exceptions
+from keystoneclient import exceptions as ksc_exceptions
 from keystoneclient import fixture
 from keystoneclient import session
 import mock
@@ -42,7 +42,7 @@ import webob.dec
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _base
-from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests.unit.auth_token import base
@@ -512,7 +512,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         conf = {
             'include_service_catalog': '123',
         }
-        self.assertRaises(exc.ConfigurationError,
+        self.assertRaises(ksm_exceptions.ConfigurationError,
                           auth_token.AuthProtocol, self.fake_app, conf)
 
     def test_auth_region_name(self):
@@ -656,7 +656,7 @@ class CommonAuthTokenMiddlewareTest(object):
         # test the case where that retrieval fails
         self.middleware._revocations._fetched_time = datetime.datetime.min
         with mock.patch.object(self.middleware._revocations, '_fetch',
-                               side_effect=exc.RevocationListError):
+                               side_effect=ksm_exceptions.RevocationListError):
             self.call_middleware(headers={'X-Auth-Token': token},
                                  expected_status=503)
 
@@ -797,7 +797,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_raises_exception_for_revoked_token(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        self.assertRaises(exc.InvalidToken,
+        self.assertRaises(ksm_exceptions.InvalidToken,
                           self.middleware._verify_signed_token,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash']])
@@ -807,7 +807,7 @@ class CommonAuthTokenMiddlewareTest(object):
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
-        self.assertRaises(exc.InvalidToken,
+        self.assertRaises(ksm_exceptions.InvalidToken,
                           self.middleware._verify_signed_token,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash_sha256'],
@@ -816,7 +816,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_verify_signed_token_raises_exception_for_revoked_pkiz_token(self):
         self.middleware._revocations._list = (
             self.examples.REVOKED_TOKEN_PKIZ_LIST_JSON)
-        self.assertRaises(exc.InvalidToken,
+        self.assertRaises(ksm_exceptions.InvalidToken,
                           self.middleware._verify_pkiz_token,
                           self.token_dict['revoked_token_pkiz'],
                           [self.token_dict['revoked_token_pkiz_hash']])
@@ -912,7 +912,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_invalid_revocation_list_raises_error(self):
         self.requests_mock.get(self.revocation_url, json={})
-        self.assertRaises(exc.RevocationListError,
+        self.assertRaises(ksm_exceptions.RevocationListError,
                           self.middleware._revocations._fetch)
 
     def test_fetch_revocation_list(self):
@@ -983,7 +983,8 @@ class CommonAuthTokenMiddlewareTest(object):
         token = 'invalid-token'
         self.call_middleware(headers={'X-Auth-Token': token},
                              expected_status=401)
-        self.assertRaises(exc.InvalidToken, self._get_cached_token, token)
+        self.assertRaises(ksm_exceptions.InvalidToken,
+                          self._get_cached_token, token)
 
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
         token_cache_time = 10
@@ -1319,7 +1320,7 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                status_code=404)
         self.requests_mock.get('%s%s' % (BASE_URI, self.signing_path),
                                status_code=404)
-        self.assertRaises(exceptions.CertificateConfigError,
+        self.assertRaises(ksc_exceptions.CertificateConfigError,
                           self.middleware._verify_signed_token,
                           self.examples.SIGNED_TOKEN_SCOPED,
                           [self.examples.SIGNED_TOKEN_SCOPED_HASH])
@@ -1411,7 +1412,7 @@ class V3CertDownloadMiddlewareTest(V2CertDownloadMiddlewareTest):
 
 
 def network_error_response(request, context):
-    raise exceptions.ConnectionRefused("Network connection refused.")
+    raise ksc_exceptions.ConnectionRefused("Network connection refused.")
 
 
 class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
@@ -1680,7 +1681,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertEqual(auth_id, FAKE_ADMIN_TOKEN_ID)
 
         if token_id == ERROR_TOKEN:
-            raise exceptions.ConnectionRefused("Network connection refused.")
+            msg = "Network connection refused."
+            raise ksc_exceptions.ConnectionRefused(msg)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -2131,7 +2133,8 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         response = ""
 
         if token_id == ERROR_TOKEN:
-            raise exceptions.ConnectionRefused("Network connection refused.")
+            msg = "Network connection refused."
+            raise ksc_exceptions.ConnectionRefused(msg)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -2281,7 +2284,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
                         group=_base.AUTHTOKEN_GROUP)
 
         self.assertRaises(
-            exceptions.NoMatchingPlugin,
+            ksc_exceptions.NoMatchingPlugin,
             self.create_simple_middleware)
 
     def test_plugin_loading_mixed_opts(self):

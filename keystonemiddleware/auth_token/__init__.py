@@ -215,7 +215,7 @@ from keystoneclient import adapter
 from keystoneclient import auth
 from keystoneclient.common import cms
 from keystoneclient import discover
-from keystoneclient import exceptions
+from keystoneclient import exceptions as ksc_exceptions
 from keystoneclient import session
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -226,7 +226,7 @@ import webob.dec
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _cache
-from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _identity
 from keystonemiddleware.auth_token import _request
 from keystonemiddleware.auth_token import _revocations
@@ -416,7 +416,7 @@ def _conf_values_type_convert(conf):
             # This option is not known to auth_token.
             pass
         except ValueError as e:
-            raise exc.ConfigurationError(
+            raise ksm_exceptions.ConfigurationError(
                 _('Unable to convert the value of %(key)s option into correct '
                   'type: %(ex)s') % {'key': k, 'ex': e})
         opts[dest] = v
@@ -480,7 +480,7 @@ class _BaseAuthProtocol(object):
                 data, user_auth_ref = self._do_fetch_token(request.user_token)
                 self._validate_token(user_auth_ref)
                 self._confirm_token_bind(user_auth_ref, request)
-            except exc.InvalidToken:
+            except ksm_exceptions.InvalidToken:
                 self.log.info(_LI('Invalid user token'))
                 request.user_token_valid = False
             else:
@@ -493,7 +493,7 @@ class _BaseAuthProtocol(object):
                 _, serv_auth_ref = self._do_fetch_token(request.service_token)
                 self._validate_token(serv_auth_ref)
                 self._confirm_token_bind(serv_auth_ref, request)
-            except exc.InvalidToken:
+            except ksm_exceptions.InvalidToken:
                 self.log.info(_LI('Invalid service token'))
                 request.service_token_valid = False
             else:
@@ -512,7 +512,7 @@ class _BaseAuthProtocol(object):
         """
         # 0 seconds of validity means it is invalid right now
         if auth_ref.will_expire_soon(stale_duration=0):
-            raise exc.InvalidToken(_('Token authorization failed'))
+            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
     def _do_fetch_token(self, token):
         """Helper method to fetch a token and convert it into an AccessInfo"""
@@ -522,7 +522,7 @@ class _BaseAuthProtocol(object):
             return data, access.AccessInfo.factory(body=data, auth_token=token)
         except Exception:
             self.log.warning(_LW('Invalid token contents.'), exc_info=True)
-            raise exc.InvalidToken(_('Token authorization failed'))
+            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
     def _fetch_token(self, token):
         """Fetch the token data based on the value in the header.
@@ -555,7 +555,7 @@ class _BaseAuthProtocol(object):
         if msg is False:
             msg = _('Token authorization failed')
 
-        raise exc.InvalidToken(msg)
+        raise ksm_exceptions.InvalidToken(msg)
 
     def _confirm_token_bind(self, auth_ref, req):
         if self._enforce_token_bind == _BIND_MODE.DISABLED:
@@ -848,11 +848,13 @@ class AuthProtocol(_BaseAuthProtocol):
 
                 self._token_cache.store(token_hashes[0], data)
 
-        except (exceptions.ConnectionRefused, exceptions.RequestTimeout,
-                exc.RevocationListError, exc.ServiceError) as e:
+        except (ksc_exceptions.ConnectionRefused,
+                ksc_exceptions.RequestTimeout,
+                ksm_exceptions.RevocationListError,
+                ksm_exceptions.ServiceError) as e:
             self.log.critical(_LC('Unable to validate token: %s'), e)
             raise webob.exc.HTTPServiceUnavailable()
-        except exc.InvalidToken:
+        except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.store_invalid(token_hashes[0])
@@ -873,10 +875,10 @@ class AuthProtocol(_BaseAuthProtocol):
             else:
                 # Can't do offline validation for this type of token.
                 return
-        except exceptions.CertificateConfigError:
+        except ksc_exceptions.CertificateConfigError:
             self.log.warning(_LW('Fetch certificate config failed, '
                                  'fallback to online validation.'))
-        except exc.RevocationListError:
+        except ksm_exceptions.RevocationListError:
             self.log.warning(_LW('Fetch revocation list failed, '
                                  'fallback to online validation.'))
         else:
@@ -888,7 +890,7 @@ class AuthProtocol(_BaseAuthProtocol):
 
         if auth_ref.version == 'v2.0' and not auth_ref.project_id:
             msg = _('Unable to determine service tenancy.')
-            raise exc.InvalidToken(msg)
+            raise ksm_exceptions.InvalidToken(msg)
 
     def _cms_verify(self, data, inform=cms.PKI_ASN1_FORM):
         """Verifies the signature of the provided data's IAW CMS syntax.
@@ -905,14 +907,15 @@ class AuthProtocol(_BaseAuthProtocol):
                 return cms.cms_verify(data, signing_cert_path,
                                       signing_ca_path,
                                       inform=inform).decode('utf-8')
-            except (exceptions.CMSError,
+            except (ksc_exceptions.CMSError,
                     cms.subprocess.CalledProcessError) as err:
                 self.log.warning(_LW('Verify error: %s'), err)
-                raise exc.InvalidToken(_('Token authorization failed'))
+                msg = _('Token authorization failed')
+                raise ksm_exceptions.InvalidToken(msg)
 
         try:
             return verify()
-        except exceptions.CertificateConfigError:
+        except ksc_exceptions.CertificateConfigError:
             # the certs might be missing; unconditionally fetch to avoid racing
             self._fetch_signing_cert()
             self._fetch_ca_cert()
@@ -920,7 +923,7 @@ class AuthProtocol(_BaseAuthProtocol):
             try:
                 # retry with certs in place
                 return verify()
-            except exceptions.CertificateConfigError as err:
+            except ksc_exceptions.CertificateConfigError as err:
                 # if this is still occurring, something else is wrong and we
                 # need err.output to identify the problem
                 self.log.error(_LE('CMS Verify output: %s'), err.output)
@@ -942,7 +945,7 @@ class AuthProtocol(_BaseAuthProtocol):
         # TypeError If the signed_text is not zlib compressed
         # binascii.Error if signed_text has incorrect base64 padding (py34)
         except (TypeError, binascii.Error):
-            raise exc.InvalidToken(signed_text)
+            raise ksm_exceptions.InvalidToken(signed_text)
 
     def _fetch_signing_cert(self):
         self._signing_directory.write_file(
@@ -1105,7 +1108,7 @@ def app_factory(global_conf, **local_conf):
 
 
 # NOTE(jamielennox): Maintained here for public API compatibility.
-InvalidToken = exc.InvalidToken
-ServiceError = exc.ServiceError
-ConfigurationError = exc.ConfigurationError
-RevocationListError = exc.RevocationListError
+InvalidToken = ksm_exceptions.InvalidToken
+ServiceError = ksm_exceptions.ServiceError
+ConfigurationError = ksm_exceptions.ConfigurationError
+RevocationListError = ksm_exceptions.RevocationListError
