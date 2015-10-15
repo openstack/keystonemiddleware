@@ -18,17 +18,15 @@ __all__ = (
 
 import copy
 
-from keystoneclient import auth
+from keystoneauth1 import loading
 
 import keystonemiddleware.auth_token
-from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _base
 
 auth_token_opts = [
     (_base.AUTHTOKEN_GROUP,
      keystonemiddleware.auth_token._OPTS +
-     _auth.AuthTokenPlugin.get_options() +
-     auth.get_common_conf_options())
+     loading.get_auth_common_conf_options())
 ]
 
 

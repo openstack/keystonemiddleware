@@ -12,8 +12,8 @@
 
 import uuid
 
-from keystoneclient import auth
-from keystoneclient import fixture
+from keystoneauth1 import fixture
+from keystoneauth1 import loading
 
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.tests.unit.auth_token import base
@@ -26,18 +26,19 @@ AUTH_URL = 'https://keystone.auth.com:1234'
 class BaseUserPluginTests(object):
 
     def configure_middleware(self,
-                             auth_plugin,
+                             auth_type,
                              **kwargs):
-        opts = auth.get_plugin_class(auth_plugin).get_options()
+        opts = loading.get_auth_plugin_conf_options(auth_type)
         self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
 
         # Since these tests cfg.config() themselves rather than waiting for
         # auth_token to do it on __init__ we need to register the base auth
         # options (e.g., auth_plugin)
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
 
         self.cfg.config(group=_base.AUTHTOKEN_GROUP,
-                        auth_plugin=auth_plugin,
+                        auth_type=auth_type,
                         **kwargs)
 
     def assertTokenDataEqual(self, token_id, token, token_data):
@@ -92,7 +93,7 @@ class V2UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
                        admin=BASE_URI,
                        internal=BASE_URI)
 
-        self.configure_middleware(auth_plugin='v2password',
+        self.configure_middleware(auth_type='v2password',
                                   auth_url='%s/v2.0/' % AUTH_URL,
                                   user_id=self.service_token.user_id,
                                   password=uuid.uuid4().hex,
@@ -146,7 +147,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
                                  admin=BASE_URI,
                                  internal=BASE_URI)
 
-        self.configure_middleware(auth_plugin='v3password',
+        self.configure_middleware(auth_type='v3password',
                                   auth_url='%s/v3/' % AUTH_URL,
                                   user_id=self.service_token.user_id,
                                   password=uuid.uuid4().hex,

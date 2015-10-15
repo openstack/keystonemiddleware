@@ -12,8 +12,9 @@
 
 import functools
 
-from keystoneclient import auth
-from keystoneclient import discover
+from keystoneauth1 import discover
+from keystoneauth1 import exceptions as ksa_exceptions
+from keystoneauth1 import plugin
 from keystoneclient import exceptions as ksc_exceptions
 from keystoneclient.v2_0 import client as v2_client
 from keystoneclient.v3 import client as v3_client
@@ -29,7 +30,7 @@ def _convert_fetch_cert_exception(fetch_cert):
     def wrapper(self):
         try:
             text = fetch_cert(self)
-        except ksc_exceptions.HTTPError as e:
+        except ksa_exceptions.HttpError as e:
             raise ksc_exceptions.CertificateConfigError(e.details)
         return text
 
@@ -145,7 +146,7 @@ class IdentityServer(object):
 
     @property
     def auth_uri(self):
-        auth_uri = self._adapter.get_endpoint(interface=auth.AUTH_INTERFACE)
+        auth_uri = self._adapter.get_endpoint(interface=plugin.AUTH_INTERFACE)
 
         # NOTE(jamielennox): This weird stripping of the prefix hack is
         # only relevant to the legacy case. We urljoin '/' to get just the
@@ -204,18 +205,18 @@ class IdentityServer(object):
                       user authentication when an indeterminate
                       response is received. Optional.
         :returns: access info received from identity server on success
-        :rtype: :py:class:`keystoneclient.access.AccessInfo`
+        :rtype: :py:class:`keystoneauth1.access.AccessInfo`
         :raises exc.InvalidToken: if token is rejected
         :raises exc.ServiceError: if unable to authenticate token
 
         """
         try:
             auth_ref = self._request_strategy.verify_token(user_token)
-        except ksc_exceptions.NotFound as e:
+        except ksa_exceptions.NotFound as e:
             self._LOG.warning(_LW('Authorization failed for token'))
             self._LOG.warning(_LW('Identity response: %s'), e.response.text)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
-        except ksc_exceptions.Unauthorized as e:
+        except ksa_exceptions.Unauthorized as e:
             self._LOG.info(_LI('Identity server rejected authorization'))
             self._LOG.warning(_LW('Identity response: %s'), e.response.text)
             if retry:
@@ -224,7 +225,7 @@ class IdentityServer(object):
             msg = _('Identity server rejected authorization necessary to '
                     'fetch token data')
             raise ksm_exceptions.ServiceError(msg)
-        except ksc_exceptions.HttpError as e:
+        except ksa_exceptions.HttpError as e:
             self._LOG.error(
                 _LE('Bad response code while validating token: %s'),
                 e.http_status)
@@ -237,7 +238,7 @@ class IdentityServer(object):
     def fetch_revocation_list(self):
         try:
             data = self._request_strategy.fetch_revocation_list()
-        except ksc_exceptions.HTTPError as e:
+        except ksa_exceptions.HttpError as e:
             msg = _('Failed to fetch token revocation list: %d')
             raise ksm_exceptions.RevocationListError(msg % e.http_status)
         if 'signed' not in data:

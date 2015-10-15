@@ -64,7 +64,7 @@ class OptsTestCase(utils.TestCase):
             'enforce_token_bind',
             'check_revocations_for_cached',
             'hash_algorithms',
-            'auth_plugin',
+            'auth_type',
             'auth_section',
         ]
         opt_names = [o.name for (g, l) in result for o in l]
