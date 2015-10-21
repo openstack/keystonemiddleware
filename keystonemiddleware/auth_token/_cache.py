@@ -135,8 +135,7 @@ class TokenCache(object):
         self._initialized = True
 
     def store(self, token_id, data):
-        """Put token data into the cache.
-        """
+        """Put token data into the cache."""
         self._LOG.debug('Storing token in cache')
         self._cache_store(token_id, data)
 

@@ -77,8 +77,10 @@ if tuple(sys.version_info)[0:2] < (2, 7):
 
 
 class TestResponse(requests.Response):
-    """Class used to wrap requests.Response and provide some
-       convenience to initialize with a dict.
+    """Utility class to wrap requests.Response.
+
+    Class used to wrap requests.Response and provide some convenience to
+    initialize with a dict.
     """
 
     def __init__(self, data):
