@@ -140,7 +140,7 @@ class RequestObjectTests(utils.TestCase):
         token_id = uuid.uuid4().hex
 
         auth_ref = access.AccessInfo.factory(token_id=token_id, body=token)
-        self.request.set_user_headers(auth_ref, include_service_catalog=True)
+        self.request.set_user_headers(auth_ref)
 
         self._test_v3_headers(token, '')
 
@@ -196,6 +196,12 @@ class RequestObjectTests(utils.TestCase):
         self.request.token_info = info
         self.assertIs(info, self.request.environ['keystone.token_info'])
         self.assertIs(info, self.request.token_info)
+
+    def test_token_without_catalog(self):
+        token = fixture.V3Token()
+        auth_ref = access.AccessInfo.factory(body=token)
+        self.request.set_service_catalog_headers(auth_ref)
+        self.assertNotIn('X-Service-Catalog', self.request.headers)
 
 
 class CatalogConversionTests(utils.TestCase):

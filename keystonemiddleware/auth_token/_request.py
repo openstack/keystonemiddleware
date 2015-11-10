@@ -147,7 +147,7 @@ class _AuthTokenRequest(webob.Request):
         for header_tmplt, attr in six.iteritems(self._HEADER_TEMPLATE):
             self.headers[header_tmplt % prefix] = getattr(auth_ref, attr)
 
-    def set_user_headers(self, auth_ref, include_service_catalog):
+    def set_user_headers(self, auth_ref):
         """Convert token object into headers.
 
         Build headers that represent authenticated user - see main
@@ -158,15 +158,25 @@ class _AuthTokenRequest(webob.Request):
         for k, v in six.iteritems(self._DEPRECATED_HEADER_MAP):
             self.headers[k] = self.headers[v]
 
-        if include_service_catalog and auth_ref.has_service_catalog():
-            catalog = auth_ref.service_catalog.get_data()
-            if auth_ref.version == 'v3':
-                catalog = _v3_to_v2_catalog(catalog)
+    def set_service_catalog_headers(self, auth_ref):
+        """Convert service catalog from token object into headers.
 
-            c = jsonutils.dumps(catalog)
-            self.headers[self._SERVICE_CATALOG_HEADER] = c
+        Build headers that represent the catalog - see main
+        doc info at start of __init__ file for details of headers to be defined
 
-        self.user_token_valid = True
+        :param auth_ref: The token data
+        :type auth_ref: keystoneclient.access.AccessInfo
+        """
+        if not auth_ref.has_service_catalog():
+            self.headers.pop(self._SERVICE_CATALOG_HEADER, None)
+            return
+
+        catalog = auth_ref.service_catalog.get_data()
+        if auth_ref.version == 'v3':
+            catalog = _v3_to_v2_catalog(catalog)
+
+        c = jsonutils.dumps(catalog)
+        self.headers[self._SERVICE_CATALOG_HEADER] = c
 
     def set_service_headers(self, auth_ref):
         """Convert token object into service headers.
@@ -175,7 +185,6 @@ class _AuthTokenRequest(webob.Request):
         doc info at start of __init__ file for details of headers to be defined
         """
         self._set_auth_headers(auth_ref, self._SERVICE_HEADER_PREFIX)
-        self.service_token_valid = True
 
     def _all_auth_headers(self):
         """All the authentication headers that can be set on the request"""

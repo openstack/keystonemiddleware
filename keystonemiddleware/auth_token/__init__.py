@@ -747,8 +747,11 @@ class AuthProtocol(_BaseAuthProtocol):
                 self._reject_request()
 
         if request.user_token_valid:
-            request.set_user_headers(request.token_auth._user_auth_ref,
-                                     self._include_service_catalog)
+            user_auth_ref = request.token_auth._user_auth_ref
+            request.set_user_headers(user_auth_ref)
+
+            if self._include_service_catalog:
+                request.set_service_catalog_headers(user_auth_ref)
 
         if request.service_token and request.service_token_valid:
             request.set_service_headers(request.token_auth._serv_auth_ref)
