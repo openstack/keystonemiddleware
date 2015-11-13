@@ -133,6 +133,15 @@ class V2UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         self.assertIsNone(token_data.user_domain_id)
         self.assertIsNone(token_data.project_domain_id)
 
+    def test_trust_scope(self):
+        token_id, token = self.get_token()
+        token.set_trust()
+
+        plugin = self.get_plugin(token_id)
+        self.assertEqual(token.trust_id, plugin.user.trust_id)
+        self.assertEqual(token.trustee_user_id, plugin.user.trustee_user_id)
+        self.assertIsNone(plugin.user.trustor_user_id)
+
 
 class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
 
@@ -166,10 +175,11 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
     def get_role_names(self, token):
         return set(x['name'] for x in token['token'].get('roles', []))
 
-    def get_token(self):
+    def get_token(self, project=True):
         token_id = uuid.uuid4().hex
         token = fixture.V3Token()
-        token.set_project_scope()
+        if project:
+            token.set_project_scope()
         token.add_role()
 
         request_headers = {'X-Auth-Token': self.service_token_id,
@@ -191,3 +201,20 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         self.assertEqual(token.user_domain_id, token_data.user_domain_id)
         self.assertEqual(token.project_id, token_data.project_id)
         self.assertEqual(token.project_domain_id, token_data.project_domain_id)
+
+    def test_domain_scope(self):
+        token_id, token = self.get_token(project=False)
+        token.set_domain_scope()
+
+        plugin = self.get_plugin(token_id)
+        self.assertEqual(token.domain_id, plugin.user.domain_id)
+        self.assertIsNone(plugin.user.project_id)
+
+    def test_trust_scope(self):
+        token_id, token = self.get_token(project=False)
+        token.set_trust_scope()
+
+        plugin = self.get_plugin(token_id)
+        self.assertEqual(token.trust_id, plugin.user.trust_id)
+        self.assertEqual(token.trustor_user_id, plugin.user.trustor_user_id)
+        self.assertEqual(token.trustee_user_id, plugin.user.trustee_user_id)
