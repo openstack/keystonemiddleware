@@ -377,9 +377,8 @@ class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
 class CachePoolTest(BaseAuthTokenMiddlewareTest):
     def test_use_cache_from_env(self):
-        """If `swift.cache` is set in the environment and `cache` is set in the
-        config then the env cache is used.
-        """
+        # If `swift.cache` is set in the environment and `cache` is set in the
+        # config then the env cache is used.
         env = {'swift.cache': 'CACHE_TEST'}
         conf = {
             'cache': 'swift.cache'
@@ -390,9 +389,8 @@ class CachePoolTest(BaseAuthTokenMiddlewareTest):
             self.assertEqual(cache, 'CACHE_TEST')
 
     def test_not_use_cache_from_env(self):
-        """If `swift.cache` is set in the environment but `cache` isn't set in
-        the config then the env cache isn't used.
-        """
+        # If `swift.cache` is set in the environment but `cache` isn't set
+        # initialize the config then the env cache isn't used.
         self.set_middleware()
         env = {'swift.cache': 'CACHE_TEST'}
         self.middleware._token_cache.initialize(env)
@@ -433,7 +431,9 @@ class CachePoolTest(BaseAuthTokenMiddlewareTest):
 
 class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                      testresources.ResourcedTestCase):
-    """These tests are not affected by the token format
+    """General Token Behavior tests.
+
+    These tests are not affected by the token format
     (see CommonAuthTokenMiddlewareTest).
     """
 

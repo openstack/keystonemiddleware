@@ -47,7 +47,9 @@ class _TokenData(object):
 
     @property
     def user_domain_id(self):
-        """Returns the domain id of the user associated with the authentication
+        """The domain ID of the user associated with the authentication.
+
+        Returns the domain id of the user associated with the authentication
         request.
 
         :returns: str
@@ -69,7 +71,9 @@ class _TokenData(object):
 
     @property
     def project_domain_id(self):
-        """The domain id of the project associated with the authentication
+        """The ID of the project associated with the authentication.
+
+        The domain id of the project associated with the authentication
         request.
 
         :rtype: str
