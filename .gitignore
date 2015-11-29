@@ -53,3 +53,6 @@ ChangeLog
 
 # Oslo Sync
 .update-venv
+
+# Files created by releasenotes build
+releasenotes/build
