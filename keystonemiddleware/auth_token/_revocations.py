@@ -104,3 +104,25 @@ class Revocations(object):
         if self._any_revoked(token_ids):
             self._log.debug('Token is marked as having been revoked')
             raise exc.InvalidToken(_('Token has been revoked'))
+
+    def check_by_audit_id(self, audit_ids):
+        """Check whether the audit_id appears in the revocation list.
+
+        :raises keystonemiddleware.auth_token._exceptions.InvalidToken:
+            if the audit ID(s) appear in the revocation list.
+
+        """
+        revoked_tokens = self._list.get('revoked', None)
+        if not revoked_tokens:
+            # There's no revoked tokens, so nothing to do.
+            return
+
+        # The audit_id may not be present in the revocation events because
+        # earlier versions of the identity server didn't provide them.
+        revoked_ids = set(
+            x['audit_id'] for x in revoked_tokens if 'audit_id' in x)
+        for audit_id in audit_ids:
+            if audit_id in revoked_ids:
+                self._log.debug(
+                    'Token is marked as having been revoked by audit id')
+                raise exc.InvalidToken(_('Token has been revoked'))
