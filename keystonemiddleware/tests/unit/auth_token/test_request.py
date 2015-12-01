@@ -13,8 +13,8 @@
 import itertools
 import uuid
 
-from keystoneclient import access
-from keystoneclient import fixture
+from keystoneauth1 import access
+from keystoneauth1 import fixture
 
 from keystonemiddleware.auth_token import _request
 from keystonemiddleware.tests.unit import utils
@@ -139,7 +139,7 @@ class RequestObjectTests(utils.TestCase):
         token.set_project_scope()
         token_id = uuid.uuid4().hex
 
-        auth_ref = access.AccessInfo.factory(token_id=token_id, body=token)
+        auth_ref = access.create(auth_token=token_id, body=token)
         self.request.set_user_headers(auth_ref)
 
         self._test_v3_headers(token, '')
@@ -149,7 +149,7 @@ class RequestObjectTests(utils.TestCase):
         token.set_project_scope()
         token_id = uuid.uuid4().hex
 
-        auth_ref = access.AccessInfo.factory(token_id=token_id, body=token)
+        auth_ref = access.create(auth_token=token_id, body=token)
         self.request.set_service_headers(auth_ref)
 
         self._test_v3_headers(token, '-Service')
@@ -199,7 +199,7 @@ class RequestObjectTests(utils.TestCase):
 
     def test_token_without_catalog(self):
         token = fixture.V3Token()
-        auth_ref = access.AccessInfo.factory(body=token)
+        auth_ref = access.create(body=token)
         self.request.set_service_catalog_headers(auth_ref)
         self.assertNotIn('X-Service-Catalog', self.request.headers)
 
@@ -222,8 +222,8 @@ class CatalogConversionTests(utils.TestCase):
                                  internal=self.INTERNAL_URL,
                                  region=self.REGION_ONE)
 
-        auth_ref = access.AccessInfo.factory(body=token)
-        catalog_data = auth_ref.service_catalog.get_data()
+        auth_ref = access.create(body=token)
+        catalog_data = auth_ref.service_catalog.catalog
         catalog = _request._v3_to_v2_catalog(catalog_data)
 
         self.assertEqual(1, len(catalog))
@@ -246,8 +246,8 @@ class CatalogConversionTests(utils.TestCase):
         s.add_endpoint('public', self.PUBLIC_URL, region=self.REGION_TWO)
         s.add_endpoint('admin', self.ADMIN_URL, region=self.REGION_THREE)
 
-        auth_ref = access.AccessInfo.factory(body=token)
-        catalog_data = auth_ref.service_catalog.get_data()
+        auth_ref = access.create(body=token)
+        catalog_data = auth_ref.service_catalog.catalog
         catalog = _request._v3_to_v2_catalog(catalog_data)
 
         self.assertEqual(1, len(catalog))

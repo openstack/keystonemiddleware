@@ -12,10 +12,11 @@
 
 import logging
 
-from keystoneclient import auth
-from keystoneclient.auth.identity import v2
-from keystoneclient.auth import token_endpoint
-from keystoneclient import discover
+from keystoneauth1 import discover
+from keystoneauth1.identity import v2
+from keystoneauth1 import loading
+from keystoneauth1 import plugin
+from keystoneauth1 import token_endpoint
 from oslo_config import cfg
 
 from keystonemiddleware.auth_token import _base
@@ -25,7 +26,7 @@ from keystonemiddleware.i18n import _, _LW
 _LOG = logging.getLogger(__name__)
 
 
-class AuthTokenPlugin(auth.BaseAuthPlugin):
+class AuthTokenPlugin(plugin.BaseAuthPlugin):
 
     def __init__(self, auth_host, auth_port, auth_protocol, auth_admin_prefix,
                  admin_user, admin_password, admin_tenant_name, admin_token,
@@ -104,7 +105,7 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
                   service or None if not available.
         :rtype: string
         """
-        if interface == auth.AUTH_INTERFACE:
+        if interface == plugin.AUTH_INTERFACE:
             return self._identity_uri
 
         if not version:
@@ -114,7 +115,7 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
 
         if not self._discover:
             self._discover = discover.Discover(session,
-                                               auth_url=self._identity_uri,
+                                               url=self._identity_uri,
                                                authenticated=False)
 
         if not self._discover.url_for(version):
@@ -142,53 +143,48 @@ class AuthTokenPlugin(auth.BaseAuthPlugin):
     def invalidate(self):
         return self._plugin.invalidate()
 
-    @classmethod
-    def get_options(cls):
-        options = super(AuthTokenPlugin, cls).get_options()
 
-        options.extend([
-            cfg.StrOpt('auth_admin_prefix',
-                       default='',
-                       help='Prefix to prepend at the beginning of the path. '
-                            'Deprecated, use identity_uri.'),
-            cfg.StrOpt('auth_host',
-                       default='127.0.0.1',
-                       help='Host providing the admin Identity API endpoint. '
-                            'Deprecated, use identity_uri.'),
-            cfg.IntOpt('auth_port',
-                       default=35357,
-                       help='Port of the admin Identity API endpoint. '
-                            'Deprecated, use identity_uri.'),
-            cfg.StrOpt('auth_protocol',
-                       default='https',
-                       help='Protocol of the admin Identity API endpoint '
-                            '(http or https). Deprecated, use identity_uri.'),
-            cfg.StrOpt('identity_uri',
-                       default=None,
-                       help='Complete admin Identity API endpoint. This '
-                            'should specify the unversioned root endpoint '
-                            'e.g. https://localhost:35357/'),
-            cfg.StrOpt('admin_token',
-                       secret=True,
-                       help='This option is deprecated and may be removed in '
-                            'a future release. Single shared secret with the '
-                            'Keystone configuration used for bootstrapping a '
-                            'Keystone installation, or otherwise bypassing '
-                            'the normal authentication process. This option '
-                            'should not be used, use `admin_user` and '
-                            '`admin_password` instead.'),
-            cfg.StrOpt('admin_user',
-                       help='Service username.'),
-            cfg.StrOpt('admin_password',
-                       secret=True,
-                       help='Service user password.'),
-            cfg.StrOpt('admin_tenant_name',
-                       default='admin',
-                       help='Service tenant name.'),
-        ])
-
-        return options
+OPTS = [
+    cfg.StrOpt('auth_admin_prefix',
+               default='',
+               help='Prefix to prepend at the beginning of the path. '
+                    'Deprecated, use identity_uri.'),
+    cfg.StrOpt('auth_host',
+               default='127.0.0.1',
+               help='Host providing the admin Identity API endpoint. '
+                    'Deprecated, use identity_uri.'),
+    cfg.IntOpt('auth_port',
+               default=35357,
+               help='Port of the admin Identity API endpoint. '
+                    'Deprecated, use identity_uri.'),
+    cfg.StrOpt('auth_protocol',
+               default='https',
+               help='Protocol of the admin Identity API endpoint '
+                    '(http or https). Deprecated, use identity_uri.'),
+    cfg.StrOpt('identity_uri',
+               default=None,
+               help='Complete admin Identity API endpoint. This '
+                    'should specify the unversioned root endpoint '
+                    'e.g. https://localhost:35357/'),
+    cfg.StrOpt('admin_token',
+               secret=True,
+               help='This option is deprecated and may be removed in '
+                    'a future release. Single shared secret with the '
+                    'Keystone configuration used for bootstrapping a '
+                    'Keystone installation, or otherwise bypassing '
+                    'the normal authentication process. This option '
+                    'should not be used, use `admin_user` and '
+                    '`admin_password` instead.'),
+    cfg.StrOpt('admin_user',
+               help='Service username.'),
+    cfg.StrOpt('admin_password',
+               secret=True,
+               help='Service user password.'),
+    cfg.StrOpt('admin_tenant_name',
+               default='admin',
+               help='Service tenant name.'),
+]
 
 
-auth.register_conf_options(cfg.CONF, _base.AUTHTOKEN_GROUP)
-AuthTokenPlugin.register_conf_options(cfg.CONF, _base.AUTHTOKEN_GROUP)
+loading.register_auth_conf_options(cfg.CONF, _base.AUTHTOKEN_GROUP)
+cfg.CONF.register_opts(OPTS, group=_base.AUTHTOKEN_GROUP)

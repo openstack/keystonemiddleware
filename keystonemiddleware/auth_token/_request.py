@@ -165,13 +165,13 @@ class _AuthTokenRequest(webob.Request):
         doc info at start of __init__ file for details of headers to be defined
 
         :param auth_ref: The token data
-        :type auth_ref: keystoneclient.access.AccessInfo
+        :type auth_ref: keystoneauth.access.AccessInfo
         """
         if not auth_ref.has_service_catalog():
             self.headers.pop(self._SERVICE_CATALOG_HEADER, None)
             return
 
-        catalog = auth_ref.service_catalog.get_data()
+        catalog = auth_ref.service_catalog.catalog
         if auth_ref.version == 'v3':
             catalog = _v3_to_v2_catalog(catalog)
 

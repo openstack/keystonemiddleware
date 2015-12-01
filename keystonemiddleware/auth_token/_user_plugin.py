@@ -10,7 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from keystoneclient.auth.identity import base as base_identity
+from keystoneauth1.identity import base as base_identity
 
 
 class _TokenData(object):

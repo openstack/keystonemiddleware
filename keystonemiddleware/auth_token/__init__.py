@@ -169,8 +169,8 @@ keystone.token_info
     well as basic information about the project and user.
 
 keystone.token_auth
-    A keystoneclient auth plugin that may be used with a
-    :py:class:`keystoneclient.session.Session`. This plugin will load the
+    A keystoneauth1 auth plugin that may be used with a
+    :py:class:`keystoneauth1.session.Session`. This plugin will load the
     authentication data provided to auth_token middleware.
 
 
@@ -210,13 +210,14 @@ import binascii
 import datetime
 import logging
 
-from keystoneclient import access
-from keystoneclient import adapter
-from keystoneclient import auth
+from keystoneauth1 import access
+from keystoneauth1 import adapter
+from keystoneauth1 import discover
+from keystoneauth1 import exceptions as ksa_exceptions
+from keystoneauth1 import loading
+from keystoneauth1.loading import session as session_loading
 from keystoneclient.common import cms
-from keystoneclient import discover
 from keystoneclient import exceptions as ksc_exceptions
-from keystoneclient import session
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 import pkg_resources
@@ -368,7 +369,7 @@ _OPTS = [
                 ' only while migrating from a less secure algorithm to a more'
                 ' secure one. Once all the old tokens are expired this option'
                 ' should be set to a single value for better performance.'),
-]
+] + _auth.OPTS
 
 CONF = cfg.CONF
 CONF.register_opts(_OPTS, group=_base.AUTHTOKEN_GROUP)
@@ -398,7 +399,7 @@ def _conf_values_type_convert(conf):
         return {}
 
     opt_types = {}
-    for o in (_OPTS + _auth.AuthTokenPlugin.get_options()):
+    for o in _OPTS:
         type_dest = (getattr(o, 'type', str), o.dest)
         opt_types[o.dest] = type_dest
         # Also add the deprecated name with the same type and dest.
@@ -506,7 +507,7 @@ class _BaseAuthProtocol(object):
         """Perform the validation steps on the token.
 
         :param auth_ref: The token data
-        :type auth_ref: keystoneclient.access.AccessInfo
+        :type auth_ref: keystoneauth1.access.AccessInfo
 
         :raises exc.InvalidToken: if token is rejected
         """
@@ -519,7 +520,7 @@ class _BaseAuthProtocol(object):
         data = self._fetch_token(token)
 
         try:
-            return data, access.AccessInfo.factory(body=data, auth_token=token)
+            return data, access.create(body=data, auth_token=token)
         except Exception:
             self.log.warning(_LW('Invalid token contents.'), exc_info=True)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
@@ -561,21 +562,11 @@ class _BaseAuthProtocol(object):
         if self._enforce_token_bind == _BIND_MODE.DISABLED:
             return
 
-        try:
-            if auth_ref.version == 'v2.0':
-                bind = auth_ref['token']['bind']
-            elif auth_ref.version == 'v3':
-                bind = auth_ref['bind']
-            else:
-                self._invalid_user_token()
-        except KeyError:
-            bind = {}
-
         # permissive and strict modes don't require there to be a bind
         permissive = self._enforce_token_bind in (_BIND_MODE.PERMISSIVE,
                                                   _BIND_MODE.STRICT)
 
-        if not bind:
+        if not auth_ref.bind:
             if permissive:
                 # no bind provided and none required
                 return
@@ -589,12 +580,12 @@ class _BaseAuthProtocol(object):
         else:
             name = self._enforce_token_bind
 
-        if name and name not in bind:
+        if name and name not in auth_ref.bind:
             self.log.info(_LI('Named bind mode %s not in bind information'),
                           name)
             self._invalid_user_token()
 
-        for bind_type, identifier in six.iteritems(bind):
+        for bind_type, identifier in six.iteritems(auth_ref.bind):
             if bind_type == _BIND_MODE.KERBEROS:
                 if req.auth_type != 'negotiate':
                     self.log.info(_LI('Kerberos credentials required and '
@@ -658,8 +649,8 @@ class AuthProtocol(_BaseAuthProtocol):
 
             self._local_oslo_config.register_opts(
                 _OPTS, group=_base.AUTHTOKEN_GROUP)
-            auth.register_conf_options(self._local_oslo_config,
-                                       group=_base.AUTHTOKEN_GROUP)
+            loading.register_auth_conf_options(self._local_oslo_config,
+                                               group=_base.AUTHTOKEN_GROUP)
 
         super(AuthProtocol, self).__init__(
             app,
@@ -851,8 +842,8 @@ class AuthProtocol(_BaseAuthProtocol):
 
                 self._token_cache.store(token_hashes[0], data)
 
-        except (ksc_exceptions.ConnectionRefused,
-                ksc_exceptions.RequestTimeout,
+        except (ksa_exceptions.ConnectFailure,
+                ksa_exceptions.RequestTimeout,
                 ksm_exceptions.RevocationListError,
                 ksm_exceptions.ServiceError) as e:
             self.log.critical(_LC('Unable to validate token: %s'), e)
@@ -975,17 +966,33 @@ class AuthProtocol(_BaseAuthProtocol):
         # !!! - UNDER NO CIRCUMSTANCES COPY ANY OF THIS CODE - !!!
 
         group = self._conf_get('auth_section') or _base.AUTHTOKEN_GROUP
-        plugin_name = self._conf_get('auth_plugin', group=group)
+
+        # NOTE(jamielennox): auth_plugin was deprecated to auth_type. _conf_get
+        # doesn't handle that deprecation in the case of conf dict options so
+        # we have to manually check the value
+        plugin_name = (self._conf_get('auth_type', group=group)
+                       or self._conf.get('auth_plugin'))
+
+        if not plugin_name:
+            return _auth.AuthTokenPlugin(
+                log=self.log,
+                auth_admin_prefix=self._conf_get('auth_admin_prefix',
+                                                 group=group),
+                auth_host=self._conf_get('auth_host', group=group),
+                auth_port=self._conf_get('auth_port', group=group),
+                auth_protocol=self._conf_get('auth_protocol', group=group),
+                identity_uri=self._conf_get('identity_uri', group=group),
+                admin_token=self._conf_get('admin_token', group=group),
+                admin_user=self._conf_get('admin_user', group=group),
+                admin_password=self._conf_get('admin_password', group=group),
+                admin_tenant_name=self._conf_get('admin_tenant_name',
+                                                 group=group)
+            )
+
+        plugin_loader = loading.get_plugin_loader(plugin_name)
+        plugin_opts = [o._to_oslo_opt() for o in plugin_loader.get_options()]
         plugin_kwargs = dict()
 
-        if plugin_name:
-            plugin_class = auth.get_plugin_class(plugin_name)
-        else:
-            plugin_class = _auth.AuthTokenPlugin
-            # logger object is a required parameter of the default plugin
-            plugin_kwargs['log'] = self.log
-
-        plugin_opts = plugin_class.get_options()
         (self._local_oslo_config or CONF).register_opts(plugin_opts,
                                                         group=group)
 
@@ -995,7 +1002,7 @@ class AuthProtocol(_BaseAuthProtocol):
                 val = opt.type(val)
             plugin_kwargs[opt.dest] = val
 
-        return plugin_class.load_from_options(**plugin_kwargs)
+        return plugin_loader.load_from_options(**plugin_kwargs)
 
     def _determine_project(self):
         """Determine a project name from all available config sources.
@@ -1041,14 +1048,14 @@ class AuthProtocol(_BaseAuthProtocol):
         # same as calling Session.load_from_conf_options(CONF, GROUP)
         # however we can't do that because we have to use _conf_get to
         # support the paste.ini options.
-        sess = session.Session.construct(dict(
+        sess = session_loading.Session().load_from_options(
             cert=self._conf_get('certfile'),
             key=self._conf_get('keyfile'),
             cacert=self._conf_get('cafile'),
             insecure=self._conf_get('insecure'),
             timeout=self._conf_get('http_connect_timeout'),
             user_agent=self._build_useragent_string()
-        ))
+        )
 
         auth_plugin = self._get_auth_plugin()
 

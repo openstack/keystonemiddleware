@@ -13,9 +13,9 @@
 import logging
 import uuid
 
-from keystoneclient import auth
-from keystoneclient import fixture
-from keystoneclient import session
+from keystoneauth1 import fixture
+from keystoneauth1 import plugin as ksa_plugin
+from keystoneauth1 import session
 from requests_mock.contrib import fixture as rm_fixture
 import six
 
@@ -32,7 +32,7 @@ class DefaultAuthPluginTests(utils.BaseTestCase):
         if not log:
             log = self.logger
 
-        return _auth.AuthTokenPlugin.load_from_options(
+        return _auth.AuthTokenPlugin(
             auth_host=auth_host,
             auth_port=auth_port,
             auth_protocol=auth_protocol,
@@ -65,9 +65,9 @@ class DefaultAuthPluginTests(utils.BaseTestCase):
                                  auth_port=auth_port,
                                  auth_admin_prefix=auth_admin_prefix)
 
-        self.assertEqual(expected,
-                         plugin.get_endpoint(self.session,
-                                             interface=auth.AUTH_INTERFACE))
+        endpoint = plugin.get_endpoint(self.session,
+                                       interface=ksa_plugin.AUTH_INTERFACE)
+        self.assertEqual(expected, endpoint)
 
     def test_identity_uri_overrides_fragments(self):
         identity_uri = 'http://testhost:8888/admin'
@@ -76,9 +76,9 @@ class DefaultAuthPluginTests(utils.BaseTestCase):
                                  auth_port=9999,
                                  auth_protocol='ftp')
 
-        self.assertEqual(identity_uri,
-                         plugin.get_endpoint(self.session,
-                                             interface=auth.AUTH_INTERFACE))
+        endpoint = plugin.get_endpoint(self.session,
+                                       interface=ksa_plugin.AUTH_INTERFACE)
+        self.assertEqual(identity_uri, endpoint)
 
     def test_with_admin_token(self):
         token = uuid.uuid4().hex

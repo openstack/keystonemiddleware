@@ -23,11 +23,12 @@ import time
 import uuid
 
 import fixtures
-from keystoneclient import auth
+from keystoneauth1 import exceptions as ksa_exceptions
+from keystoneauth1 import fixture
+from keystoneauth1 import loading
+from keystoneauth1 import session
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
-from keystoneclient import fixture
-from keystoneclient import session
 import mock
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -549,24 +550,29 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             headers={'X-Subject-Token': uuid.uuid4().hex},
             json=fixture.V3Token())
 
-        conf = {'auth_uri': auth_url,
-                'auth_url': auth_url + '/v3',
-                'auth_plugin': 'v3password',
-                'username': 'user',
-                'password': 'pass'}
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
+
+        opts = loading.get_auth_plugin_conf_options('v3password')
+        self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
+
+        self.cfg.config(auth_url=auth_url + '/v3',
+                        auth_type='v3password',
+                        username='user',
+                        password='pass',
+                        user_domain_id=uuid.uuid4().hex,
+                        group=_base.AUTHTOKEN_GROUP)
 
         self.assertEqual(0, east_mock.call_count)
         self.assertEqual(0, west_mock.call_count)
 
-        east_app = self.create_simple_middleware(conf=dict(region_name='east',
-                                                           **conf))
+        east_app = self.create_simple_middleware(conf=dict(region_name='east'))
         self.call(east_app, headers={'X-Auth-Token': uuid.uuid4().hex})
 
         self.assertEqual(1, east_mock.call_count)
         self.assertEqual(0, west_mock.call_count)
 
-        west_app = self.create_simple_middleware(conf=dict(region_name='west',
-                                                           **conf))
+        west_app = self.create_simple_middleware(conf=dict(region_name='west'))
 
         self.call(west_app, headers={'X-Auth-Token': uuid.uuid4().hex})
 
@@ -1412,7 +1418,7 @@ class V3CertDownloadMiddlewareTest(V2CertDownloadMiddlewareTest):
 
 
 def network_error_response(request, context):
-    raise ksc_exceptions.ConnectionRefused("Network connection refused.")
+    raise ksa_exceptions.ConnectFailure("Network connection refused.")
 
 
 class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
@@ -1682,7 +1688,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         if token_id == ERROR_TOKEN:
             msg = "Network connection refused."
-            raise ksc_exceptions.ConnectionRefused(msg)
+            raise ksa_exceptions.ConnectFailure(msg)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -2251,16 +2257,17 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
     def test_loading_password_plugin(self):
         # the password options aren't set on config until loading time, but we
         # need them set so we can override the values for testing, so force it
-        opts = auth.get_plugin_options('password')
+        opts = loading.get_auth_plugin_conf_options('password')
         self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
 
         project_id = uuid.uuid4().hex
 
         # Register the authentication options
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
-        self.cfg.config(auth_plugin='password',
+        self.cfg.config(auth_type='password',
                         username='testuser',
                         password='testpass',
                         auth_url=self.AUTH_URL,
@@ -2279,27 +2286,30 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         return app._identity_server._adapter.auth
 
     def test_invalid_plugin_fails_to_initialize(self):
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
-        self.cfg.config(auth_plugin=uuid.uuid4().hex,
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
+        self.cfg.config(auth_type=uuid.uuid4().hex,
                         group=_base.AUTHTOKEN_GROUP)
 
         self.assertRaises(
-            ksc_exceptions.NoMatchingPlugin,
+            ksa_exceptions.NoMatchingPlugin,
             self.create_simple_middleware)
 
     def test_plugin_loading_mixed_opts(self):
         # some options via override and some via conf
-        opts = auth.get_plugin_options('password')
+        opts = loading.get_auth_plugin_conf_options('password')
         self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
 
         username = 'testuser'
         password = 'testpass'
 
         # Register the authentication options
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
-        self.cfg.config(auth_plugin='password',
+        self.cfg.config(auth_type='password',
+                        auth_url='http://keystone.test:5000',
                         password=password,
                         project_id=self.project_id,
                         user_domain_id='userdomainid',
@@ -2326,22 +2336,24 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         username = 'testuser'
         password = 'testpass'
 
-        auth.register_conf_options(self.cfg.conf, group=section)
-        opts = auth.get_plugin_options('password')
+        loading.register_auth_conf_options(self.cfg.conf, group=section)
+        opts = loading.get_auth_plugin_conf_options('password')
         self.cfg.register_opts(opts, group=section)
 
         # Register the authentication options
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
         self.cfg.config(auth_section=section, group=_base.AUTHTOKEN_GROUP)
-        self.cfg.config(auth_plugin='password',
+        self.cfg.config(auth_type='password',
+                        auth_url=self.AUTH_URL,
                         password=password,
                         project_id=self.project_id,
                         user_domain_id='userdomainid',
                         group=section)
 
-        conf = {'username': username, 'auth_url': self.AUTH_URL}
+        conf = {'username': username}
 
         body = uuid.uuid4().hex
         app = self.create_simple_middleware(body=body, conf=conf)
@@ -2368,16 +2380,17 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         self.section = uuid.uuid4().hex
         self.user_domain_id = uuid.uuid4().hex
 
-        auth.register_conf_options(self.cfg.conf, group=self.section)
-        opts = auth.get_plugin_options('password')
+        loading.register_auth_conf_options(self.cfg.conf, group=self.section)
+        opts = loading.get_auth_plugin_conf_options('password')
         self.cfg.register_opts(opts, group=self.section)
 
         # Register the authentication options
-        auth.register_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf,
+                                           group=_base.AUTHTOKEN_GROUP)
 
         # configure the authentication options
         self.cfg.config(auth_section=self.section, group=_base.AUTHTOKEN_GROUP)
-        self.cfg.config(auth_plugin='password',
+        self.cfg.config(auth_type='password',
                         password=self.password,
                         project_id=self.project_id,
                         user_domain_id=self.user_domain_id,
@@ -2431,14 +2444,15 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
 class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
     def test_project_in_local_oslo_configuration(self):
         options = {
-            'auth_plugin': 'password',
+            'auth_type': 'password',
             'auth_uri': uuid.uuid4().hex,
             'password': uuid.uuid4().hex,
         }
 
         content = ("[keystone_authtoken]\n"
-                   "auth_plugin=%(auth_plugin)s\n"
+                   "auth_type=%(auth_type)s\n"
                    "auth_uri=%(auth_uri)s\n"
+                   "auth_url=%(auth_uri)s\n"
                    "password=%(password)s\n" % options)
         conf_file_fixture = self.useFixture(
             createfile.CreateFileWithContent("my_app", content))

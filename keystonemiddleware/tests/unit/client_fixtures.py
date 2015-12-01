@@ -15,8 +15,8 @@
 import os
 
 import fixtures
+from keystoneauth1 import fixture
 from keystoneclient.common import cms
-from keystoneclient import fixture
 from keystoneclient import utils
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
