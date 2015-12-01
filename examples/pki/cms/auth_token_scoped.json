@@ -8,7 +8,10 @@
                 "enabled": true,
                 "description": null,
                 "name": "tenant_name1"
-            }
+            },
+            "audit_ids": [
+                "SLIXlXQUQZWUi9VJrqdXqA"
+            ]
         },
         "serviceCatalog": [
             {

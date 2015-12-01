@@ -763,6 +763,18 @@ class AuthProtocol(object):
 
                 if verified is not None:
                     data = jsonutils.loads(verified)
+
+                    audit_ids = None
+                    if 'access' in data:
+                        # It's a v2 token.
+                        audit_ids = data['access']['token'].get('audit_ids')
+                    else:
+                        # It's a v3 token
+                        audit_ids = data['token'].get('audit_ids')
+
+                    if audit_ids:
+                        self._revocations.check_by_audit_id(audit_ids)
+
                     expires = _get_token_expiration(data)
                     _confirm_token_not_expired(expires)
                 else:
