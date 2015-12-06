@@ -14,7 +14,7 @@ import logging
 import uuid
 
 import fixtures
-from keystoneclient import fixture as client_fixtures
+from keystoneauth1 import fixture as client_fixtures
 from keystoneclient import utils
 import mock
 from oslo_utils import timeutils
