@@ -428,7 +428,7 @@ def _get_project_version(project):
     return pkg_resources.get_distribution(project).version
 
 
-class _BaseAuthProtocol(object):
+class BaseAuthProtocol(object):
     """A base class for AuthProtocol token checking implementations.
 
     :param Callable app: The next application to call after middleware.
@@ -517,7 +517,7 @@ class _BaseAuthProtocol(object):
 
     def _do_fetch_token(self, token):
         """Helper method to fetch a token and convert it into an AccessInfo"""
-        data = self._fetch_token(token)
+        data = self.fetch_token(token)
 
         try:
             return data, access.create(body=data, auth_token=token)
@@ -525,7 +525,7 @@ class _BaseAuthProtocol(object):
             self.log.warning(_LW('Invalid token contents.'), exc_info=True)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
-    def _fetch_token(self, token):
+    def fetch_token(self, token):
         """Fetch the token data based on the value in the header.
 
         Retrieve the data associated with the token value that was in the
@@ -613,7 +613,7 @@ class _BaseAuthProtocol(object):
                 self._invalid_user_token()
 
 
-class AuthProtocol(_BaseAuthProtocol):
+class AuthProtocol(BaseAuthProtocol):
     """Middleware that handles authenticating client calls."""
 
     _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
@@ -814,7 +814,7 @@ class AuthProtocol(_BaseAuthProtocol):
             if cached:
                 return cached
 
-    def _fetch_token(self, token):
+    def fetch_token(self, token):
         """Retrieve a token from either a PKI bundle or the identity server.
 
         :param str token: token id
