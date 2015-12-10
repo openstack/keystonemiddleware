@@ -952,18 +952,10 @@ class AuthProtocol(_BaseAuthProtocol):
             self._identity_server.fetch_ca_cert())
 
     def _get_auth_plugin(self):
-        # NOTE(jamielennox): Ideally this would use get_from_conf_options
+        # NOTE(jamielennox): Ideally this would use load_from_conf_options
         # however that is not possible because we have to support the override
-        # pattern we use in _conf_get. There is a somewhat replacement for this
-        # in keystoneclient in load_from_options_getter which should be used
-        # when available. Until then this is essentially a copy and paste of
-        # the ksc load_from_conf_options code because we need to get a fix out
-        # for this quickly.
-
-        # FIXME(jamielennox): update to use load_from_options_getter when
-        # https://review.openstack.org/162529 merges.
-
-        # !!! - UNDER NO CIRCUMSTANCES COPY ANY OF THIS CODE - !!!
+        # pattern we use in _conf_get. This function therefore does a manual
+        # version of load_from_conf_options with the fallback plugin inline.
 
         group = self._conf_get('auth_section') or _base.AUTHTOKEN_GROUP
 
@@ -989,20 +981,16 @@ class AuthProtocol(_BaseAuthProtocol):
                                                  group=group)
             )
 
+        # Plugin option registration is normally done as part of the load_from
+        # function rather than the register function so copy here.
         plugin_loader = loading.get_plugin_loader(plugin_name)
-        plugin_opts = [o._to_oslo_opt() for o in plugin_loader.get_options()]
-        plugin_kwargs = dict()
+        plugin_opts = loading.get_auth_plugin_conf_options(plugin_loader)
 
         (self._local_oslo_config or CONF).register_opts(plugin_opts,
                                                         group=group)
 
-        for opt in plugin_opts:
-            val = self._conf_get(opt.dest, group=group)
-            if val is not None:
-                val = opt.type(val)
-            plugin_kwargs[opt.dest] = val
-
-        return plugin_loader.load_from_options(**plugin_kwargs)
+        getter = lambda opt: self._conf_get(opt.dest, group=group)
+        return plugin_loader.load_from_options_getter(getter)
 
     def _determine_project(self):
         """Determine a project name from all available config sources.
