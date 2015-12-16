@@ -369,7 +369,7 @@ _OPTS = [
                 ' only while migrating from a less secure algorithm to a more'
                 ' secure one. Once all the old tokens are expired this option'
                 ' should be set to a single value for better performance.'),
-] + _auth.OPTS
+]
 
 CONF = cfg.CONF
 CONF.register_opts(_OPTS, group=_base.AUTHTOKEN_GROUP)
@@ -399,7 +399,7 @@ def _conf_values_type_convert(conf):
         return {}
 
     opt_types = {}
-    for o in _OPTS:
+    for o in _OPTS + _auth.OPTS:
         type_dest = (getattr(o, 'type', str), o.dest)
         opt_types[o.dest] = type_dest
         # Also add the deprecated name with the same type and dest.
@@ -647,8 +647,11 @@ class AuthProtocol(_BaseAuthProtocol):
                 default_config_files=default_config_files,
                 validate_default_values=True)
 
-            self._local_oslo_config.register_opts(
-                _OPTS, group=_base.AUTHTOKEN_GROUP)
+            self._local_oslo_config.register_opts(_OPTS,
+                                                  group=_base.AUTHTOKEN_GROUP)
+            self._local_oslo_config.register_opts(_auth.OPTS,
+                                                  group=_base.AUTHTOKEN_GROUP)
+
             loading.register_auth_conf_options(self._local_oslo_config,
                                                group=_base.AUTHTOKEN_GROUP)
 
