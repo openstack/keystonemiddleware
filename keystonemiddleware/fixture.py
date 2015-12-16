@@ -37,8 +37,8 @@ class AuthTokenFixture(fixtures.Fixture):
         _LOG.info('Using Testing AuthTokenFixture...')
         self.mockpatch = mock.patch.object(
             auth_token.AuthProtocol,
-            '_fetch_token',
-            self._fetch_token)
+            'fetch_token',
+            self.fetch_token)
         self.mockpatch.start()
         # Make sure we stop patching when we do the cleanup.
         self.addCleanup(self.mockpatch.stop)
@@ -76,8 +76,8 @@ class AuthTokenFixture(fixtures.Fixture):
             token.add_role(name=role)
         self._token_data[token_id] = token
 
-    def _fetch_token(self, token):
-        """Low level replacement of _fetch_token for AuthProtocol."""
+    def fetch_token(self, token):
+        """Low level replacement of fetch_token for AuthProtocol."""
         token_data = self._token_data.get(token, {})
         if token_data:
             self._assert_token_not_expired(token_data.expires)

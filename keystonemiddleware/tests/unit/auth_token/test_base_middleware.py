@@ -30,13 +30,13 @@ class FakeApp(object):
         return webob.Response()
 
 
-class FetchingMiddleware(auth_token._BaseAuthProtocol):
+class FetchingMiddleware(auth_token.BaseAuthProtocol):
 
     def __init__(self, app, token_dict={}, **kwargs):
         super(FetchingMiddleware, self).__init__(app, **kwargs)
         self.token_dict = token_dict
 
-    def _fetch_token(self, token):
+    def fetch_token(self, token):
         try:
             return self.token_dict[token]
         except KeyError:
@@ -45,11 +45,11 @@ class FetchingMiddleware(auth_token._BaseAuthProtocol):
 
 class BaseAuthProtocolTests(testtools.TestCase):
 
-    @mock.patch.multiple(auth_token._BaseAuthProtocol,
+    @mock.patch.multiple(auth_token.BaseAuthProtocol,
                          process_request=mock.DEFAULT,
                          process_response=mock.DEFAULT)
     def test_process_flow(self, process_request, process_response):
-        m = auth_token._BaseAuthProtocol(FakeApp())
+        m = auth_token.BaseAuthProtocol(FakeApp())
 
         process_request.return_value = None
         process_response.side_effect = lambda x: x
