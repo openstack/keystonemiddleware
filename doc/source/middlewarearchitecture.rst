@@ -126,18 +126,31 @@ a WSGI component. Example for the auth_token middleware:
 
     # Prefix to prepend at the beginning of the path (string
     # value)
+    # Deprecated group/name - [keystone_authtoken]/auth_url
     #auth_admin_prefix=
+
+    # Authentication URL (string value)
+    auth_url=http://127.0.0.1:35357
 
     # Host providing the admin Identity API endpoint (string
     # value)
-    auth_host=127.0.0.1
+    # Deprecated group/name - [keystone_authtoken]/auth_url
+    #auth_host=127.0.0.1
 
     # Port of the admin Identity API endpoint (integer value)
-    auth_port=35357
+    # Deprecated group/name - [keystone_authtoken]/auth_url
+    #auth_port=35357
 
     # Protocol of the admin Identity API endpoint(http or https)
     # (string value)
-    auth_protocol=https
+    # Deprecated group/name - [keystone_authtoken]/auth_url
+    #auth_protocol=https
+
+    # Complete admin Identity API endpoint.
+    # This should specify the unversioned root endpoint
+    # e.g. https://localhost:35357/. (string value)
+    # Deprecated group/name - [keystone_authtoken]/auth_url
+    #identity_uri=<None>
 
     # Complete public Identity API endpoint (string value)
     #auth_uri=<None>
@@ -162,6 +175,7 @@ a WSGI component. Example for the auth_token middleware:
     # Single shared secret with the Keystone configuration used
     # for bootstrapping a Keystone installation, or otherwise
     # bypassing the normal authentication process. (string value)
+    # Deprecated, use username and password instead.
     #admin_token=<None>
 
     # Keystone account username (string value)
