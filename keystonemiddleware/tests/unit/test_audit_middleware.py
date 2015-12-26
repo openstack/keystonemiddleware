@@ -14,6 +14,7 @@
 import os
 import tempfile
 import uuid
+import warnings
 
 import mock
 from oslo_config import cfg
@@ -63,6 +64,11 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
         self.middleware = audit.AuditMiddleware(
             FakeApp(), audit_map_file=self.audit_map,
             service_name='pycadf')
+
+        # NOTE(stevemar): For this test suite and for the stable liberty branch
+        # only, we will ignore deprecated calls that keystonemiddleware makes.
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                module='^keystonemiddleware\\.')
 
         self.addCleanup(lambda: os.close(self.fd))
         self.addCleanup(cfg.CONF.reset)
