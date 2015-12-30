@@ -16,7 +16,6 @@ import uuid
 import fixtures
 from keystoneauth1 import fixture as client_fixtures
 from keystoneclient import utils
-import mock
 from oslo_utils import timeutils
 
 from keystonemiddleware import auth_token
@@ -35,13 +34,10 @@ class AuthTokenFixture(fixtures.Fixture):
         self._token_data = {}
         self.addCleanup(self._token_data.clear)
         _LOG.info('Using Testing AuthTokenFixture...')
-        self.mockpatch = mock.patch.object(
+        self.useFixture(fixtures.MockPatchObject(
             auth_token.AuthProtocol,
             'fetch_token',
-            self.fetch_token)
-        self.mockpatch.start()
-        # Make sure we stop patching when we do the cleanup.
-        self.addCleanup(self.mockpatch.stop)
+            self.fetch_token))
 
     @property
     def tokens(self):
