@@ -301,14 +301,15 @@ _OPTS = [
                ' high number of revocation events combined with a low cache'
                ' duration may significantly reduce performance.'),
     cfg.StrOpt('memcache_security_strategy',
-               default=None,
+               default='None',
+               choices=('None', 'MAC', 'ENCRYPT'),
+               ignore_case=True,
                help='(Optional) If defined, indicate whether token data'
                ' should be authenticated or authenticated and encrypted.'
-               ' Acceptable values are MAC or ENCRYPT.  If MAC, token data is'
-               ' authenticated (with HMAC) in the cache. If ENCRYPT, token'
-               ' data is encrypted and authenticated in the cache. If the'
-               ' value is not one of these options or empty, auth_token will'
-               ' raise an exception on initialization.'),
+               ' If MAC, token data is authenticated (with HMAC) in the cache.'
+               ' If ENCRYPT, token data is encrypted and authenticated in the'
+               ' cache. If the value is not one of these options or empty,'
+               ' auth_token will raise an exception on initialization.'),
     cfg.StrOpt('memcache_secret_key',
                default=None,
                secret=True,
@@ -1094,7 +1095,7 @@ class AuthProtocol(BaseAuthProtocol):
             socket_timeout=self._conf_get('memcache_pool_socket_timeout'),
         )
 
-        if security_strategy:
+        if security_strategy.lower() != 'none':
             secret_key = self._conf_get('memcache_secret_key')
             return _cache.SecureTokenCache(self.log,
                                            security_strategy,

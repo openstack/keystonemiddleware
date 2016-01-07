@@ -159,8 +159,9 @@ OPTS = [
                     'Deprecated, use identity_uri.'),
     cfg.StrOpt('auth_protocol',
                default='https',
-               help='Protocol of the admin Identity API endpoint '
-                    '(http or https). Deprecated, use identity_uri.'),
+               choices=('http', 'https'),
+               help='Protocol of the admin Identity API endpoint. '
+                    'Deprecated, use identity_uri.'),
     cfg.StrOpt('identity_uri',
                default=None,
                help='Complete admin Identity API endpoint. This '
