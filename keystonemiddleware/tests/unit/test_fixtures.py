@@ -25,16 +25,25 @@ class AuthTokenFixtureTest(
     def setUp(self):
         self.token_id = uuid.uuid4().hex
         self.user_id = uuid.uuid4().hex
+        self.username = uuid.uuid4().hex
+        self.project_id = uuid.uuid4().hex
+        self.project_name = uuid.uuid4().hex
         self.role_list = [uuid.uuid4().hex, uuid.uuid4().hex]
         super(AuthTokenFixtureTest, self).setUp()
 
         self.atm_fixture = self.useFixture(fixture.AuthTokenFixture())
         self.atm_fixture.add_token_data(token_id=self.token_id,
                                         user_id=self.user_id,
-                                        role_list=self.role_list)
+                                        user_name=self.username,
+                                        role_list=self.role_list,
+                                        project_id=self.project_id,
+                                        project_name=self.project_name)
         self.set_middleware()
         self.middleware._app.expected_env = {
             'HTTP_X_USER_ID': self.user_id,
+            'HTTP_X_USER_NAME': self.username,
+            'HTTP_X_PROJECT_ID': self.project_id,
+            'HTTP_X_PROJECT_NAME': self.project_name,
             'HTTP_X_ROLES': ','.join(self.role_list)}
 
     def test_auth_token_fixture_valid_token(self):

@@ -44,9 +44,10 @@ class AuthTokenFixture(fixtures.Fixture):
         return self._token_data.keys()
 
     @utils.positional(1)
-    def add_token_data(self, token_id=None, expires=None, user_id=None,
-                       user_name=None, user_domain_id=None,
-                       user_domain_name=None, project_id=None,
+    def add_token_data(self, token_id=None, expires=None,
+                       user_id=None, user_name=None,
+                       user_domain_id=None, user_domain_name=None,
+                       project_id=None, project_name=None,
                        project_domain_id=None, project_domain_name=None,
                        role_list=None, is_v2=False):
         """Add token data to the auth_token fixture."""
@@ -60,11 +61,12 @@ class AuthTokenFixture(fixtures.Fixture):
         if is_v2:
             token = client_fixtures.V2Token(
                 token_id=token_id, expires=expires, tenant_id=project_id,
-                user_id=user_id, user_name=user_name)
+                tenant_name=project_name, user_id=user_id, user_name=user_name)
         else:
             token = client_fixtures.V3Token(
                 expires=expires, user_id=user_id, user_name=user_name,
                 user_domain_id=user_domain_id, project_id=project_id,
+                project_name=project_name,
                 project_domain_id=project_domain_id,
                 user_domain_name=user_domain_name,
                 project_domain_name=project_domain_name)
