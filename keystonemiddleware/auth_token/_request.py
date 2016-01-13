@@ -29,7 +29,8 @@ def _v3_to_v2_catalog(catalog):
         v2_service = {'type': v3_service['type']}
         try:
             v2_service['name'] = v3_service['name']
-        except KeyError:
+        except KeyError:  # nosec
+            # v3 service doesn't have a name, so v2_service doesn't either.
             pass
 
         # now convert the endpoints. Because in v3 we specify region per
