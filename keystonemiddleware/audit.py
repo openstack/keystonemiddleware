@@ -107,22 +107,27 @@ class OpenStackAuditApi(object):
                 try:
                     default_target_endpoint_type = map_conf.get(
                         'DEFAULT', 'target_endpoint_type')
-                except configparser.NoOptionError:
+                except configparser.NoOptionError:  # nosec
+                    # Ignore the undefined config option,
+                    # default_target_endpoint_type remains None which is valid.
                     pass
 
                 try:
                     custom_actions = dict(map_conf.items('custom_actions'))
-                except configparser.Error:
+                except configparser.Error:  # nosec
+                    # custom_actions remains {} which is valid.
                     pass
 
                 try:
                     path_kw = dict(map_conf.items('path_keywords'))
-                except configparser.Error:
+                except configparser.Error:  # nosec
+                    # path_kw remains {} which is valid.
                     pass
 
                 try:
                     endpoints = dict(map_conf.items('service_endpoints'))
-                except configparser.Error:
+                except configparser.Error:  # nosec
+                    # endpoints remains {} which is valid.
                     pass
             except configparser.ParsingError as err:
                 raise PycadfAuditApiConfigError(

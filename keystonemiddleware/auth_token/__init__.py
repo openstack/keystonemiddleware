@@ -412,8 +412,8 @@ def _conf_values_type_convert(conf):
             if v is not None:
                 type_, dest = opt_types[k]
                 v = type_(v)
-        except KeyError:
-            # This option is not known to auth_token.
+        except KeyError:  # nosec
+            # This option is not known to auth_token. v is not converted.
             pass
         except ValueError as e:
             raise exc.ConfigurationError(
