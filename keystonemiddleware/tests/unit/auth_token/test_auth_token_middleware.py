@@ -2503,7 +2503,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         sess = app._identity_server._adapter.session
         expected_ua = ('{0}keystonemiddleware.auth_token/{1}'
                        .format(project, ksm_version))
-        self.assertEqual(expected_ua, sess.user_agent)
+        self.assertThat(sess.user_agent, matchers.StartsWith(expected_ua))
 
 
 class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
