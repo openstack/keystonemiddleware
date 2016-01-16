@@ -682,15 +682,6 @@ class CommonAuthTokenMiddlewareTest(object):
             self.call_middleware(headers={'X-Auth-Token': token},
                                  expected_status=503)
 
-    def test_unexpected_exception_in_validate_offline(self):
-        # When an unexpected exception is hit during _validate_offline,
-        # 500 is returned
-        token = self.token_dict['uuid_token_default']
-        with mock.patch.object(self.middleware, '_validate_offline',
-                               side_effect=Exception):
-            self.call_middleware(headers={'X-Auth-Token': token},
-                                 expected_status=500)
-
     def test_cached_revoked_uuid(self):
         # When the UUID token is cached and revoked, 401 is returned.
         self._test_cache_revoked(self.token_dict['uuid_token_default'])
