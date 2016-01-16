@@ -13,13 +13,13 @@
 import contextlib
 import hashlib
 
+from oslo_cache import _memcache_pool as memcache_pool
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
-from keystonemiddleware.auth_token import _memcache_pool as memcache_pool
 from keystonemiddleware.i18n import _
 
 

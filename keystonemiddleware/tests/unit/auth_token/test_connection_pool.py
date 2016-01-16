@@ -13,11 +13,11 @@
 import time
 
 import mock
+from oslo_cache import _memcache_pool
 from six.moves import queue
 import testtools
 from testtools import matchers
 
-from keystonemiddleware.auth_token import _memcache_pool
 from keystonemiddleware.tests.unit import utils
 
 
@@ -109,7 +109,7 @@ class TestConnectionPool(utils.TestCase):
         # Make sure we've consumed the only available connection from the pool
         conn = connection_pool.get_nowait()
 
-        self.assertRaises(_memcache_pool.ConnectionGetTimeoutException,
+        self.assertRaises(_memcache_pool.exception.QueueEmpty,
                           _acquire_connection)
 
         # Put the connection back and ensure we can acquire the connection

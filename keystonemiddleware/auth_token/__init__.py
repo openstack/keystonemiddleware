@@ -225,6 +225,8 @@ from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
+import oslo_cache
+from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import webob.dec
@@ -245,6 +247,7 @@ from keystonemiddleware.i18n import _
 
 _LOG = logging.getLogger(__name__)
 _CACHE_INVALID_INDICATOR = 'invalid'
+oslo_cache.configure(cfg.CONF)
 
 
 AUTH_TOKEN_OPTS = [
@@ -952,7 +955,15 @@ class AuthProtocol(BaseAuthProtocol):
             include_service_catalog=self._include_service_catalog,
             requested_auth_version=auth_version)
 
+    def _create_oslo_cache(self):
+        # having this as a function makes test mocking easier
+        conf = cfg.CONF
+        region = oslo_cache.create_region()
+        oslo_cache.configure_cache_region(conf, region)
+        return region
+
     def _token_cache_factory(self):
+
         security_strategy = self._conf.get('memcache_security_strategy')
 
         cache_kwargs = dict(
