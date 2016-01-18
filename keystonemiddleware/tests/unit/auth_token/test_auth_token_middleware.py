@@ -15,6 +15,7 @@
 import datetime
 import logging
 import os
+import pkg_resources
 import shutil
 import stat
 import tempfile
@@ -2473,6 +2474,19 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         app = self._create_app(conf, project_version)
         project_with_version = '{0}/{1} '.format(project, project_version)
         self._assert_user_agent(app, project_with_version, project_version)
+
+    def test_project_not_installed_results_in_unknown_version(self):
+        project = uuid.uuid4().hex
+
+        conf = {'username': self.username,
+                'auth_url': self.auth_url,
+                'project': project}
+
+        v = pkg_resources.get_distribution('keystonemiddleware').version
+
+        app = self.create_simple_middleware(conf=conf, use_global_conf=True)
+        project_with_version = '{0}/{1} '.format(project, 'unknown')
+        self._assert_user_agent(app, project_with_version, v)
 
     def test_project_in_oslo_configuration(self):
         project = uuid.uuid4().hex
