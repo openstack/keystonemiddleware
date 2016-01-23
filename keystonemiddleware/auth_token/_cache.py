@@ -19,7 +19,7 @@ import six
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.auth_token import _memcache_pool as memcache_pool
-from keystonemiddleware.i18n import _, _LE
+from keystonemiddleware.i18n import _, _LE, _LW
 from keystonemiddleware.openstack.common import memorycache
 
 
@@ -54,8 +54,18 @@ class _EnvCachePool(object):
 class _CachePool(list):
     """A lazy pool of cache references."""
 
-    def __init__(self, memcached_servers):
+    def __init__(self, memcached_servers, log):
         self._memcached_servers = memcached_servers
+        if not self._memcached_servers:
+            log.warning(_LW(
+                "Using the in-process token cache is deprecated as of the "
+                "4.2.0 release and may be removed in the 5.0.0 release or "
+                "the 'O' development cycle. The in-process cache causes "
+                "inconsistent results and high memory usage. When the feature "
+                "is removed the auth_token middleware will not cache tokens "
+                "by default which may result in performance issues. It is "
+                "recommended to use  memcache for the auth_token token cache "
+                "by setting the memcached_servers option."))
 
     @contextlib.contextmanager
     def reserve(self):
@@ -125,7 +135,7 @@ class TokenCache(object):
                                        **self._memcache_pool_options)
 
         else:
-            return _CachePool(self._memcached_servers)
+            return _CachePool(self._memcached_servers, self._LOG)
 
     def initialize(self, env):
         if self._initialized:
