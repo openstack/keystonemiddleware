@@ -10,7 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import abc
 import contextlib
 import hashlib
 
@@ -21,22 +20,7 @@ from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.auth_token import _memcache_pool as memcache_pool
 from keystonemiddleware.i18n import _, _LE
-
-memcache = None  # module will be loaded on demand to avoid dependency
-
-
-def _create_memcache_client(*args, **kwargs):
-    """Create a new memcache client object.
-
-    This handles the lazy loaded import but also provides a point to mock out
-    in testing.
-    """
-    global memcache
-
-    if not memcache:
-        import memcache
-
-    return memcache.Client(*args, **kwargs)
+from keystonemiddleware.openstack.common import memorycache
 
 
 def _hash_key(key):
@@ -79,63 +63,13 @@ class _CachePool(list):
         try:
             c = self.pop()
         except IndexError:
-            c = _create_memcache_client(self._memcached_servers, debug=0)
+            # the pool is empty, so we need to create a new client
+            c = memorycache.get_client(self._memcached_servers)
 
         try:
             yield c
         finally:
             self.append(c)
-
-
-@six.add_metaclass(abc.ABCMeta)
-class _CacheInterface(object):
-
-    def initialize(self, *args, **kwargs):
-        pass
-
-    @abc.abstractmethod
-    def store(self, key, value):
-        pass
-
-    @abc.abstractmethod
-    def store_invalid(self, key):
-        pass
-
-    @abc.abstractmethod
-    def get(self, key):
-        pass
-
-    def get_first(self, *args):
-        """Get the first cached value from many options.
-
-        :returns: token data if found else None.
-        """
-        for a in args:
-            value = self.get(a)
-
-            if value:
-                return value
-
-        return None
-
-
-class NoOpCache(_CacheInterface):
-
-    def store(self, key, value):
-        # Don't store anything
-        return None
-
-    def store_invalid(self, key):
-        # Don't store anything
-        return None
-
-    def get(self, key):
-        # Nothing to fetch from
-        return None
-
-    def get_first(self, *args):
-        # short circuit because calling get() multiple times wont help
-        return None
 
 
 class _MemcacheClientPool(object):
@@ -150,7 +84,7 @@ class _MemcacheClientPool(object):
             yield client
 
 
-class TokenCache(_CacheInterface):
+class TokenCache(object):
     """Encapsulates the auth_token token cache functionality.
 
     auth_token caches tokens that it's seen so that when a token is re-used the
@@ -190,13 +124,8 @@ class TokenCache(_CacheInterface):
             return _MemcacheClientPool(self._memcached_servers,
                                        **self._memcache_pool_options)
 
-        elif self._memcached_servers:
-            return _CachePool(self._memcached_servers)
-
         else:
-            raise RuntimeError('Trying to configure a memcache cache without '
-                               'passing any servers. This should have been '
-                               'caught.')
+            return _CachePool(self._memcached_servers)
 
     def initialize(self, env):
         if self._initialized:

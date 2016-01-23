@@ -802,6 +802,22 @@ class AuthProtocol(BaseAuthProtocol):
         else:
             return [token]
 
+    def _cache_get_hashes(self, token_hashes):
+        """Check if the token is cached already.
+
+        Functions takes a list of hashes that might be in the cache and matches
+        the first one that is present. If nothing is found in the cache it
+        returns None.
+
+        :returns: token data if found else None.
+        """
+
+        for token in token_hashes:
+            cached = self._token_cache.get(token)
+
+            if cached:
+                return cached
+
     def fetch_token(self, token):
         """Retrieve a token from either a PKI bundle or the identity server.
 
@@ -814,7 +830,7 @@ class AuthProtocol(BaseAuthProtocol):
 
         try:
             token_hashes = self._token_hashes(token)
-            cached = self._token_cache.get_first(*token_hashes)
+            cached = self._cache_get_hashes(token_hashes)
 
             if cached:
                 data = cached
@@ -1077,18 +1093,12 @@ class AuthProtocol(BaseAuthProtocol):
             requested_auth_version=auth_version)
 
     def _token_cache_factory(self):
-        memcached_servers = self._conf_get('memcached_servers')
-        env_cache_name = self._conf_get('cache')
-
-        if not (memcached_servers or env_cache_name):
-            return _cache.NoOpCache()
-
         security_strategy = self._conf_get('memcache_security_strategy')
 
         cache_kwargs = dict(
             cache_time=int(self._conf_get('token_cache_time')),
-            env_cache_name=env_cache_name,
-            memcached_servers=memcached_servers,
+            env_cache_name=self._conf_get('cache'),
+            memcached_servers=self._conf_get('memcached_servers'),
             use_advanced_pool=self._conf_get('memcache_use_advanced_pool'),
             dead_retry=self._conf_get('memcache_pool_dead_retry'),
             maxsize=self._conf_get('memcache_pool_maxsize'),
