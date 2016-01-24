@@ -13,7 +13,6 @@
 # under the License.
 
 import datetime
-import json
 import logging
 import os
 import shutil
@@ -824,62 +823,59 @@ class CommonAuthTokenMiddlewareTest(object):
             [self.token_dict['revoked_token_hash_sha256']])
         self.assertTrue(result)
 
-    def test_verify_signed_token_raises_exception_for_revoked_token(self):
+    def test_validate_offline_raises_exception_for_revoked_token(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
         self.assertRaises(ksm_exceptions.InvalidToken,
-                          self.middleware._verify_signed_token,
+                          self.middleware._validate_offline,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash']])
 
-    def test_verify_signed_token_raises_exception_for_revoked_token_s256(self):
+    def test_validate_offline_raises_exception_for_revoked_token_s256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
         self.assertRaises(ksm_exceptions.InvalidToken,
-                          self.middleware._verify_signed_token,
+                          self.middleware._validate_offline,
                           self.token_dict['revoked_token'],
                           [self.token_dict['revoked_token_hash_sha256'],
                            self.token_dict['revoked_token_hash']])
 
-    def test_verify_signed_token_raises_exception_for_revoked_pkiz_token(self):
+    def test_validate_offline_raises_exception_for_revoked_pkiz_token(self):
         self.middleware._revocations._list = (
             self.examples.REVOKED_TOKEN_PKIZ_LIST_JSON)
         self.assertRaises(ksm_exceptions.InvalidToken,
-                          self.middleware._verify_pkiz_token,
+                          self.middleware._validate_offline,
                           self.token_dict['revoked_token_pkiz'],
                           [self.token_dict['revoked_token_pkiz_hash']])
 
-    def assertIsValidJSON(self, text):
-        json.loads(text)
-
-    def test_verify_signed_token_succeeds_for_unrevoked_token(self):
+    def test_validate_offline_succeeds_for_unrevoked_token(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        text = self.middleware._verify_signed_token(
+        token = self.middleware._validate_offline(
             self.token_dict['signed_token_scoped'],
             [self.token_dict['signed_token_scoped_hash']])
-        self.assertIsValidJSON(text)
+        self.assertIsInstance(token, dict)
 
     def test_verify_signed_compressed_token_succeeds_for_unrevoked_token(self):
         self.middleware._revocations._list = (
             self.get_revocation_list_json())
-        text = self.middleware._verify_pkiz_token(
+        token = self.middleware._validate_offline(
             self.token_dict['signed_token_scoped_pkiz'],
             [self.token_dict['signed_token_scoped_hash']])
-        self.assertIsValidJSON(text)
+        self.assertIsInstance(token, dict)
 
-    def test_verify_signed_token_succeeds_for_unrevoked_token_sha256(self):
+    def test_validate_offline_token_succeeds_for_unrevoked_token_sha256(self):
         self.conf['hash_algorithms'] = ','.join(['sha256', 'md5'])
         self.set_middleware()
         self.middleware._revocations._list = (
             self.get_revocation_list_json(mode='sha256'))
-        text = self.middleware._verify_signed_token(
+        token = self.middleware._validate_offline(
             self.token_dict['signed_token_scoped'],
             [self.token_dict['signed_token_scoped_hash_sha256'],
              self.token_dict['signed_token_scoped_hash']])
-        self.assertIsValidJSON(text)
+        self.assertIsInstance(token, dict)
 
     def test_get_token_revocation_list_fetched_time_returns_min(self):
         self.middleware._revocations._fetched_time = None
@@ -1325,6 +1321,7 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
         super(V2CertDownloadMiddlewareTest, self).setUp(
             auth_version=self.auth_version,
             fake_app=self.fake_app)
+        self.logger = self.useFixture(fixtures.FakeLogger())
         self.base_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.base_dir)
         self.cert_dir = os.path.join(self.base_dir, 'certs')
@@ -1350,10 +1347,15 @@ class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                status_code=404)
         self.requests_mock.get('%s%s' % (BASE_URI, self.signing_path),
                                status_code=404)
-        self.assertRaises(ksc_exceptions.CertificateConfigError,
-                          self.middleware._verify_signed_token,
-                          self.examples.SIGNED_TOKEN_SCOPED,
-                          [self.examples.SIGNED_TOKEN_SCOPED_HASH])
+
+        token = self.middleware._validate_offline(
+            self.examples.SIGNED_TOKEN_SCOPED,
+            [self.examples.SIGNED_TOKEN_SCOPED_HASH])
+
+        self.assertIsNone(token)
+
+        self.assertIn('Fetch certificate config failed', self.logger.output)
+        self.assertIn('fallback to online validation', self.logger.output)
 
     def test_fetch_signing_cert(self):
         data = 'FAKE CERT'
