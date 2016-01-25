@@ -871,6 +871,32 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_revoked_hashed_pkiz_token(self):
         self._test_revoked_hashed_token('signed_token_scoped_pkiz')
 
+    def test_revoked_pki_token_by_audit_id(self):
+        # When the audit ID is in the revocation list, the token is invalid.
+        self.set_middleware()
+        token = self.token_dict['signed_token_scoped']
+
+        # Put the token audit ID in the revocation list,
+        # the entry will have a false token ID so the token ID doesn't match.
+        fake_token_id = uuid.uuid4().hex
+        # The audit_id value is in examples/pki/cms/auth_*_token_scoped.json.
+        audit_id = 'SLIXlXQUQZWUi9VJrqdXqA'
+        revocation_list_data = {
+            'revoked': [
+                {
+                    'id': fake_token_id,
+                    'audit_id': audit_id
+                },
+            ]
+        }
+        self.middleware._revocations._list = jsonutils.dumps(
+            revocation_list_data)
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = token
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(401, self.response_status)
+
     def get_revocation_list_json(self, token_ids=None, mode=None):
         if token_ids is None:
             key = 'revoked_token_hash' + (('_' + mode) if mode else '')
