@@ -749,7 +749,9 @@ class AuthProtocol(BaseAuthProtocol):
                 self.log.info(_LI('Deferring reject downstream'))
             else:
                 self.log.info(_LI('Rejecting request'))
-                self._reject_request()
+                raise webob.exc.HTTPUnauthorized(
+                    body='Authentication required',
+                    headers=self._reject_auth_headers)
 
         if request.user_token_valid:
             user_auth_ref = request.token_auth._user_auth_ref
@@ -781,17 +783,6 @@ class AuthProtocol(BaseAuthProtocol):
     def _reject_auth_headers(self):
         header_val = 'Keystone uri=\'%s\'' % self._auth_uri
         return [('WWW-Authenticate', header_val)]
-
-    def _reject_request(self):
-        """Redirect client to auth server.
-
-        :param env: wsgi request environment
-        :param start_response: wsgi response callback
-        :returns: HTTPUnauthorized http response
-
-        """
-        raise webob.exc.HTTPUnauthorized(body='Authentication required',
-                                         headers=self._reject_auth_headers)
 
     def _token_hashes(self, token):
         """Generate a list of hashes that the current token may be cached as.
