@@ -2468,8 +2468,33 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
 
 
 class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
-    def test_project_in_local_oslo_configuration(self):
-        options = {
+
+    def setUp(self):
+        super(TestAuthPluginLocalOsloConfig, self).setUp()
+        self.project = uuid.uuid4().hex
+
+        # NOTE(cdent): The options below are selected from those
+        # which are statically registered by auth_token middleware
+        # in the 'keystone_authtoken' group. Additional options, from
+        # plugins, are registered dynamically so must not be used here.
+        self.oslo_options = {
+            'auth_uri': uuid.uuid4().hex,
+            'identity_uri': uuid.uuid4().hex,
+        }
+
+        self.local_oslo_config = cfg.ConfigOpts()
+        self.local_oslo_config.register_group(cfg.OptGroup(
+            name='keystone_authtoken'))
+        self.local_oslo_config.register_opts(auth_token._OPTS,
+                                             group='keystone_authtoken')
+        self.local_oslo_config.register_opts(auth_token._auth.OPTS,
+                                             group='keystone_authtoken')
+        for option, value in self.oslo_options.items():
+            self.local_oslo_config.set_override(option, value,
+                                                'keystone_authtoken')
+        self.local_oslo_config(args=[], project=self.project)
+
+        self.file_options = {
             'auth_type': 'password',
             'auth_uri': uuid.uuid4().hex,
             'password': uuid.uuid4().hex,
@@ -2479,14 +2504,36 @@ class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
                    "auth_type=%(auth_type)s\n"
                    "auth_uri=%(auth_uri)s\n"
                    "auth_url=%(auth_uri)s\n"
-                   "password=%(password)s\n" % options)
-        conf_file_fixture = self.useFixture(
-            createfile.CreateFileWithContent("my_app", content))
-        conf = {'oslo_config_project': 'my_app',
-                'oslo_config_file': conf_file_fixture.path}
+                   "password=%(password)s\n" % self.file_options)
+        self.conf_file_fixture = self.useFixture(
+            createfile.CreateFileWithContent(self.project, content))
+
+    def test_project_in_local_oslo_configuration(self):
+        conf = {'oslo_config_project': self.project,
+                'oslo_config_file': self.conf_file_fixture.path}
         app = self._create_app(conf, uuid.uuid4().hex)
-        for option in options:
-            self.assertEqual(options[option], app._conf_get(option))
+        for option in self.file_options:
+            self.assertEqual(self.file_options[option],
+                             app._conf_get(option), option)
+
+    def test_passed_oslo_configuration(self):
+        conf = {'oslo_config_config': self.local_oslo_config}
+        app = self._create_app(conf, uuid.uuid4().hex)
+        for option in self.oslo_options:
+            self.assertEqual(self.oslo_options[option],
+                             app._conf_get(option))
+
+    def test_passed_olso_configuration_wins(self):
+        """oslo_config_config has precedence over oslo_config_project."""
+        conf = {'oslo_config_project': self.project,
+                'oslo_config_config': self.local_oslo_config,
+                'oslo_config_file': self.conf_file_fixture.path}
+        app = self._create_app(conf, uuid.uuid4().hex)
+        for option in self.oslo_options:
+            self.assertEqual(self.oslo_options[option],
+                             app._conf_get(option))
+        self.assertNotEqual(self.file_options['auth_uri'],
+                            app._conf_get('auth_uri'))
 
     def _create_app(self, conf, project_version):
         fake_pkg_resources = mock.Mock()
@@ -2495,7 +2542,10 @@ class TestAuthPluginLocalOsloConfig(BaseAuthTokenMiddlewareTest):
         body = uuid.uuid4().hex
         with mock.patch('keystonemiddleware.auth_token.pkg_resources',
                         new=fake_pkg_resources):
-            return self.create_simple_middleware(body=body, conf=conf)
+            # use_global_conf is poorly named. What it means is
+            # don't use the config created in test setUp.
+            return self.create_simple_middleware(body=body, conf=conf,
+                                                 use_global_conf=True)
 
 
 def load_tests(loader, tests, pattern):

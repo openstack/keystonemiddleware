@@ -31,6 +31,7 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
         self.logger = fixtures.FakeLogger(level=logging.DEBUG)
         self.cfg = self.useFixture(cfg_fixture.Config(conf=cfg.ConfigOpts()))
+        self.cfg.conf(args=[])
 
     def create_middleware(self, cb, conf=None, use_global_conf=False):
 
@@ -42,7 +43,6 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
             opts = conf or {}
         else:
             opts = {
-                'oslo_config_project': 'keystonemiddleware',
                 'oslo_config_config': self.cfg.conf,
             }
             opts.update(conf or {})
