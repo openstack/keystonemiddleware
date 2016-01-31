@@ -13,6 +13,7 @@ Contents:
 
    middlewarearchitecture
    audit
+   installation
 
 Related Identity Projects
 =========================
