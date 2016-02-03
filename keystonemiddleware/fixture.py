@@ -15,8 +15,8 @@ import uuid
 
 import fixtures
 from keystoneauth1 import fixture as client_fixtures
-from keystoneclient import utils
 from oslo_utils import timeutils
+from positional import positional
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _exceptions
@@ -43,7 +43,7 @@ class AuthTokenFixture(fixtures.Fixture):
     def tokens(self):
         return self._token_data.keys()
 
-    @utils.positional(1)
+    @positional(1)
     def add_token_data(self, token_id=None, expires=None,
                        user_id=None, user_name=None,
                        user_domain_id=None, user_domain_name=None,
