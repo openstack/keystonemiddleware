@@ -654,7 +654,7 @@ class AuthProtocol(BaseAuthProtocol):
                 default_config_files = None
             self._local_oslo_config = cfg.ConfigOpts()
             self._local_oslo_config(
-                {}, project=conf['oslo_config_project'],
+                [], project=conf['oslo_config_project'],
                 default_config_files=default_config_files,
                 validate_default_values=True)
 
