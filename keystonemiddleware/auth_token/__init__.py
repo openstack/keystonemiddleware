@@ -860,9 +860,6 @@ class AuthProtocol(BaseAuthProtocol):
                 self._token_cache.store_invalid(token_hashes[0])
             self.log.warning(_LW('Authorization failed for token'))
             raise
-        except Exception:
-            self.log.critical(_LC('Unable to validate token'), exc_info=True)
-            raise webob.exc.HTTPInternalServerError()
 
         return data
 
