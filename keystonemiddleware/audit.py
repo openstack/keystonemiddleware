@@ -56,6 +56,27 @@ from keystonemiddleware.i18n import _LE, _LI
 
 _LOG = None
 
+_AUDIT_OPTS = [
+    cfg.StrOpt('driver',
+               default=None,
+               help='The Driver to handle sending notifications. Possible '
+                    'values are messaging, messagingv2, routing, log, test, '
+                    'noop. If not specified, then value from '
+                    'oslo_messaging_notifications conf section is used.'),
+    cfg.ListOpt('topics',
+                default=None,
+                help='List of AMQP topics used for OpenStack notifications. If'
+                     ' not specified, then value from '
+                     ' oslo_messaging_notifications conf section is used.'),
+    cfg.StrOpt('transport_url',
+               default=None,
+               secret=True,
+               help='A URL representing messaging driver to use for '
+                    'notification. If not specified, we fall back to the same '
+                    'configuration used for RPC.'),
+]
+cfg.CONF.register_opts(_AUDIT_OPTS, group="audit_middleware_notifications")
+
 
 def _log_and_ignore_error(fn):
     @functools.wraps(fn)
@@ -345,10 +366,15 @@ class AuditMiddleware(object):
 
         transport_aliases = self._get_aliases(cfg.CONF.project)
         if messaging:
+            transport = oslo_messaging.get_transport(
+                cfg.CONF,
+                url=cfg.CONF.audit_middleware_notifications.transport_url,
+                aliases=transport_aliases)
             self._notifier = oslo_messaging.Notifier(
-                oslo_messaging.get_transport(cfg.CONF,
-                                             aliases=transport_aliases),
-                os.path.basename(sys.argv[0]))
+                transport,
+                os.path.basename(sys.argv[0]),
+                driver=cfg.CONF.audit_middleware_notifications.driver,
+                topics=cfg.CONF.audit_middleware_notifications.topics)
 
     def _emit_audit(self, context, event_type, payload):
         """Emit audit notification.

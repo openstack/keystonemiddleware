@@ -15,9 +15,9 @@
 
 .. _middleware:
 
-=================
- Audit middleware
-=================
+================
+Audit middleware
+================
 
 The Keystone middleware library provides an optional WSGI middleware filter
 which allows the ability to audit API requests for each component of OpenStack.
@@ -77,5 +77,24 @@ Additional options can be set::
    audit_map_file = /etc/nova/api_audit_map.conf
    service_name = test # opt to set HTTP_X_SERVICE_NAME environ variable
    ignore_req_list = GET,POST # opt to ignore specific requests
+
+Audit middleware can be configured to use its own exclusive notification driver
+and topic(s) value. This can be useful when the service is already using oslo
+messaging notifications and wants to use a different driver for auditing e.g.
+service has existing notifications sent to queue via 'messagingv2' and wants to
+send audit notifications to a log file via 'log' driver. Example shown below::
+
+   [audit_middleware_notifications]
+   driver = log
+
+When audit events are sent via 'messagingv2' or 'messaging', middleware can
+specify a transport URL if its transport URL needs to be different from the
+service's own messaging transport setting. Other Transport related settings are
+read from oslo messaging sections defined in service configuration e.g.
+'oslo_messaging_rabbit'. Example shown below::
+
+   [audit_middleware_notifications]
+   driver = messaging
+   transport_url = rabbit://user2:passwd@host:5672/another_virtual_host
 
 .. _pyCADF library: https://github.com/openstack/pycadf/tree/master/etc/pycadf

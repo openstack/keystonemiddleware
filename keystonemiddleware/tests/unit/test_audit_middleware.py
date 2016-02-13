@@ -258,6 +258,104 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
                                 notify.call_args_list[0][0][2]['id'])
 
 
+def _get_transport(conf, aliases=None, url=None):
+    transport = mock.MagicMock()
+    transport.conf = conf
+    conf.register_opts = mock.MagicMock()
+    return transport
+
+
+@mock.patch('oslo_messaging.get_transport', side_effect=_get_transport)
+class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
+
+    def test_conf_middleware_log_and_default_as_messaging(self, t):
+        cfg.CONF.notification_driver = ['messaging']  # MultiOptStr value
+        cfg.CONF.audit_middleware_notifications.driver = 'log'
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self.get_environ_header('GET'))
+        req.context = {}
+        with mock.patch('oslo_messaging.notify._impl_log.LogDriver.notify',
+                        side_effect=Exception('error')) as driver:
+            middleware._process_request(req)
+            # audit middleware conf has 'log' make sure that driver is invoked
+            # and not the one specified in DEFAULT section
+            self.assertTrue(driver.called)
+
+    def test_conf_middleware_log_and_oslo_msg_as_messaging(self, t):
+        cfg.CONF.notification_driver = None
+        cfg.CONF.oslo_messaging_notifications.driver = ['messaging']
+        cfg.CONF.audit_middleware_notifications.driver = 'log'
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self.get_environ_header('GET'))
+        req.context = {}
+        with mock.patch('oslo_messaging.notify._impl_log.LogDriver.notify',
+                        side_effect=Exception('error')) as driver:
+            middleware._process_request(req)
+            # audit middleware conf has 'log' make sure that driver is invoked
+            # and not the one specified in oslo_messaging_notifications section
+            self.assertTrue(driver.called)
+
+    def test_conf_middleware_messaging_and_oslo_msg_as_log(self, t):
+        cfg.CONF.notification_driver = None
+        cfg.CONF.oslo_messaging_notifications.driver = ['log']
+        cfg.CONF.audit_middleware_notifications.driver = 'messaging'
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self.get_environ_header('GET'))
+        req.context = {}
+        with mock.patch('oslo_messaging.notify.messaging.MessagingDriver'
+                        '.notify',
+                        side_effect=Exception('error')) as driver:
+            # audit middleware has 'messaging' make sure that driver is invoked
+            # and not the one specified in oslo_messaging_notifications section
+            middleware._process_request(req)
+            self.assertTrue(driver.called)
+
+    def test_with_no_middleware_notification_conf(self, t):
+        cfg.CONF.notification_driver = None
+        cfg.CONF.oslo_messaging_notifications.driver = ['messaging']
+        cfg.CONF.audit_middleware_notifications.driver = None
+        middleware = audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        req = webob.Request.blank('/foo/bar',
+                                  environ=self.get_environ_header('GET'))
+        req.context = {}
+        with mock.patch('oslo_messaging.notify.messaging.MessagingDriver'
+                        '.notify',
+                        side_effect=Exception('error')) as driver:
+            # audit middleware section is not set. So driver needs to be
+            # invoked from oslo_messaging_notifications section.
+            middleware._process_request(req)
+            self.assertTrue(driver.called)
+
+    def test_conf_middleware_messaging_and_transport_set(self, mock_transport):
+        transport_url = 'rabbit://me:passwd@host:5672/virtual_host'
+        cfg.CONF.audit_middleware_notifications.driver = 'messaging'
+        cfg.CONF.audit_middleware_notifications.transport_url = transport_url
+
+        audit.AuditMiddleware(
+            FakeApp(),
+            audit_map_file=self.audit_map,
+            service_name='pycadf')
+        self.assertTrue(mock_transport.called)
+        # make sure first call kwarg 'url' is same as provided transport_url
+        self.assertEqual(transport_url,
+                         mock_transport.call_args_list[0][1]['url'])
+
+
 @mock.patch('oslo_messaging.rpc', mock.MagicMock())
 class AuditApiLogicTest(BaseAuditMiddlewareTest):
 
