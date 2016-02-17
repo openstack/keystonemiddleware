@@ -1000,8 +1000,8 @@ class CommonAuthTokenMiddlewareTest(object):
         token = 'invalid-token'
         self.call_middleware(headers={'X-Auth-Token': token},
                              expected_status=401)
-        self.assertRaises(ksm_exceptions.InvalidToken,
-                          self._get_cached_token, token)
+        self.assertEqual(auth_token._CACHE_INVALID_INDICATOR,
+                         self._get_cached_token(token))
 
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
         token_cache_time = 10
@@ -1825,8 +1825,9 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         now = datetime.datetime.utcnow()
         delta = datetime.timedelta(hours=1)
         expires = strtime(at=(now + delta))
-        self.middleware._token_cache.store(token, (data, expires))
-        self.assertEqual(self.middleware._token_cache.get(token), data)
+        self.middleware._token_cache.set(token, (data, expires))
+        new_data = self.middleware.fetch_token(token)
+        self.assertEqual(data, new_data)
 
 
 class DelayedAuthTests(BaseAuthTokenMiddlewareTest):

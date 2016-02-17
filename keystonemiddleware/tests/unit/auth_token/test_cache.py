@@ -118,7 +118,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
         token_cache.initialize({})
 
-        token_cache._cache_store(token, data)
+        token_cache.set(token, data)
         self.assertEqual(token_cache.get(token), data)
 
     def test_sign_cache_data(self):
@@ -134,7 +134,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
         token_cache.initialize({})
 
-        token_cache._cache_store(token, data)
+        token_cache.set(token, data)
         self.assertEqual(token_cache.get(token), data)
 
     def test_no_memcache_protection(self):
@@ -148,5 +148,5 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
         token_cache.initialize({})
-        token_cache._cache_store(token, data)
+        token_cache.set(token, data)
         self.assertEqual(token_cache.get(token), data)
