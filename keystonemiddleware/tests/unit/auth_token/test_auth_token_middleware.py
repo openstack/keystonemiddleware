@@ -21,6 +21,7 @@ import stat
 import tempfile
 import time
 import uuid
+import warnings
 
 import fixtures
 from keystoneclient import auth
@@ -312,6 +313,11 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         self.auth_version = auth_version
         self.response_status = None
         self.response_headers = None
+
+        # NOTE(gyee): For this test suite and for the stable liberty branch
+        # only, we will ignore deprecated calls that keystonemiddleware makes.
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                module='^keystonemiddleware\\.')
 
     def call_middleware(self, **kwargs):
         return self.call(self.middleware, **kwargs)

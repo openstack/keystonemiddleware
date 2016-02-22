@@ -11,6 +11,7 @@
 # under the License.
 
 import uuid
+import warnings
 
 from keystoneclient import auth
 from keystoneclient import fixture
@@ -29,6 +30,11 @@ class BaseUserPluginTests(object):
                              auth_plugin,
                              group='keystone_authtoken',
                              **kwargs):
+        # NOTE(gyee): For this test suite and for the stable liberty branch
+        # only, we will ignore deprecated calls that keystonemiddleware makes.
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                module='^keystonemiddleware\\.')
+
         opts = auth.get_plugin_class(auth_plugin).get_options()
         self.cfg.register_opts(opts, group=group)
 
