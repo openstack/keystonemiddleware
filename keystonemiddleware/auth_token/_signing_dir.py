@@ -28,14 +28,12 @@ class SigningDirectory(object):
     def __init__(self, directory_name=None, log=None):
         self._log = log or _LOG
 
-        if directory_name is None:
-            directory_name = tempfile.mkdtemp(prefix='keystone-signing-')
-        self._log.info(
-            _LI('Using %s as cache directory for signing certificate'),
-            directory_name)
         self._directory_name = directory_name
-
-        self._verify_signing_dir()
+        if self._directory_name:
+            self._log.info(
+                _LI('Using %s as cache directory for signing certificate'),
+                self._directory_name)
+            self._verify_signing_dir()
 
     def write_file(self, file_name, new_contents):
 
@@ -63,7 +61,16 @@ class SigningDirectory(object):
             return f.read()
 
     def calc_path(self, file_name):
+        self._lazy_create_signing_dir()
         return os.path.join(self._directory_name, file_name)
+
+    def _lazy_create_signing_dir(self):
+        if self._directory_name is None:
+            self._directory_name = tempfile.mkdtemp(prefix='keystone-signing-')
+            self._log.info(
+                _LI('Using %s as cache directory for signing certificate'),
+                self._directory_name)
+            self._verify_signing_dir()
 
     def _verify_signing_dir(self):
         if os.path.isdir(self._directory_name):

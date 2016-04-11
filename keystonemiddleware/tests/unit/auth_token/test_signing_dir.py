@@ -53,11 +53,12 @@ class SigningDirectoryTests(utils.BaseTestCase):
         # write_file when the file doesn't exist creates the file.
 
         signing_directory = _signing_dir.SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         file_name = self.getUniqueString()
         contents = self.getUniqueString()
         signing_directory.write_file(file_name, contents)
+
+        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         file_path = signing_directory.calc_path(file_name)
         with open(file_path) as f:
@@ -69,11 +70,12 @@ class SigningDirectoryTests(utils.BaseTestCase):
         # write_file when the file already exists overwrites it.
 
         signing_directory = _signing_dir.SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         file_name = self.getUniqueString()
         orig_contents = self.getUniqueString()
         signing_directory.write_file(file_name, orig_contents)
+
+        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         new_contents = self.getUniqueString()
         signing_directory.write_file(file_name, new_contents)
@@ -89,27 +91,31 @@ class SigningDirectoryTests(utils.BaseTestCase):
         # is written.
 
         signing_directory = _signing_dir.SigningDirectory()
+        original_file_name = self.getUniqueString()
+        original_contents = self.getUniqueString()
+        signing_directory.write_file(original_file_name, original_contents)
+
         self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         # Delete the directory.
         shutil.rmtree(signing_directory._directory_name)
 
-        file_name = self.getUniqueString()
-        contents = self.getUniqueString()
-        signing_directory.write_file(file_name, contents)
+        new_file_name = self.getUniqueString()
+        new_contents = self.getUniqueString()
+        signing_directory.write_file(new_file_name, new_contents)
 
-        actual_contents = signing_directory.read_file(file_name)
-        self.assertEqual(contents, actual_contents)
+        actual_contents = signing_directory.read_file(new_file_name)
+        self.assertEqual(new_contents, actual_contents)
 
     def test_read_file(self):
         # Can read a file that was written.
 
         signing_directory = _signing_dir.SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
-
         file_name = self.getUniqueString()
         contents = self.getUniqueString()
         signing_directory.write_file(file_name, contents)
+
+        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         actual_contents = signing_directory.read_file(file_name)
 
@@ -119,19 +125,21 @@ class SigningDirectoryTests(utils.BaseTestCase):
         # Show what happens when try to read a file that wasn't written.
 
         signing_directory = _signing_dir.SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         file_name = self.getUniqueString()
         self.assertRaises(IOError, signing_directory.read_file, file_name)
+        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
     def test_calc_path(self):
         # calc_path returns the actual filename built from the directory name.
 
         signing_directory = _signing_dir.SigningDirectory()
-        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
 
         file_name = self.getUniqueString()
         actual_path = signing_directory.calc_path(file_name)
+
+        self.addCleanup(shutil.rmtree, signing_directory._directory_name)
+
         expected_path = os.path.join(signing_directory._directory_name,
                                      file_name)
         self.assertEqual(expected_path, actual_path)
