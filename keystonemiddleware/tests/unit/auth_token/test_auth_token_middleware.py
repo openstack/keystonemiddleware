@@ -2049,6 +2049,35 @@ class CommonCompositeAuthTests(object):
                                     expected_status=403)
         self.assertEqual(FakeApp.FORBIDDEN, resp.body)
 
+    def assert_kerberos_composite_bind(self, user_token, service_token,
+                                       bind_level):
+        conf = {
+            'enforce_token_bind': bind_level,
+            'auth_version': self.auth_version,
+        }
+        self.set_middleware(conf=conf)
+
+        req = webob.Request.blank('/')
+        req.headers['X-Auth-Token'] = user_token
+        req.headers['X-Service-Token'] = service_token
+
+        req.environ['REMOTE_USER'] = self.examples.SERVICE_KERBEROS_BIND
+        req.environ['AUTH_TYPE'] = 'Negotiate'
+
+        resp = req.get_response(self.middleware)
+
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+        self.assertIn('keystone.token_info', req.environ)
+
+    def test_composite_auth_with_bind(self):
+        token = self.token_dict['uuid_token_bind']
+        service_token = self.token_dict['uuid_service_token_bind']
+
+        self.assert_kerberos_composite_bind(token,
+                                            service_token,
+                                            bind_level='required')
+
 
 class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
                            CommonCompositeAuthTests,
@@ -2069,9 +2098,13 @@ class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         uuid_token_default = self.examples.UUID_TOKEN_DEFAULT
         uuid_service_token_default = self.examples.UUID_SERVICE_TOKEN_DEFAULT
+        uuid_token_bind = self.examples.UUID_TOKEN_BIND
+        uuid_service_token_bind = self.examples.UUID_SERVICE_TOKEN_BIND
         self.token_dict = {
             'uuid_token_default': uuid_token_default,
             'uuid_service_token_default': uuid_service_token_default,
+            'uuid_token_bind': uuid_token_bind,
+            'uuid_service_token_bind': uuid_service_token_bind,
         }
 
         self.requests_mock.get(BASE_URI,
@@ -2086,7 +2119,9 @@ class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
                                status_code=200)
 
         for token in (self.examples.UUID_TOKEN_DEFAULT,
-                      self.examples.UUID_SERVICE_TOKEN_DEFAULT,):
+                      self.examples.UUID_SERVICE_TOKEN_DEFAULT,
+                      self.examples.UUID_TOKEN_BIND,
+                      self.examples.UUID_SERVICE_TOKEN_BIND):
             text = self.examples.JSON_TOKEN_RESPONSES[token]
             self.requests_mock.get('%s/v2.0/tokens/%s' % (BASE_URI, token),
                                    text=text)
@@ -2120,9 +2155,13 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         uuid_token_default = self.examples.v3_UUID_TOKEN_DEFAULT
         uuid_serv_token_default = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
+        uuid_token_bind = self.examples.v3_UUID_TOKEN_BIND
+        uuid_service_token_bind = self.examples.v3_UUID_SERVICE_TOKEN_BIND
         self.token_dict = {
             'uuid_token_default': uuid_token_default,
             'uuid_service_token_default': uuid_serv_token_default,
+            'uuid_token_bind': uuid_token_bind,
+            'uuid_service_token_bind': uuid_service_token_bind,
         }
 
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
