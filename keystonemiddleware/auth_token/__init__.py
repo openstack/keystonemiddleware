@@ -491,7 +491,8 @@ class BaseAuthProtocol(object):
             try:
                 data, user_auth_ref = self._do_fetch_token(request.user_token)
                 self._validate_token(user_auth_ref)
-                self._confirm_token_bind(user_auth_ref, request)
+                if not request.service_token:
+                    self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
                 self.log.info(_LI('Invalid user token'))
                 request.user_token_valid = False
