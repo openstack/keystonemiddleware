@@ -1925,7 +1925,8 @@ class CommonCompositeAuthTests(object):
         resp = self.call_middleware(headers={'X-Auth-Token': token,
                                              'X-Service-Token': service_token},
                                     expected_status=401)
-        self.assertEqual(b'Authentication required', resp.body)
+        expected_body = b'The request you have made requires authentication.'
+        self.assertThat(resp.body, matchers.Contains(expected_body))
 
     def test_composite_auth_no_service_token(self):
         self.purge_service_token_expected_env()
@@ -1952,13 +1953,15 @@ class CommonCompositeAuthTests(object):
         resp = self.call_middleware(headers={'X-Auth-Token': token,
                                              'X-Service-Token': service_token},
                                     expected_status=401)
-        self.assertEqual(b'Authentication required', resp.body)
+        expected_body = b'The request you have made requires authentication.'
+        self.assertThat(resp.body, matchers.Contains(expected_body))
 
     def test_composite_auth_no_user_token(self):
         service_token = self.token_dict['uuid_service_token_default']
         resp = self.call_middleware(headers={'X-Service-Token': service_token},
                                     expected_status=401)
-        self.assertEqual(b'Authentication required', resp.body)
+        expected_body = b'The request you have made requires authentication.'
+        self.assertThat(resp.body, matchers.Contains(expected_body))
 
     def test_composite_auth_delay_ok(self):
         self.middleware._delay_auth_decision = True

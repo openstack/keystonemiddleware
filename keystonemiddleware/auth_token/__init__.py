@@ -751,9 +751,16 @@ class AuthProtocol(BaseAuthProtocol):
                 self.log.info(_LI('Deferring reject downstream'))
             else:
                 self.log.info(_LI('Rejecting request'))
+                message = 'The request you have made requires authentication.'
+                body = {'error': {
+                    'code': 401,
+                    'title': 'Unauthorized',
+                    'message': message,
+                }}
                 raise webob.exc.HTTPUnauthorized(
-                    body='Authentication required',
-                    headers=self._reject_auth_headers)
+                    body=jsonutils.dumps(body),
+                    headers=self._reject_auth_headers,
+                    content_type='application/json')
 
         if request.user_token_valid:
             user_auth_ref = request.token_auth._user_auth_ref
