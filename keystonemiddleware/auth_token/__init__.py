@@ -250,8 +250,22 @@ _OPTS = [
                default=None,
                # FIXME(dolph): should be default='http://127.0.0.1:5000/v2.0/',
                # or (depending on client support) an unversioned, publicly
-               # accessible identity endpoint (see bug 1207517)
-               help='Complete public Identity API endpoint.'),
+               # accessible identity endpoint (see bug 1207517). Further, we
+               # can eliminate this configuration option in favor of pulling
+               # the endpoint from the service catalog that the service user
+               # receives (there should be an identity endpoint listed there).
+               # This wasn't an option originally when many auth_token
+               # deployments were configured with the "ADMIN" token and
+               # endpoint combination.
+               help='Complete "public" Identity API endpoint. This endpoint'
+               ' should not be an "admin" endpoint, as it should be accessible'
+               ' by all end users. Unauthenticated clients are redirected to'
+               ' this endpoint to authenticate. Although this endpoint should '
+               ' ideally be unversioned, client support in the wild varies. '
+               ' If you\'re using a versioned v2 endpoint here, then this '
+               ' should *not* be the same endpoint the service user utilizes '
+               ' for validating tokens, because normal end users may not be '
+               ' able to reach that endpoint.'),
     cfg.StrOpt('auth_version',
                default=None,
                help='API version of the admin Identity API endpoint.'),
