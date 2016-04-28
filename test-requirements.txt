@@ -22,5 +22,5 @@ testtools>=1.4.0 # MIT
 python-memcached>=1.56 # PSF
 
 # Bandit security code scanner
-bandit>=0.17.3 # Apache-2.0
+bandit>=1.0.1 # Apache-2.0
 
