@@ -915,7 +915,7 @@ class AuthProtocol(BaseAuthProtocol):
             raise ksm_exceptions.InvalidToken(msg)
 
     def _cms_verify(self, data, inform=cms.PKI_ASN1_FORM):
-        """Verifies the signature of the provided data's IAW CMS syntax.
+        """Verify the signature of the provided data's IAW CMS syntax.
 
         If either of the certificate files might be missing, fetch them and
         retry.
@@ -1100,7 +1100,7 @@ class AuthProtocol(BaseAuthProtocol):
 
 
 def filter_factory(global_conf, **local_conf):
-    """Returns a WSGI filter app for use with paste.deploy."""
+    """Return a WSGI filter app for use with paste.deploy."""
     conf = global_conf.copy()
     conf.update(local_conf)
 

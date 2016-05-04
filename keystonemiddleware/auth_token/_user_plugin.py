@@ -95,7 +95,7 @@ class _TokenData(object):
 
     @property
     def trust_id(self):
-        """Returns the trust id associated with the authentication request..
+        """Return the trust id associated with the authentication request..
 
         :rtype: str
         """
