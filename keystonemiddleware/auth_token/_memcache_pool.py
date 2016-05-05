@@ -37,7 +37,7 @@ class ConnectionGetTimeoutException(Exception):
 
 
 class ConnectionPool(queue.Queue):
-    """Base connection pool class
+    """Base connection pool class.
 
     This class implements the basic connection pool logic as an abstract base
     class.

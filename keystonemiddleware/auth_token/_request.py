@@ -188,7 +188,7 @@ class _AuthTokenRequest(webob.Request):
         self._set_auth_headers(auth_ref, self._SERVICE_HEADER_PREFIX)
 
     def _all_auth_headers(self):
-        """All the authentication headers that can be set on the request"""
+        """All the authentication headers that can be set on the request."""
         yield self._SERVICE_CATALOG_HEADER
         yield self._USER_STATUS_HEADER
         yield self._SERVICE_STATUS_HEADER
@@ -227,7 +227,7 @@ class _AuthTokenRequest(webob.Request):
 
     @property
     def token_auth(self):
-        """The auth plugin that will be associated with this request"""
+        """The auth plugin that will be associated with this request."""
         return self.environ.get(self._TOKEN_AUTH)
 
     @token_auth.setter
@@ -236,7 +236,7 @@ class _AuthTokenRequest(webob.Request):
 
     @property
     def token_info(self):
-        """The raw token dictionary retrieved by the middleware"""
+        """The raw token dictionary retrieved by the middleware."""
         return self.environ.get(self._TOKEN_INFO)
 
     @token_info.setter

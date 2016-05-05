@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Token-based Authentication Middleware
+Token-based Authentication Middleware.
 
 This WSGI component:
 
@@ -529,7 +529,7 @@ class BaseAuthProtocol(object):
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
     def _do_fetch_token(self, token):
-        """Helper method to fetch a token and convert it into an AccessInfo"""
+        """Helper method to fetch a token and convert it into an AccessInfo."""
         data = self.fetch_token(token)
 
         try:

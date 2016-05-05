@@ -1511,7 +1511,7 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.set_middleware()
 
     def assert_unscoped_default_tenant_auto_scopes(self, token):
-        """Unscoped v2 requests with a default tenant should "auto-scope."
+        """Unscoped v2 requests with a default tenant should ``auto-scope``.
 
         The implied scope is the user's tenant ID.
 

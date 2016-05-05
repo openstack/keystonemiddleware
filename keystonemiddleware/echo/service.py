@@ -12,7 +12,9 @@
 # limitations under the License.
 
 """
-Run the echo service directly on port 8000 by executing the following::
+Run the echo service.
+
+The echo service can be run on port 8000 by executing the following::
 
  $ python -m keystonemiddleware.echo
 

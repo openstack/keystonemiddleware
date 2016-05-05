@@ -12,7 +12,7 @@
 # under the License.
 
 """
-Build open standard audit information based on incoming requests
+Build open standard audit information based on incoming requests.
 
 AuditMiddleware filter should be placed after keystonemiddleware.auth_token
 in the pipeline so that it can utilise the information the Identity server
@@ -223,7 +223,7 @@ class OpenStackAuditApi(object):
         return service
 
     def _build_typeURI(self, req, service_type):
-        """Build typeURI of target
+        """Build typeURI of target.
 
         Combines service type and corresponding path for greater detail.
         """
@@ -254,7 +254,7 @@ class OpenStackAuditApi(object):
         return target
 
     def get_target_resource(self, req):
-        """Retrieve target information
+        """Retrieve target information.
 
         If discovery is enabled, target will attempt to retrieve information
         from service catalog. If not, the information will be taken from
@@ -351,7 +351,7 @@ class AuditMiddleware(object):
                 os.path.basename(sys.argv[0]))
 
     def _emit_audit(self, context, event_type, payload):
-        """Emit audit notification
+        """Emit audit notification.
 
         if oslo.messaging enabled, send notification. if not, log event.
         """

@@ -20,7 +20,7 @@
 # See them for their copyright.
 
 """
-S3 Token Middleware
+S3 Token Middleware.
 
 This WSGI component:
 
