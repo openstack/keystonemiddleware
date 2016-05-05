@@ -222,8 +222,12 @@ a WSGI component. Example for the auth_token middleware:
     # (integer value)
     #token_cache_time=300
 
-    # Value only used for unit testing (integer value)
-    #revocation_cache_time=1
+    # Determines the frequency at which the list of revoked tokens
+    # is retrieved from the Identity service (in seconds). A high
+    # number of revocation events combined with a low cache duration
+    # may significantly reduce performance. Only valid for PKI tokens.
+    # (integer value)
+    #revocation_cache_time = 10
 
     # (optional) if defined, indicate whether token data should be
     # authenticated or authenticated and encrypted. Acceptable
@@ -256,9 +260,30 @@ a WSGI component. Example for the auth_token middleware:
     # value)
     #enforce_token_bind=permissive
 
-    # The plugin used for authentication, such as password, token (string
-    # value)
-    #auth_plugin=password
+    # If true, the revocation list will be checked for cached
+    # tokens. This requires that PKI tokens are configured on the
+    # identity server. 
+    # (boolean value)
+    #check_revocations_for_cached = false
+
+    # Hash algorithms to use for hashing PKI tokens. This may be a
+    # single algorithm or multiple. The algorithms are those supported
+    # by Python standard hashlib.new(). The hashes will be tried in the
+    # order given, so put the preferred one first for performance. The
+    # result of the first hash will be  stored in the cache. This will
+    # typically be set to multiple values only while migrating from a
+    # less secure algorithm to a more secure  one. Once all the old
+    # tokens are expired this option should be set to a single value
+    # for better performance. (list value)
+    #hash_algorithms = md5
+
+    # Authentication type to load (unknown value)
+    # Deprecated group/name - [DEFAULT]/auth_plugin
+    #auth_type = <None>
+
+    # Config Section from which to load plugin specific options
+    # (unknown value)
+    #auth_section = <None>
 
 If the ``auth_plugin`` configuration option is set, you may need to refer to
 the `Authentication Plugins <http://docs.openstack.org/developer/

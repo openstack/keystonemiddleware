@@ -299,7 +299,8 @@ _OPTS = [
                help='Determines the frequency at which the list of revoked'
                ' tokens is retrieved from the Identity service (in seconds). A'
                ' high number of revocation events combined with a low cache'
-               ' duration may significantly reduce performance.'),
+               ' duration may significantly reduce performance. Only valid'
+               ' for PKI tokens.'),
     cfg.StrOpt('memcache_security_strategy',
                default='None',
                choices=('None', 'MAC', 'ENCRYPT'),
