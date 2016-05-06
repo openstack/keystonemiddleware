@@ -56,6 +56,7 @@ class InvalidMacError(Exception):
     This usually indicates that data had been expectedly modified in memcache.
 
     """
+
     pass
 
 
@@ -63,6 +64,7 @@ class DecryptError(Exception):
     """raise when unable to decrypt encrypted data.
 
     """
+
     pass
 
 
@@ -70,6 +72,7 @@ class CryptoUnavailableError(Exception):
     """raise when Python Crypto module is not available.
 
     """
+
     pass
 
 

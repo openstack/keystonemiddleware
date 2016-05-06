@@ -264,6 +264,7 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
     this to specify, for instance, v3 format.
 
     """
+
     def setUp(self, expected_env=None, auth_version=None, fake_app=None):
         super(BaseAuthTokenMiddlewareTest, self).setUp()
 

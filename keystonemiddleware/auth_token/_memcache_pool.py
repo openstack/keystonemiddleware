@@ -42,6 +42,7 @@ class ConnectionPool(queue.Queue):
     This class implements the basic connection pool logic as an abstract base
     class.
     """
+
     def __init__(self, maxsize, unused_timeout, conn_get_timeout=None):
         """Initialize the connection pool.
 

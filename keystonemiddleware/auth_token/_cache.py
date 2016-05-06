@@ -84,6 +84,7 @@ class _CachePool(list):
 
 class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
+
     def __init__(self, memcache_servers, **kwargs):
         self._pool = memcache_pool.MemcacheClientPool(memcache_servers,
                                                       **kwargs)

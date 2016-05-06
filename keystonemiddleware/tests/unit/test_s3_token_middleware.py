@@ -30,6 +30,7 @@ GOOD_RESPONSE = {'access': {'token': {'id': 'TOKEN_ID',
 
 class FakeApp(object):
     """This represents a WSGI app protected by the auth_token middleware."""
+
     def __call__(self, env, start_response):
         resp = webob.Response()
         resp.environ = env

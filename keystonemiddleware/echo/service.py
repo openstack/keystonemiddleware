@@ -41,6 +41,7 @@ def echo_app(environ, start_response):
 
 class EchoService(object):
     """Runs an instance of the echo app on init."""
+
     def __init__(self):
         # hardcode any non-default configuration here
         conf = {'auth_protocol': 'http', 'admin_token': 'ADMIN'}
