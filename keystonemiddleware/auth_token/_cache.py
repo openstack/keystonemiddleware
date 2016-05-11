@@ -104,15 +104,13 @@ class TokenCache(object):
 
     initialize() must be called before calling the other methods.
 
-    Store a valid token in the cache using store(); mark a token as invalid in
-    the cache using store_invalid().
+    Store data in the cache store.
 
     Check if a token is in the cache and retrieve it using get().
 
     """
 
     _CACHE_KEY_TEMPLATE = 'tokens/%s'
-    _INVALID_INDICATOR = 'invalid'
 
     def __init__(self, log, cache_time=None,
                  env_cache_name=None, memcached_servers=None,
@@ -144,16 +142,6 @@ class TokenCache(object):
 
         self._cache_pool = self._get_cache_pool(env.get(self._env_cache_name))
         self._initialized = True
-
-    def store(self, token_id, data):
-        """Put token data into the cache."""
-        self._LOG.debug('Storing token in cache')
-        self._cache_store(token_id, data)
-
-    def store_invalid(self, token_id):
-        """Store invalid token in cache."""
-        self._LOG.debug('Marking token as unauthorized in cache')
-        self._cache_store(token_id, self._INVALID_INDICATOR)
 
     def _get_cache_key(self, token_id):
         """Get a unique key for this token id.
@@ -230,32 +218,13 @@ class TokenCache(object):
             serialized = serialized.encode('utf8')
         data = self._deserialize(serialized, context)
 
-        # Note that _INVALID_INDICATOR and (data, expires) are the only
-        # valid types of serialized cache entries, so there is not
-        # a collision with jsonutils.loads(serialized) == None.
         if not isinstance(data, six.string_types):
             data = data.decode('utf-8')
-        cached = jsonutils.loads(data)
-        if cached == self._INVALID_INDICATOR:
-            self._LOG.debug('Cached Token is marked unauthorized')
-            raise exc.InvalidToken(_('Token authorization failed'))
 
-        # NOTE(jamielennox): Cached values used to be stored as a tuple of data
-        # and expiry time. They no longer are but we have to allow some time to
-        # transition the old format so if it's a tuple just return the data.
-        try:
-            data, expires = cached
-        except ValueError:
-            data = cached
+        return jsonutils.loads(data)
 
-        return data
-
-    def _cache_store(self, token_id, data):
-        """Store value into memcache.
-
-        data may be _INVALID_INDICATOR or a tuple like (data, expires)
-
-        """
+    def set(self, token_id, data):
+        """Store value into memcache."""
         data = jsonutils.dumps(data)
         if isinstance(data, six.text_type):
             data = data.encode('utf-8')

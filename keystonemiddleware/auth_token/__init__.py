@@ -377,6 +377,7 @@ CONF = cfg.CONF
 CONF.register_opts(_OPTS, group=_base.AUTHTOKEN_GROUP)
 
 _LOG = logging.getLogger(__name__)
+_CACHE_INVALID_INDICATOR = 'invalid'
 
 
 class _BIND_MODE(object):
@@ -844,18 +845,29 @@ class AuthProtocol(BaseAuthProtocol):
             cached = self._cache_get_hashes(token_hashes)
 
             if cached:
-                data = cached
+                if cached == _CACHE_INVALID_INDICATOR:
+                    self._LOG.debug('Cached token is marked unauthorized')
+                    raise ksm_exceptions.InvalidToken()
 
                 if self._check_revocations_for_cached:
                     # A token might have been revoked, regardless of initial
                     # mechanism used to validate it, and needs to be checked.
                     self._revocations.check(token_hashes)
+
+                # NOTE(jamielennox): Cached values used to be stored as a tuple
+                # of data and expiry time. They no longer are but we have to
+                # allow some time to transition the old format so if it's a
+                # tuple just use the data.
+                if len(cached) == 2:
+                    cached = cached[0]
+
+                data = cached
             else:
                 data = self._validate_offline(token, token_hashes)
                 if not data:
                     data = self._identity_server.verify_token(token)
 
-                self._token_cache.store(token_hashes[0], data)
+                self._token_cache.set(token_hashes[0], data)
 
         except (ksa_exceptions.ConnectFailure,
                 ksa_exceptions.RequestTimeout,
@@ -866,7 +878,8 @@ class AuthProtocol(BaseAuthProtocol):
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
-                self._token_cache.store_invalid(token_hashes[0])
+                self._token_cache.set(token_hashes[0],
+                                      _CACHE_INVALID_INDICATOR)
             self.log.warning(_LW('Authorization failed for token'))
             raise
 
