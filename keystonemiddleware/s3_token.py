@@ -40,7 +40,7 @@ import requests
 import six
 from six.moves import urllib
 
-from keystonemiddleware.i18n import _, _LI
+from keystonemiddleware.i18n import _, _LI, _LW
 
 
 PROTOCOL_NAME = 'S3 Token Authentication'
@@ -109,12 +109,19 @@ class S3Token(object):
         self._reseller_prefix = conf.get('reseller_prefix', 'AUTH_')
         # where to find the auth service (we use this to validate tokens)
 
-        auth_host = conf.get('auth_host')
-        auth_port = int(conf.get('auth_port', 35357))
-        auth_protocol = conf.get('auth_protocol', 'https')
+        self._request_uri = conf.get('auth_uri')
+        if not self._request_uri:
+            self._logger.warning(_LW(
+                "Use of the auth_host, auth_port, and auth_protocol "
+                "configuration options was deprecated in the Newton release "
+                "in favor of auth_uri. These options may be removed in a "
+                "future release."))
+            auth_host = conf.get('auth_host')
+            auth_port = int(conf.get('auth_port', 35357))
+            auth_protocol = conf.get('auth_protocol', 'https')
 
-        self._request_uri = '%s://%s:%s' % (auth_protocol, auth_host,
-                                            auth_port)
+            self._request_uri = '%s://%s:%s' % (auth_protocol, auth_host,
+                                                auth_port)
 
         # SSL
         insecure = strutils.bool_from_string(conf.get('insecure', False))

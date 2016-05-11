@@ -39,20 +39,14 @@ class FakeApp(object):
 
 class S3TokenMiddlewareTestBase(utils.TestCase):
 
-    TEST_PROTOCOL = 'https'
-    TEST_HOST = 'fakehost'
-    TEST_PORT = 35357
-    TEST_URL = '%s://%s:%d/v2.0/s3tokens' % (TEST_PROTOCOL,
-                                             TEST_HOST,
-                                             TEST_PORT)
+    TEST_AUTH_URI = 'https://fakehost/identity'
+    TEST_URL = '%s/v2.0/s3tokens' % (TEST_AUTH_URI, )
 
     def setUp(self):
         super(S3TokenMiddlewareTestBase, self).setUp()
 
         self.conf = {
-            'auth_host': self.TEST_HOST,
-            'auth_port': self.TEST_PORT,
-            'auth_protocol': self.TEST_PROTOCOL,
+            'auth_uri': self.TEST_AUTH_URI,
         }
 
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
@@ -101,14 +95,17 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         self.assertEqual(req.headers['X-Auth-Token'], 'TOKEN_ID')
 
     def test_authorized_http(self):
-        self.requests_mock.post(self.TEST_URL.replace('https', 'http'),
-                                status_code=201,
-                                json=GOOD_RESPONSE)
+        protocol = 'http'
+        host = 'fakehost'
+        port = 35357
+        self.requests_mock.post(
+            '%s://%s:%s/v2.0/s3tokens' % (protocol, host, port),
+            status_code=201, json=GOOD_RESPONSE)
 
         self.middleware = (
-            s3_token.filter_factory({'auth_protocol': 'http',
-                                     'auth_host': self.TEST_HOST,
-                                     'auth_port': self.TEST_PORT})(FakeApp()))
+            s3_token.filter_factory({'auth_protocol': protocol,
+                                     'auth_host': host,
+                                     'auth_port': port})(FakeApp()))
         req = webob.Request.blank('/v1/AUTH_cfa/c/o')
         req.headers['Authorization'] = 'access:signature'
         req.headers['X-Storage-Token'] = 'token'
