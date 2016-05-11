@@ -28,7 +28,7 @@ import re
 import sys
 
 from oslo_config import cfg
-from oslo_context import context
+from oslo_context import context as oslo_context
 try:
     import oslo_messaging
     messaging = True
@@ -397,8 +397,8 @@ class AuditMiddleware(object):
     def _process_request(self, request):
         event = self._create_event(request)
 
-        self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.request', event.as_dict())
+        self._emit_audit(request.context, 'audit.http.request',
+                         event.as_dict())
 
     @_log_and_ignore_error
     def _process_response(self, request, response=None):
@@ -424,13 +424,18 @@ class AuditMiddleware(object):
                 reporter=resource.Resource(id='target'),
                 reporterTime=timestamp.get_utc_now()))
 
-        self._emit_audit(context.get_admin_context().to_dict(),
-                         'audit.http.response', event.as_dict())
+        self._emit_audit(request.context, 'audit.http.response',
+                         event.as_dict())
 
     @webob.dec.wsgify
     def __call__(self, req):
         if req.method in self._ignore_req_list:
             return req.get_response(self._application)
+
+        # Cannot use a RequestClass on wsgify above because the `req` object is
+        # a `WebOb.Request` when this method is called so the RequestClass is
+        # ignored by the wsgify wrapper.
+        req.context = oslo_context.get_admin_context().to_dict()
 
         self._process_request(req)
         try:
