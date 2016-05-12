@@ -428,7 +428,10 @@ def _conf_values_type_convert(conf):
 
 
 def _get_project_version(project):
-    return pkg_resources.get_distribution(project).version
+    try:
+        return pkg_resources.get_distribution(project).version
+    except pkg_resources.DistributionNotFound:
+        return "unknown"
 
 
 def _uncompress_pkiz(token):
