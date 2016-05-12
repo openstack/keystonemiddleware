@@ -49,8 +49,12 @@ extensions = ['sphinx.ext.autodoc',
               # remove this Sphinx extension when
               # https://launchpad.net/bugs/1260495 is fixed.
               'ext.apidoc',
-              'oslosphinx'
+              'oslosphinx',
+              'oslo_config.sphinxconfiggen'
              ]
+
+config_generator_config_file = '../../config-generator/keystonemiddleware.conf'
+sample_config_basename = '_static/keystonemiddleware'
 
 todo_include_todos = True
 
@@ -156,7 +160,7 @@ man_pages = []
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['static']
+html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.

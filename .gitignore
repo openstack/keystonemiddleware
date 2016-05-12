@@ -56,3 +56,6 @@ ChangeLog
 
 # Files created by releasenotes build
 releasenotes/build
+
+# sample config included in docs
+doc/source/_static/keystonemiddleware.conf.sample
