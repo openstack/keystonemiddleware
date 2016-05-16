@@ -98,6 +98,11 @@ class TestResponse(requests.Response):
             self.status_code = data
 
     def __eq__(self, other):
+        """Test if the response is equivalent to another response.
+
+        This works by comparing the attribute dictionaries of both TestResponse
+        instances.
+        """
         return self.__dict__ == other.__dict__
 
     @property
