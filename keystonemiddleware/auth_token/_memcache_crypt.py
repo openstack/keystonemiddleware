@@ -61,17 +61,13 @@ class InvalidMacError(Exception):
 
 
 class DecryptError(Exception):
-    """raise when unable to decrypt encrypted data.
-
-    """
+    """raise when unable to decrypt encrypted data."""
 
     pass
 
 
 class CryptoUnavailableError(Exception):
-    """raise when Python Crypto module is not available.
-
-    """
+    """raise when Python Crypto module is not available."""
 
     pass
 
