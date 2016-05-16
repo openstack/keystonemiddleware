@@ -201,7 +201,6 @@ class TokenCache(object):
         If token is invalid raise exc.InvalidToken
         return token only if fresh (not expired).
         """
-
         if not token_id:
             # Nothing to do
             return

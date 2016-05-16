@@ -78,7 +78,6 @@ class CryptoUnavailableError(Exception):
 
 def assert_crypto_availability(f):
     """Ensure Crypto module is available."""
-
     @functools.wraps(f)
     def wrapper(*args, **kwds):
         if AES is None:

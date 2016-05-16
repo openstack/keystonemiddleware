@@ -51,7 +51,6 @@ class AuthTokenFixture(fixtures.Fixture):
                        project_domain_id=None, project_domain_name=None,
                        role_list=None, is_v2=False):
         """Add token data to the auth_token fixture."""
-
         if not token_id:
             token_id = uuid.uuid4().hex
 

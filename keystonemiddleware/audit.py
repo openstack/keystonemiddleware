@@ -330,6 +330,8 @@ class KeystoneCredential(credential.Credential):
 class PycadfAuditApiConfigError(Exception):
     """Error raised when pyCADF fails to configure correctly."""
 
+    pass
+
 
 class AuditMiddleware(object):
     """Create an audit event based on request/response.
@@ -381,7 +383,6 @@ class AuditMiddleware(object):
 
         if oslo.messaging enabled, send notification. if not, log event.
         """
-
         if messaging:
             self._notifier.info(context, event_type, payload)
         else:

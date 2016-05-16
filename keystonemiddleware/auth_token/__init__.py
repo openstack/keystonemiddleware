@@ -826,7 +826,6 @@ class AuthProtocol(BaseAuthProtocol):
 
         :returns: token data if found else None.
         """
-
         for token in token_hashes:
             cached = self._token_cache.get(token)
 
