@@ -130,7 +130,6 @@ class DisableModuleFixture(fixtures.Fixture):
 
     def setUp(self):
         """Ensure ImportError for the specified module."""
-
         super(DisableModuleFixture, self).setUp()
 
         # Clear 'module' references in sys.modules
