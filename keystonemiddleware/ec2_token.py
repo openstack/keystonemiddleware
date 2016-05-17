@@ -15,10 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-"""
-Starting point for routing EC2 requests.
-
-"""
+"""Starting point for routing EC2 requests."""
 
 import hashlib
 import logging
