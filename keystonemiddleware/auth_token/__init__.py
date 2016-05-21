@@ -848,7 +848,7 @@ class AuthProtocol(BaseAuthProtocol):
 
             if cached:
                 if cached == _CACHE_INVALID_INDICATOR:
-                    self._LOG.debug('Cached token is marked unauthorized')
+                    self.log.debug('Cached token is marked unauthorized')
                     raise ksm_exceptions.InvalidToken()
 
                 if self._check_revocations_for_cached:
