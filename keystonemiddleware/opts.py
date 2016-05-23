@@ -20,15 +20,13 @@ import copy
 
 from keystoneauth1 import loading
 
-import keystonemiddleware.auth_token
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _base
+from keystonemiddleware.auth_token import _opts
 
 auth_token_opts = [
     (_base.AUTHTOKEN_GROUP,
-     keystonemiddleware.auth_token._OPTS +
-     _auth.OPTS +
-     loading.get_auth_common_conf_options())
+     _opts._OPTS + _auth.OPTS + loading.get_auth_common_conf_options())
 ]
 
 

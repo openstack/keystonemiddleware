@@ -10,19 +10,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from keystonemiddleware import exceptions
 
-
-ConfigurationError = exceptions.ConfigurationError
-
-
-class InvalidToken(exceptions.KeystoneMiddlewareException):
+class KeystoneMiddlewareException(Exception):
     pass
 
 
-class ServiceError(exceptions.KeystoneMiddlewareException):
-    pass
-
-
-class RevocationListError(exceptions.KeystoneMiddlewareException):
+class ConfigurationError(KeystoneMiddlewareException):
     pass
