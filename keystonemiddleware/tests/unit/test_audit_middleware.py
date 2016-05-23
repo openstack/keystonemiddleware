@@ -17,6 +17,7 @@ import uuid
 
 import mock
 from oslo_config import cfg
+from pycadf import cadftaxonomy as taxonomy
 from testtools import matchers
 import webob
 
@@ -40,6 +41,8 @@ class FakeFailingApp(object):
 
 
 class BaseAuditMiddlewareTest(utils.BaseTestCase):
+    PROJECT_NAME = 'keystonemiddleware'
+
     def setUp(self):
         super(BaseAuditMiddlewareTest, self).setUp()
         self.fd, self.audit_map = tempfile.mkstemp()
@@ -57,7 +60,7 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
             f.write("[service_endpoints]\n")
             f.write("compute = service/compute")
 
-        cfg.CONF([], project='keystonemiddleware')
+        cfg.CONF([], project=self.PROJECT_NAME)
 
         self.middleware = audit.AuditMiddleware(
             FakeApp(), audit_map_file=self.audit_map,
@@ -256,6 +259,25 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
             # ensure event is not the same across requests
             self.assertNotEqual(req.environ['cadf_event'].id,
                                 notify.call_args_list[0][0][2]['id'])
+
+    def test_project_name_from_oslo_config(self):
+        self.assertEqual(self.PROJECT_NAME,
+                         self.middleware._determine_project())
+
+    def test_project_name_from_local_config(self):
+        project_name = uuid.uuid4().hex
+        self.middleware = audit.AuditMiddleware(
+            FakeApp(), audit_map_file=self.audit_map,
+            service_name='pycadf', project=project_name)
+        self.assertEqual(project_name, self.middleware._determine_project())
+
+    def test_project_undetermined(self):
+        self.middleware = audit.AuditMiddleware(
+            FakeApp(), audit_map_file=self.audit_map,
+            service_name='pycadf')
+        del cfg.CONF.project
+        self.assertEqual(taxonomy.UNKNOWN,
+                         self.middleware._determine_project())
 
 
 def _get_transport(conf, aliases=None, url=None):

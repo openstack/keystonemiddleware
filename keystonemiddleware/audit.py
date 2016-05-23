@@ -55,6 +55,7 @@ from keystonemiddleware.i18n import _LE, _LI
 
 
 _LOG = None
+AUDIT_MIDDLEWARE_GROUP = 'audit_middleware_notifications'
 
 _AUDIT_OPTS = [
     cfg.StrOpt('driver',
@@ -75,7 +76,8 @@ _AUDIT_OPTS = [
                     'notification. If not specified, we fall back to the same '
                     'configuration used for RPC.'),
 ]
-cfg.CONF.register_opts(_AUDIT_OPTS, group="audit_middleware_notifications")
+CONF = cfg.CONF
+CONF.register_opts(_AUDIT_OPTS, group=AUDIT_MIDDLEWARE_GROUP)
 
 
 def _log_and_ignore_error(fn):
@@ -342,6 +344,37 @@ class AuditMiddleware(object):
     http://docs.openstack.org/developer/keystonemiddleware/audit.html
     """
 
+    def _conf_get(self, name, group=AUDIT_MIDDLEWARE_GROUP):
+        # try config from paste-deploy first
+        if name in self._conf:
+            return self._conf[name]
+        else:
+            return CONF[group][name]
+
+    def _determine_project(self):
+        """Determine a project name from all available config sources.
+
+        The sources are checked in the following order:
+
+          1. The paste-deploy config for audit middleware
+          2. The audit_middleware_notifications in the project's config
+          3. The oslo.config CONF.project property
+
+        """
+        try:
+            return self._conf_get('project')
+        except cfg.NoSuchOptError:
+            try:
+                # CONF.project will exist only if the service uses
+                # oslo.config. It will only be set when the project
+                # calls CONF(...) and when not set oslo.config oddly
+                # raises a NoSuchOptError exception.
+                return CONF.project
+            except cfg.NoSuchOptError:
+                # Unable to determine the project so set it to something
+                # that is obvious so operators can mitigate.
+                return taxonomy.UNKNOWN
+
     @staticmethod
     def _get_aliases(proj):
         aliases = {}
@@ -361,12 +394,13 @@ class AuditMiddleware(object):
         self._application = app
         global _LOG
         _LOG = logging.getLogger(conf.get('log_name', __name__))
+        self._conf = conf
         self._service_name = conf.get('service_name')
         self._ignore_req_list = [x.upper().strip() for x in
                                  conf.get('ignore_req_list', '').split(',')]
         self._cadf_audit = OpenStackAuditApi(conf.get('audit_map_file'))
 
-        transport_aliases = self._get_aliases(cfg.CONF.project)
+        transport_aliases = self._get_aliases(self._determine_project())
         if messaging:
             transport = oslo_messaging.get_transport(
                 cfg.CONF,
