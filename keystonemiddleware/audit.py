@@ -51,7 +51,7 @@ from six.moves import configparser
 from six.moves.urllib import parse as urlparse
 import webob.dec
 
-from keystonemiddleware.i18n import _LE, _LI
+from keystonemiddleware.i18n import _LE, _LI, _LW
 
 
 _LOG = None
@@ -286,13 +286,19 @@ class OpenStackAuditApi(object):
         service_info = Service(type=taxonomy.UNKNOWN, name=taxonomy.UNKNOWN,
                                id=taxonomy.UNKNOWN, admin_endp=None,
                                private_endp=None, public_endp=None)
+
+        catalog = {}
         try:
             catalog = ast.literal_eval(
                 req.environ['HTTP_X_SERVICE_CATALOG'])
         except KeyError:
-            raise PycadfAuditApiConfigError(
-                'Service catalog is missing. '
-                'Cannot discover target information')
+            _LOG.warning(_LW('Unable to discover target information because '
+                             'service catalog is missing. Either the incoming '
+                             'request does not contain an auth token or auth '
+                             'token does not contain a service catalog. For '
+                             'the latter, please make sure the '
+                             '"include_service_catalog" property in '
+                             'auth_token middleware is set to "True"'))
 
         default_endpoint = None
         for endp in catalog:
@@ -431,13 +437,14 @@ class AuditMiddleware(object):
 
         initiator = ClientResource(
             typeURI=taxonomy.ACCOUNT_USER,
-            id=req.environ['HTTP_X_USER_ID'],
-            name=req.environ['HTTP_X_USER_NAME'],
+            id=req.environ.get('HTTP_X_USER_ID', taxonomy.UNKNOWN),
+            name=req.environ.get('HTTP_X_USER_NAME', taxonomy.UNKNOWN),
             host=host.Host(address=req.client_addr, agent=req.user_agent),
             credential=KeystoneCredential(
-                token=req.environ['HTTP_X_AUTH_TOKEN'],
-                identity_status=req.environ['HTTP_X_IDENTITY_STATUS']),
-            project_id=req.environ['HTTP_X_PROJECT_ID'])
+                token=req.environ.get('HTTP_X_AUTH_TOKEN', ''),
+                identity_status=req.environ.get('HTTP_X_IDENTITY_STATUS',
+                                                taxonomy.UNKNOWN)),
+            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN))
         target = self._cadf_audit.get_target_resource(req)
 
         event = factory.EventFactory().new_event(
