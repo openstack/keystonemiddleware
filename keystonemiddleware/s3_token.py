@@ -38,60 +38,11 @@ from oslo_serialization import jsonutils
 from oslo_utils import strutils
 import requests
 import six
-from six.moves import urllib
 
-from keystonemiddleware.i18n import _, _LI, _LW
+from keystonemiddleware.i18n import _LI, _LW
 
 
 PROTOCOL_NAME = 'S3 Token Authentication'
-
-
-# TODO(kun): remove it after oslo merge this.
-def _split_path(path, minsegs=1, maxsegs=None, rest_with_last=False):
-    """Validate and split the given HTTP request path.
-
-    **Examples**::
-
-        ['a'] = _split_path('/a')
-        ['a', None] = _split_path('/a', 1, 2)
-        ['a', 'c'] = _split_path('/a/c', 1, 2)
-        ['a', 'c', 'o/r'] = _split_path('/a/c/o/r', 1, 3, True)
-
-    :param path: HTTP Request path to be split
-    :param minsegs: Minimum number of segments to be extracted
-    :param maxsegs: Maximum number of segments to be extracted
-    :param rest_with_last: If True, trailing data will be returned as part
-                           of last segment.  If False, and there is
-                           trailing data, raises ValueError.
-    :returns: list of segments with a length of maxsegs (non-existent
-              segments will return as None)
-    :raises: ValueError if given an invalid path
-    """
-    if not maxsegs:
-        maxsegs = minsegs
-    if minsegs > maxsegs:
-        raise ValueError(_('minsegs > maxsegs: %(min)d > %(max)d)') %
-                         {'min': minsegs, 'max': maxsegs})
-    if rest_with_last:
-        segs = path.split('/', maxsegs)
-        minsegs += 1
-        maxsegs += 1
-        count = len(segs)
-        if (segs[0] or count < minsegs or count > maxsegs or
-                '' in segs[1:minsegs]):
-            raise ValueError(_('Invalid path: %s') % urllib.parse.quote(path))
-    else:
-        minsegs += 1
-        maxsegs += 1
-        segs = path.split('/', maxsegs)
-        count = len(segs)
-        if (segs[0] or count < minsegs or count > maxsegs + 1 or
-                '' in segs[1:minsegs] or
-                (count == maxsegs + 1 and segs[maxsegs])):
-            raise ValueError(_('Invalid path: %s') % urllib.parse.quote(path))
-    segs = segs[1:maxsegs]
-    segs.extend([None] * (maxsegs - 1 - len(segs)))
-    return segs
 
 
 class ServiceError(Exception):
@@ -178,7 +129,7 @@ class S3Token(object):
         self._logger.debug('Calling S3Token middleware.')
 
         try:
-            parts = _split_path(req.path, 1, 4, True)
+            parts = strutils.split_path(req.path, 1, 4, True)
             version, account, container, obj = parts
         except ValueError:
             msg = 'Not a path query, skipping.'
