@@ -703,3 +703,43 @@ class AuditApiLogicTest(BaseAuditMiddlewareTest):
         self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.assertEqual((payload['target']['addresses'][0]['url']), "unknown")
+
+    def test_no_auth_token(self):
+        # Test cases where API requests such as Swift list public containers
+        # which does not require an auth token. In these cases, CADF event
+        # should have the defaults (i.e taxonomy.UNKNOWN) instead of raising
+        # an exception.
+        env_headers = {'HTTP_X_IDENTITY_STATUS': 'Invalid',
+                       'REQUEST_METHOD': 'GET'}
+        req = webob.Request.blank('https://23.253.72.207/v1/'
+                                  + str(uuid.uuid4()),
+                                  environ=env_headers,
+                                  remote_addr='192.168.0.1')
+        req.context = {}
+        self.middleware._process_request(req)
+        payload = req.environ['cadf_event'].as_dict()
+        self.assertEqual(payload['action'], 'read')
+        self.assertEqual(payload['typeURI'],
+                         'http://schemas.dmtf.org/cloud/audit/1.0/event')
+        self.assertEqual(payload['outcome'], 'pending')
+        self.assertEqual(payload['eventType'], 'activity')
+        self.assertEqual(payload['target']['name'], taxonomy.UNKNOWN)
+        self.assertEqual(payload['target']['id'], taxonomy.UNKNOWN)
+        self.assertEqual(payload['target']['typeURI'], taxonomy.UNKNOWN)
+        self.assertNotIn('addresses', payload['target'])
+        self.assertEqual(payload['initiator']['id'], taxonomy.UNKNOWN)
+        self.assertEqual(payload['initiator']['name'], taxonomy.UNKNOWN)
+        self.assertEqual(payload['initiator']['project_id'],
+                         taxonomy.UNKNOWN)
+        self.assertEqual(payload['initiator']['host']['address'],
+                         '192.168.0.1')
+        self.assertEqual(payload['initiator']['typeURI'],
+                         'service/security/account/user')
+        self.assertNotEqual(payload['initiator']['credential']['token'],
+                            None)
+        self.assertEqual(payload['initiator']['credential']['identity_status'],
+                         'Invalid')
+        self.assertNotIn('reason', payload)
+        self.assertNotIn('reporterchain', payload)
+        self.assertEqual(payload['observer']['id'], 'target')
+        self.assertEqual(req.path, payload['requestPath'])
