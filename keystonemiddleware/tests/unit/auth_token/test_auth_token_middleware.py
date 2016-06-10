@@ -29,7 +29,6 @@ from keystoneauth1 import session
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
 import mock
-from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import pbr.version
@@ -2522,7 +2521,8 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         ksm_version = uuid.uuid4().hex
 
         conf = {'username': self.username, 'auth_url': self.auth_url}
-        with mock.patch.object(cfg.CONF, 'project', new=project, create=True):
+        with mock.patch.object(self.cfg.conf, 'project',
+                               new=project, create=True):
             app = self._create_app(conf, project_version, ksm_version)
         project = '{0}/{1} '.format(project, project_version)
         self._assert_user_agent(app, project, ksm_version)
@@ -2543,8 +2543,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         with mock.patch('keystonemiddleware._common.config.pkg_resources',
                         new=fake_pkg_resources):
             with mock.patch(at_pbr, new=fake_pbr_version):
-                return self.create_simple_middleware(body=body, conf=conf,
-                                                     use_global_conf=True)
+                return self.create_simple_middleware(body=body, conf=conf)
 
     def _assert_user_agent(self, app, project, ksm_version):
         sess = app._identity_server._adapter.session
