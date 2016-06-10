@@ -262,22 +262,14 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
 
     def test_project_name_from_oslo_config(self):
         self.assertEqual(self.PROJECT_NAME,
-                         self.middleware._determine_project())
+                         self.middleware._conf.project)
 
     def test_project_name_from_local_config(self):
         project_name = uuid.uuid4().hex
         self.middleware = audit.AuditMiddleware(
             FakeApp(), audit_map_file=self.audit_map,
             service_name='pycadf', project=project_name)
-        self.assertEqual(project_name, self.middleware._determine_project())
-
-    def test_project_undetermined(self):
-        self.middleware = audit.AuditMiddleware(
-            FakeApp(), audit_map_file=self.audit_map,
-            service_name='pycadf')
-        del cfg.CONF.project
-        self.assertEqual(taxonomy.UNKNOWN,
-                         self.middleware._determine_project())
+        self.assertEqual(project_name, self.middleware._conf.project)
 
 
 def _get_transport(conf, aliases=None, url=None):
