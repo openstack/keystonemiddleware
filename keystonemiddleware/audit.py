@@ -21,6 +21,7 @@ provides.
 
 import ast
 import collections
+import copy
 import functools
 import logging
 import os.path
@@ -51,6 +52,7 @@ from six.moves import configparser
 from six.moves.urllib import parse as urlparse
 import webob.dec
 
+from keystonemiddleware._common import config
 from keystonemiddleware.i18n import _LE, _LI, _LW
 
 
@@ -350,37 +352,6 @@ class AuditMiddleware(object):
     http://docs.openstack.org/developer/keystonemiddleware/audit.html
     """
 
-    def _conf_get(self, name, group=AUDIT_MIDDLEWARE_GROUP):
-        # try config from paste-deploy first
-        if name in self._conf:
-            return self._conf[name]
-        else:
-            return CONF[group][name]
-
-    def _determine_project(self):
-        """Determine a project name from all available config sources.
-
-        The sources are checked in the following order:
-
-          1. The paste-deploy config for audit middleware
-          2. The audit_middleware_notifications in the project's config
-          3. The oslo.config CONF.project property
-
-        """
-        try:
-            return self._conf_get('project')
-        except cfg.NoSuchOptError:
-            try:
-                # CONF.project will exist only if the service uses
-                # oslo.config. It will only be set when the project
-                # calls CONF(...) and when not set oslo.config oddly
-                # raises a NoSuchOptError exception.
-                return CONF.project
-            except cfg.NoSuchOptError:
-                # Unable to determine the project so set it to something
-                # that is obvious so operators can mitigate.
-                return taxonomy.UNKNOWN
-
     @staticmethod
     def _get_aliases(proj):
         aliases = {}
@@ -398,15 +369,19 @@ class AuditMiddleware(object):
 
     def __init__(self, app, **conf):
         self._application = app
+        self._conf = config.Config('audit',
+                                   AUDIT_MIDDLEWARE_GROUP,
+                                   _list_opts(),
+                                   conf)
         global _LOG
         _LOG = logging.getLogger(conf.get('log_name', __name__))
-        self._conf = conf
         self._service_name = conf.get('service_name')
         self._ignore_req_list = [x.upper().strip() for x in
                                  conf.get('ignore_req_list', '').split(',')]
         self._cadf_audit = OpenStackAuditApi(conf.get('audit_map_file'))
 
-        transport_aliases = self._get_aliases(self._determine_project())
+        project = self._conf.project or taxonomy.UNKNOWN
+        transport_aliases = self._get_aliases(project)
         if messaging:
             transport = oslo_messaging.get_transport(
                 cfg.CONF,
@@ -514,6 +489,22 @@ class AuditMiddleware(object):
         else:
             self._process_response(req, response)
         return response
+
+
+def _list_opts():
+    """Return a list of oslo_config options available in audit middleware.
+
+    The returned list includes all oslo_config options which may be registered
+    at runtime by the project.
+
+    Each element of the list is a tuple. The first element is the name of the
+    group under which the list of elements in the second element will be
+    registered. A group name of None corresponds to the [DEFAULT] group in
+    config files.
+
+    :returns: a list of (group_name, opts) tuples
+    """
+    return [(AUDIT_MIDDLEWARE_GROUP, copy.deepcopy(_AUDIT_OPTS))]
 
 
 def filter_factory(global_conf, **local_conf):
