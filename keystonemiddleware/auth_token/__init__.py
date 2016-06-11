@@ -219,7 +219,6 @@ from keystoneauth1.loading import session as session_loading
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
 from oslo_serialization import jsonutils
-import pkg_resources
 import six
 import webob.dec
 
@@ -255,13 +254,6 @@ def _token_is_v2(token_info):
 
 def _token_is_v3(token_info):
     return ('token' in token_info)
-
-
-def _get_project_version(project):
-    try:
-        return pkg_resources.get_distribution(project).version
-    except pkg_resources.DistributionNotFound:
-        return "unknown"
 
 
 def _uncompress_pkiz(token):
@@ -470,7 +462,8 @@ class AuthProtocol(BaseAuthProtocol):
         log = logging.getLogger(conf.get('log_name', __name__))
         log.info(_LI('Starting Keystone auth_token middleware'))
 
-        self._conf = config.Config(_base.AUTHTOKEN_GROUP,
+        self._conf = config.Config('auth_token',
+                                   _base.AUTHTOKEN_GROUP,
                                    opts.list_auth_token_opts(),
                                    conf)
 
@@ -808,20 +801,6 @@ class AuthProtocol(BaseAuthProtocol):
         getter = lambda opt: self._conf.get(opt.dest, group=group)
         return plugin_loader.load_from_options_getter(getter)
 
-    def _build_useragent_string(self):
-        project = self._conf.project or ''
-        if project:
-            project_version = _get_project_version(project)
-            project = '{project}/{project_version} '.format(
-                project=project,
-                project_version=project_version)
-
-        ua_template = ('{project}'
-                       'keystonemiddleware.auth_token/{ksm_version}')
-        return ua_template.format(
-            project=project,
-            ksm_version=_get_project_version('keystonemiddleware'))
-
     def _create_identity_server(self):
         # NOTE(jamielennox): Loading Session here should be exactly the
         # same as calling Session.load_from_conf_options(CONF, GROUP)
@@ -833,7 +812,7 @@ class AuthProtocol(BaseAuthProtocol):
             cacert=self._conf.get('cafile'),
             insecure=self._conf.get('insecure'),
             timeout=self._conf.get('http_connect_timeout'),
-            user_agent=self._build_useragent_string()
+            user_agent=self._conf.user_agent,
         )
 
         auth_plugin = self._get_auth_plugin()

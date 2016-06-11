@@ -10,7 +10,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import pkg_resources
+
 from oslo_config import cfg
+import pbr
 import six
 
 from keystonemiddleware import exceptions
@@ -63,7 +66,7 @@ def _conf_values_type_convert(group_name, all_options, conf):
 
 class Config(object):
 
-    def __init__(self, group_name, all_options, conf):
+    def __init__(self, name, group_name, all_options, conf):
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
@@ -95,8 +98,10 @@ class Config(object):
             for group, opts in all_options:
                 local_oslo_config.register_opts(opts, group=group)
 
+        self.name = name
         self.oslo_conf_obj = local_oslo_config or cfg.CONF
         self.group_name = group_name
+        self._user_agent = None
 
     def get(self, name, group=_NOT_SET):
         # try config from paste-deploy first
@@ -130,3 +135,23 @@ class Config(object):
                 return self.oslo_conf_obj.project
             except cfg.NoSuchOptError:
                 return None
+
+    @property
+    def user_agent(self):
+        if not self._user_agent:
+            project = self.project or ''
+
+            if project:
+                try:
+                    version = pkg_resources.get_distribution(project).version
+                except pkg_resources.DistributionNotFound:
+                    version = "unknown"
+
+                project = "%s/%s " % (project, version)
+
+            self._user_agent = "%skeystonemiddleware.%s/%s" % (
+                project,
+                self.name,
+                pbr.version.VersionInfo('keystonemiddleware').version_string())
+
+        return self._user_agent

@@ -15,7 +15,6 @@
 import datetime
 import logging
 import os
-import pkg_resources
 import shutil
 import stat
 import tempfile
@@ -33,6 +32,7 @@ import mock
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
+import pbr.version
 import six
 import testresources
 import testtools
@@ -2479,19 +2479,20 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         ksm_version = uuid.uuid4().hex
         conf = {'username': self.username, 'auth_url': self.auth_url}
 
-        app = self._create_app(conf, ksm_version)
+        app = self._create_app(conf, '', ksm_version)
         self._assert_user_agent(app, '', ksm_version)
 
     def test_project_in_configuration(self):
         project = uuid.uuid4().hex
         project_version = uuid.uuid4().hex
+        ksm_version = uuid.uuid4().hex
 
         conf = {'username': self.username,
                 'auth_url': self.auth_url,
                 'project': project}
-        app = self._create_app(conf, project_version)
+        app = self._create_app(conf, project_version, ksm_version)
         project_with_version = '{0}/{1} '.format(project, project_version)
-        self._assert_user_agent(app, project_with_version, project_version)
+        self._assert_user_agent(app, project_with_version, ksm_version)
 
     def test_project_not_installed_results_in_unknown_version(self):
         project = uuid.uuid4().hex
@@ -2500,7 +2501,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
                 'auth_url': self.auth_url,
                 'project': project}
 
-        v = pkg_resources.get_distribution('keystonemiddleware').version
+        v = pbr.version.VersionInfo('keystonemiddleware').version_string()
 
         app = self.create_simple_middleware(conf=conf, use_global_conf=True)
         project_with_version = '{0}/{1} '.format(project, 'unknown')
@@ -2509,22 +2510,32 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
     def test_project_in_oslo_configuration(self):
         project = uuid.uuid4().hex
         project_version = uuid.uuid4().hex
+        ksm_version = uuid.uuid4().hex
 
         conf = {'username': self.username, 'auth_url': self.auth_url}
         with mock.patch.object(cfg.CONF, 'project', new=project, create=True):
-            app = self._create_app(conf, project_version)
+            app = self._create_app(conf, project_version, ksm_version)
         project = '{0}/{1} '.format(project, project_version)
-        self._assert_user_agent(app, project, project_version)
+        self._assert_user_agent(app, project, ksm_version)
 
-    def _create_app(self, conf, project_version):
+    def _create_app(self, conf, project_version, ksm_version):
         fake_pkg_resources = mock.Mock()
         fake_pkg_resources.get_distribution().version = project_version
 
+        fake_version_info = mock.Mock()
+        fake_version_info.version_string.return_value = ksm_version
+        fake_pbr_version = mock.Mock()
+        fake_pbr_version.VersionInfo.return_value = fake_version_info
+
         body = uuid.uuid4().hex
-        with mock.patch('keystonemiddleware.auth_token.pkg_resources',
+
+        at_pbr = 'keystonemiddleware._common.config.pbr.version'
+
+        with mock.patch('keystonemiddleware._common.config.pkg_resources',
                         new=fake_pkg_resources):
-            return self.create_simple_middleware(body=body, conf=conf,
-                                                 use_global_conf=True)
+            with mock.patch(at_pbr, new=fake_pbr_version):
+                return self.create_simple_middleware(body=body, conf=conf,
+                                                     use_global_conf=True)
 
     def _assert_user_agent(self, app, project, ksm_version):
         sess = app._identity_server._adapter.session

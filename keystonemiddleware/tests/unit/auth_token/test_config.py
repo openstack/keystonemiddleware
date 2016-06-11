@@ -77,7 +77,7 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
         fake_pkg_resources.get_distribution().version = project_version
 
         body = uuid.uuid4().hex
-        with mock.patch('keystonemiddleware.auth_token.pkg_resources',
+        with mock.patch('keystonemiddleware._common.config.pkg_resources',
                         new=fake_pkg_resources):
             # use_global_conf is poorly named. What it means is
             # don't use the config created in test setUp.
