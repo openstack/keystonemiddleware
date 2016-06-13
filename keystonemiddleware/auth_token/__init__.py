@@ -207,6 +207,7 @@ object is stored.
 """
 
 import binascii
+import copy
 import datetime
 import logging
 
@@ -228,16 +229,46 @@ from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _identity
+from keystonemiddleware.auth_token import _opts
 from keystonemiddleware.auth_token import _request
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
-from keystonemiddleware import opts
 from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
 
 
 _LOG = logging.getLogger(__name__)
 _CACHE_INVALID_INDICATOR = 'invalid'
+
+
+AUTH_TOKEN_OPTS = [
+    (_base.AUTHTOKEN_GROUP,
+     _opts._OPTS + _auth.OPTS + loading.get_auth_common_conf_options())
+]
+
+
+def list_opts():
+    """Return a list of oslo_config options available in auth_token middleware.
+
+    The returned list includes all oslo_config options which may be registered
+    at runtime by the project.
+
+    Each element of the list is a tuple. The first element is the name of the
+    group under which the list of elements in the second element will be
+    registered. A group name of None corresponds to the [DEFAULT] group in
+    config files.
+
+    NOTE: This function is no longer used for oslo_config sample generation.
+    Some services rely on this function for listing ALL (including deprecated)
+    options and registering them into their own config objects which we do not
+    want for sample config files.
+
+    See: :py:func:`keystonemiddleware.auth_token._opts.list_opts` for sample
+    config files.
+
+    :returns: a list of (group_name, opts) tuples
+    """
+    return [(g, copy.deepcopy(o)) for g, o in AUTH_TOKEN_OPTS]
 
 
 class _BIND_MODE(object):
@@ -464,7 +495,7 @@ class AuthProtocol(BaseAuthProtocol):
 
         self._conf = config.Config('auth_token',
                                    _base.AUTHTOKEN_GROUP,
-                                   opts.list_auth_token_opts(),
+                                   list_opts(),
                                    conf)
 
         super(AuthProtocol, self).__init__(
