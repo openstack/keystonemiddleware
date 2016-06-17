@@ -134,6 +134,14 @@ class _TokenData(object):
         return frozenset(self._stored_auth_ref.role_names or [])
 
     @property
+    def is_admin_project(self):
+        """Return true if the current project scope is the admin project.
+
+        :rtype: bool
+        """
+        return self._stored_auth_ref.is_admin_project
+
+    @property
     def _log_format(self):
         roles = ','.join(self.role_names)
         return 'user_id %s, project_id %s, roles %s' % (self.user_id,

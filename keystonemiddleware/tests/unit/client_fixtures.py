@@ -13,6 +13,7 @@
 # under the License.
 
 import os
+import uuid
 
 import fixtures
 from keystoneauth1 import fixture
@@ -131,6 +132,7 @@ class Examples(fixtures.Fixture):
         self.UUID_SERVICE_TOKEN_BIND = '5e43439613d34a13a7e03b2762bd08ab'
         self.v3_UUID_SERVICE_TOKEN_DEFAULT = 'g431071bbc2f492748596c1b53cb229'
         self.v3_UUID_SERVICE_TOKEN_BIND = 'be705e4426d0449a89e35ae21c380a05'
+        self.v3_NOT_IS_ADMIN_PROJECT = uuid.uuid4().hex
 
         revoked_token = self.REVOKED_TOKEN
         if isinstance(revoked_token, six.text_type):
@@ -464,6 +466,21 @@ class Examples(fixtures.Fixture):
         svc = token.add_service(self.SERVICE_TYPE)
         svc.add_endpoint('public', self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_UUID_SERVICE_TOKEN_DEFAULT] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME,
+                                is_admin_project=False)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_NOT_IS_ADMIN_PROJECT] = token
 
         # PKIZ tokens generally link to above tokens
 

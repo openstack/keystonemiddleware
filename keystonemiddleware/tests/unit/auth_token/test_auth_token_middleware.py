@@ -56,6 +56,7 @@ EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
     'HTTP_X_USER_ID': 'user_id1',
     'HTTP_X_USER_NAME': 'user_name1',
     'HTTP_X_ROLES': 'role1,role2',
+    'HTTP_X_IS_ADMIN_PROJECT': 'True',
     'HTTP_X_USER': 'user_name1',  # deprecated (diablo-compat)
     'HTTP_X_TENANT': 'tenant_name1',  # deprecated (diablo-compat)
     'HTTP_X_ROLE': 'role1,role2',  # deprecated (diablo-compat)
@@ -75,6 +76,7 @@ EXPECTED_V3_DEFAULT_ENV_ADDITIONS = {
     'HTTP_X_PROJECT_DOMAIN_NAME': 'domain_name1',
     'HTTP_X_USER_DOMAIN_ID': 'domain_id1',
     'HTTP_X_USER_DOMAIN_NAME': 'domain_name1',
+    'HTTP_X_IS_ADMIN_PROJECT': 'True'
 }
 
 EXPECTED_V3_DEFAULT_SERVICE_ENV_ADDITIONS = {
@@ -1847,6 +1849,13 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.middleware._token_cache.set(token, (data, expires))
         new_data = self.middleware.fetch_token(token)
         self.assertEqual(data, new_data)
+
+    def test_not_is_admin_project(self):
+        token = self.examples.v3_NOT_IS_ADMIN_PROJECT
+        self.set_middleware(expected_env={'HTTP_X_IS_ADMIN_PROJECT': 'False'})
+        req = self.assert_valid_request_200(token)
+        self.assertIs(False,
+                      req.environ['keystone.token_auth'].user.is_admin_project)
 
 
 class DelayedAuthTests(BaseAuthTokenMiddlewareTest):

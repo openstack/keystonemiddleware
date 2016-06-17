@@ -118,6 +118,12 @@ HTTP_X_USER_DOMAIN_NAME, HTTP_X_SERVICE_USER_DOMAIN_NAME
 HTTP_X_ROLES, HTTP_X_SERVICE_ROLES
     Comma delimited list of case-sensitive role names.
 
+HTTP_X_IS_ADMIN_PROJECT
+    The string value 'True' or 'False' representing whether the user's token is
+    scoped to the admin project. As historically there was no admin project
+    this will default to True for tokens without this information to be
+    backwards with existing policy files.
+
 HTTP_X_SERVICE_CATALOG
     service catalog (optional, JSON string).
 
