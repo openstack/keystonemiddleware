@@ -21,11 +21,10 @@ Middleware Architecture
 Abstract
 ========
 
-The Keystone middleware architecture supports a common authentication protocol
+The keystonemiddleware architecture supports a common authentication protocol
 in use between the OpenStack projects. By using keystone as a common
-authentication and authorization mechanism, the OpenStack project can plug in
-to existing authentication and authorization systems in use by existing
-environments.
+authentication and authorization mechanism, various OpenStack projects can
+leverage the existing authentication and authorization systems in use.
 
 In this document, we describe the architecture and responsibilities of the
 authentication middleware which acts as the internal API mechanism for
@@ -40,9 +39,9 @@ Specification Overview
 'Authentication' is the process of determining that users are who they say they
 are. Typically, 'authentication protocols' such as HTTP Basic Auth, Digest
 Access, public key, token, etc, are used to verify a user's identity. In this
-document, we define an ''authentication component'' as a software module that
-implements an authentication protocol for an OpenStack service. OpenStack is
-using a token based mechanism to represent authentication and authorization.
+document, we define an 'authentication component' as a software module that
+implements an authentication protocol for an OpenStack service. Bearer tokens
+are currently the most common authentication protocol used within OpenStack.
 
 At a high level, an authentication middleware component is a proxy that
 intercepts HTTP calls from clients and populates HTTP headers in the request
@@ -66,28 +65,32 @@ of the middleware processing is:
 Authentication Component
 ------------------------
 
-Figure 1. Authentication Component
+The following shows the default behavior of an Authentication Component
+deployed in front of an OpenStack service.
 
 .. image:: images/graphs_authComp.svg
    :width: 100%
    :height: 180
    :alt: An Authentication Component
 
-The middleware may also be configured to operate in a 'delegated mode'.
-In this mode, the decision to reject an unauthenticated client is delegated to
-the OpenStack service, as illustrated in :ref:`authComponentDelegated`.
 
-Here, requests are forwarded to the OpenStack service with an identity status
-message that indicates whether the client's identity has been confirmed or is
-indeterminate. It is the OpenStack service that decides whether or not a reject
-message should be sent to the client.
+The Authentication Component, or middleware, will reject any unauthenticated
+requests, only allowing authenticated requests through to the OpenStack
+service.
 
 .. _authComponentDelegated:
 
 Authentication Component (Delegated Mode)
 -----------------------------------------
 
-Figure 2. Authentication Component (Delegated Mode)
+The Authentication Component may be configured to operate in a 'delegated
+mode'. In this mode, the decision to reject or accept an unauthenticated client
+is delegated to the OpenStack service.
+
+Here, requests are forwarded to the OpenStack service with an identity status
+message that indicates whether the identity of the client has been confirmed or
+is indeterminate. The consuming OpenStack service decides whether or not a
+rejection message should be sent to the client.
 
 .. image:: images/graphs_authCompDelegate.svg
    :width: 100%
@@ -99,7 +102,7 @@ Figure 2. Authentication Component (Delegated Mode)
 Deployment Strategy
 ===================
 
-The middleware is intended to be used inline with OpenStack wsgi components,
+The middleware is intended to be used inline with OpenStack WSGI components,
 based on the Oslo WSGI middleware class. It is typically deployed
 as a configuration element in a paste configuration pipeline of other
 middleware components, with the pipeline terminating in the service
@@ -133,7 +136,7 @@ configure the auth_token middleware.
 
 For services which have a separate paste-deploy ini file, auth_token middleware
 can be alternatively configured in [keystone_authtoken] section in the main
-config file. For example in Nova, all middleware parameters can be removed
+config file. For example in nova, all middleware parameters can be removed
 from ``api-paste.ini``:
 
 .. code-block:: ini
@@ -189,14 +192,16 @@ is not able to discover it.
     oslo_config_project = nova
     # oslo_config_file = /not_discoverable_location/nova.conf
 
-Caching for improved response
------------------------------
+Improving response time
+-----------------------
 
-In order to prevent excessive requests and validations, the middleware uses an
-in-memory cache for the tokens the keystone API returns. Keep in mind that
-invalidated tokens may continue to work if they are still in the token cache,
-so token_cache_time is configurable. For larger deployments, the middleware
-also supports memcache based caching.
+Validating the identity of every client on every request can impact performance
+for both the OpenStack service and the identity service. As a result,
+keystonemiddleware is configurable to cache authentication responses from the
+identity service in-memory. It is worth noting that tokens invalidated after
+they've been stored in the cache may continue to work. Deployments using
+`memcached`_ may use the following keystonemiddleware configuration options
+instead of an in-memory cache.
 
 * ``memcached_servers``: (optional) if defined, the memcached server(s) to use for
   caching. It will be ignored if Swift MemcacheRing is used instead.
@@ -237,12 +242,11 @@ match if key expiry is to behave as expected.
 Memcache Protection
 ===================
 
-When using memcached, we are storing user tokens and token validation
-information into the cache as raw data. Which means that anyone who
-has access to the memcached servers can read and modify data stored
-there. To mitigate this risk, ``auth_token`` middleware provides an
-option to authenticate and optionally encrypt the token data stored in
-the cache.
+When using `memcached`_, tokens and authentication responses are stored in the
+cache as raw data. In the event the cache is compromised, all token and
+authentication responses will be readable. To mitigate this risk,
+``auth_token`` middleware provides an option to authenticate and optionally
+encrypt the token data stored in the cache.
 
 * ``memcache_security_strategy``: (optional) if defined, indicate
   whether token data should be authenticated or authenticated and
