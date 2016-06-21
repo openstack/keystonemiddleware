@@ -87,7 +87,10 @@ class Config(object):
             local_oslo_config = conf['oslo_config_config']
         except KeyError:
             if 'oslo_config_project' in conf:
-                config_files = filter(None, [conf.get('oslo_config_file')])
+                if 'oslo_config_file' in conf:
+                    config_files = [conf['oslo_config_file']]
+                else:
+                    config_files = None
                 local_oslo_config = cfg.ConfigOpts()
                 local_oslo_config([],
                                   project=conf['oslo_config_project'],
