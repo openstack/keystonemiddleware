@@ -163,7 +163,6 @@ OPTS = [
                help='Protocol of the admin Identity API endpoint. '
                     'Deprecated, use identity_uri.'),
     cfg.StrOpt('identity_uri',
-               default=None,
                help='Complete admin Identity API endpoint. This '
                     'should specify the unversioned root endpoint '
                     'e.g. https://localhost:35357/'),

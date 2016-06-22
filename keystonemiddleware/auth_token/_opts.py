@@ -29,7 +29,6 @@ from keystonemiddleware.auth_token import _base
 
 _OPTS = [
     cfg.StrOpt('auth_uri',
-               default=None,
                # FIXME(dolph): should be default='http://127.0.0.1:5000/v2.0/',
                # or (depending on client support) an unversioned, publicly
                # accessible identity endpoint (see bug 1207517). Further, we
@@ -49,7 +48,6 @@ _OPTS = [
                ' for validating tokens, because normal end users may not be '
                ' able to reach that endpoint.'),
     cfg.StrOpt('auth_version',
-               default=None,
                help='API version of the admin Identity API endpoint.'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,
@@ -57,7 +55,6 @@ _OPTS = [
                 ' middleware, but delegate the authorization decision to'
                 ' downstream WSGI components.'),
     cfg.IntOpt('http_connect_timeout',
-               default=None,
                help='Request timeout value for communicating with Identity'
                ' API server.'),
     cfg.IntOpt('http_request_max_retries',
@@ -65,17 +62,16 @@ _OPTS = [
                help='How many times are we trying to reconnect when'
                ' communicating with Identity API Server.'),
     cfg.StrOpt('cache',
-               default=None,
                help='Env key for the swift cache.'),
     cfg.StrOpt('certfile',
                help='Required if identity server requires client certificate'),
     cfg.StrOpt('keyfile',
                help='Required if identity server requires client certificate'),
-    cfg.StrOpt('cafile', default=None,
+    cfg.StrOpt('cafile',
                help='A PEM encoded Certificate Authority to use when '
                     'verifying HTTPs connections. Defaults to system CAs.'),
     cfg.BoolOpt('insecure', default=False, help='Verify HTTPS connections.'),
-    cfg.StrOpt('region_name', default=None,
+    cfg.StrOpt('region_name',
                help='The region in which the identity server can be found.'),
     cfg.StrOpt('signing_dir',
                help='Directory used to cache files related to PKI tokens.'),
@@ -108,7 +104,6 @@ _OPTS = [
                ' cache. If the value is not one of these options or empty,'
                ' auth_token will raise an exception on initialization.'),
     cfg.StrOpt('memcache_secret_key',
-               default=None,
                secret=True,
                help='(Optional, mandatory if memcache_security_strategy is'
                ' defined) This string is used for key derivation.'),

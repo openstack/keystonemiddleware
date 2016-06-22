@@ -61,18 +61,15 @@ AUDIT_MIDDLEWARE_GROUP = 'audit_middleware_notifications'
 
 _AUDIT_OPTS = [
     cfg.StrOpt('driver',
-               default=None,
                help='The Driver to handle sending notifications. Possible '
                     'values are messaging, messagingv2, routing, log, test, '
                     'noop. If not specified, then value from '
                     'oslo_messaging_notifications conf section is used.'),
     cfg.ListOpt('topics',
-                default=None,
                 help='List of AMQP topics used for OpenStack notifications. If'
                      ' not specified, then value from '
                      ' oslo_messaging_notifications conf section is used.'),
     cfg.StrOpt('transport_url',
-               default=None,
                secret=True,
                help='A URL representing messaging driver to use for '
                     'notification. If not specified, we fall back to the same '
