@@ -180,7 +180,7 @@ when ``auth_plugin`` is set to ``password``.
     # Any of the options that could be set in api-paste.ini can be set here.
 
 If the service doesn't use the global oslo.config object (CONF), then the
-olso config project name can be set it in paste config and
+oslo config project name can be set it in paste config and
 keystonemiddleware will load the project configuration itself.
 Optionally the location of the configuration file can be set if oslo.config
 is not able to discover it.

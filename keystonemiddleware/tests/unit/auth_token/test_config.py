@@ -99,7 +99,7 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
             self.assertEqual(self.oslo_options[option],
                              conf_get(app, option))
 
-    def test_passed_olso_configuration_wins(self):
+    def test_passed_oslo_configuration_wins(self):
         """oslo_config_config has precedence over oslo_config_project."""
         conf = {'oslo_config_project': self.project,
                 'oslo_config_config': self.local_oslo_config,
