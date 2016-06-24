@@ -11,12 +11,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import os
-import tempfile
 import uuid
 
 import mock
 from oslo_config import fixture as cfg_fixture
+from oslotest import createfile
 from pycadf import cadftaxonomy as taxonomy
 from testtools import matchers
 import webob
@@ -40,25 +39,31 @@ class FakeFailingApp(object):
         raise Exception('It happens!')
 
 
+audit_map_content = """
+[custom_actions]
+reboot = start/reboot
+os-migrations/get = read
+
+[path_keywords]
+action = None
+os-hosts = host
+os-migrations = None
+reboot = None
+servers = server
+
+[service_endpoints]
+compute = service/compute
+"""
+
+
 class BaseAuditMiddlewareTest(utils.BaseTestCase):
     PROJECT_NAME = 'keystonemiddleware'
 
     def setUp(self):
         super(BaseAuditMiddlewareTest, self).setUp()
-        self.fd, self.audit_map = tempfile.mkstemp()
 
-        with open(self.audit_map, "w") as f:
-            f.write("[custom_actions]\n")
-            f.write("reboot = start/reboot\n")
-            f.write("os-migrations/get = read\n\n")
-            f.write("[path_keywords]\n")
-            f.write("action = None\n")
-            f.write("os-hosts = host\n")
-            f.write("os-migrations = None\n")
-            f.write("reboot = None\n")
-            f.write("servers = server\n\n")
-            f.write("[service_endpoints]\n")
-            f.write("compute = service/compute")
+        self.audit_map_file_fixture = self.useFixture(
+            createfile.CreateFileWithContent('audit', audit_map_content))
 
         self.cfg = self.useFixture(cfg_fixture.Config())
         self.cfg.conf([], project=self.PROJECT_NAME)
@@ -67,7 +72,9 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
             FakeApp(), audit_map_file=self.audit_map,
             service_name='pycadf')
 
-        self.addCleanup(lambda: os.close(self.fd))
+    @property
+    def audit_map(self):
+        return self.audit_map_file_fixture.path
 
     @staticmethod
     def get_environ_header(req_type):
