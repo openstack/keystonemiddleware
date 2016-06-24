@@ -382,13 +382,13 @@ class AuditMiddleware(object):
         if messaging:
             transport = oslo_messaging.get_transport(
                 cfg.CONF,
-                url=cfg.CONF.audit_middleware_notifications.transport_url,
+                url=self._conf.get('transport_url'),
                 aliases=transport_aliases)
             self._notifier = oslo_messaging.Notifier(
                 transport,
                 os.path.basename(sys.argv[0]),
-                driver=cfg.CONF.audit_middleware_notifications.driver,
-                topics=cfg.CONF.audit_middleware_notifications.topics)
+                driver=self._conf.get('driver'),
+                topics=self._conf.get('topics'))
 
     def _emit_audit(self, context, event_type, payload):
         """Emit audit notification.
