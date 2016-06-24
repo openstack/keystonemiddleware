@@ -16,7 +16,7 @@ import tempfile
 import uuid
 
 import mock
-from oslo_config import cfg
+from oslo_config import fixture as cfg_fixture
 from pycadf import cadftaxonomy as taxonomy
 from testtools import matchers
 import webob
@@ -60,14 +60,14 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
             f.write("[service_endpoints]\n")
             f.write("compute = service/compute")
 
-        cfg.CONF([], project=self.PROJECT_NAME)
+        self.cfg = self.useFixture(cfg_fixture.Config())
+        self.cfg.conf([], project=self.PROJECT_NAME)
 
         self.middleware = audit.AuditMiddleware(
             FakeApp(), audit_map_file=self.audit_map,
             service_name='pycadf')
 
         self.addCleanup(lambda: os.close(self.fd))
-        self.addCleanup(cfg.CONF.reset)
 
     @staticmethod
     def get_environ_header(req_type):
@@ -283,8 +283,7 @@ def _get_transport(conf, aliases=None, url=None):
 class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
 
     def test_conf_middleware_log_and_default_as_messaging(self, t):
-        cfg.CONF.notification_driver = ['messaging']  # MultiOptStr value
-        cfg.CONF.audit_middleware_notifications.driver = 'log'
+        self.cfg.config(driver='log', group='audit_middleware_notifications')
         middleware = audit.AuditMiddleware(
             FakeApp(),
             audit_map_file=self.audit_map,
@@ -300,9 +299,10 @@ class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_conf_middleware_log_and_oslo_msg_as_messaging(self, t):
-        cfg.CONF.notification_driver = None
-        cfg.CONF.oslo_messaging_notifications.driver = ['messaging']
-        cfg.CONF.audit_middleware_notifications.driver = 'log'
+        self.cfg.config(driver='messaging',
+                        group='oslo_messaging_notifications')
+        self.cfg.config(driver='log',
+                        group='audit_middleware_notifications')
         middleware = audit.AuditMiddleware(
             FakeApp(),
             audit_map_file=self.audit_map,
@@ -318,9 +318,9 @@ class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_conf_middleware_messaging_and_oslo_msg_as_log(self, t):
-        cfg.CONF.notification_driver = None
-        cfg.CONF.oslo_messaging_notifications.driver = ['log']
-        cfg.CONF.audit_middleware_notifications.driver = 'messaging'
+        self.cfg.config(driver='log', group='oslo_messaging_notifications')
+        self.cfg.config(driver='messaging',
+                        group='audit_middleware_notifications')
         middleware = audit.AuditMiddleware(
             FakeApp(),
             audit_map_file=self.audit_map,
@@ -337,9 +337,10 @@ class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_with_no_middleware_notification_conf(self, t):
-        cfg.CONF.notification_driver = None
-        cfg.CONF.oslo_messaging_notifications.driver = ['messaging']
-        cfg.CONF.audit_middleware_notifications.driver = None
+        self.cfg.config(driver='messaging',
+                        group='oslo_messaging_notifications')
+        self.cfg.config(driver=None, group='audit_middleware_notifications')
+
         middleware = audit.AuditMiddleware(
             FakeApp(),
             audit_map_file=self.audit_map,
@@ -357,8 +358,9 @@ class AuditNotifierConfigTest(BaseAuditMiddlewareTest):
 
     def test_conf_middleware_messaging_and_transport_set(self, mock_transport):
         transport_url = 'rabbit://me:passwd@host:5672/virtual_host'
-        cfg.CONF.audit_middleware_notifications.driver = 'messaging'
-        cfg.CONF.audit_middleware_notifications.transport_url = transport_url
+        self.cfg.config(driver='messaging',
+                        transport_url=transport_url,
+                        group='audit_middleware_notifications')
 
         audit.AuditMiddleware(
             FakeApp(),
