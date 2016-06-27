@@ -27,14 +27,9 @@ from oslo_config import cfg
 from oslo_context import context as oslo_context
 from pycadf import cadftaxonomy as taxonomy
 from pycadf import cadftype
-from pycadf import credential
-from pycadf import eventfactory as factory
-from pycadf import host
-from pycadf import identifier
 from pycadf import reason
 from pycadf import reporterstep
 from pycadf import resource
-from pycadf import tag
 from pycadf import timestamp
 import webob.dec
 
@@ -78,20 +73,6 @@ def _log_and_ignore_error(fn):
     return wrapper
 
 
-class ClientResource(resource.Resource):
-    def __init__(self, project_id=None, **kwargs):
-        super(ClientResource, self).__init__(**kwargs)
-        if project_id is not None:
-            self.project_id = project_id
-
-
-class KeystoneCredential(credential.Credential):
-    def __init__(self, identity_status=None, **kwargs):
-        super(KeystoneCredential, self).__init__(**kwargs)
-        if identity_status is not None:
-            self.identity_status = identity_status
-
-
 class AuditMiddleware(object):
     """Create an audit event based on request/response.
 
@@ -117,31 +98,7 @@ class AuditMiddleware(object):
         self._notifier = _notifier.create_notifier(self._conf, _LOG)
 
     def _create_event(self, req):
-        correlation_id = identifier.generate_uuid()
-        action = self._cadf_audit.get_action(req)
-
-        initiator = ClientResource(
-            typeURI=taxonomy.ACCOUNT_USER,
-            id=req.environ.get('HTTP_X_USER_ID', taxonomy.UNKNOWN),
-            name=req.environ.get('HTTP_X_USER_NAME', taxonomy.UNKNOWN),
-            host=host.Host(address=req.client_addr, agent=req.user_agent),
-            credential=KeystoneCredential(
-                token=req.environ.get('HTTP_X_AUTH_TOKEN', ''),
-                identity_status=req.environ.get('HTTP_X_IDENTITY_STATUS',
-                                                taxonomy.UNKNOWN)),
-            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN))
-        target = self._cadf_audit.get_target_resource(req)
-
-        event = factory.EventFactory().new_event(
-            eventType=cadftype.EVENTTYPE_ACTIVITY,
-            outcome=taxonomy.OUTCOME_PENDING,
-            action=action,
-            initiator=initiator,
-            target=target,
-            observer=resource.Resource(id='target'))
-        event.requestPath = req.path_qs
-        event.add_tag(tag.generate_name_value_tag('correlation_id',
-                                                  correlation_id))
+        event = self._cadf_audit._create_event(req)
         # cache model in request to allow tracking of transistive steps.
         req.environ['cadf_event'] = event
         return event
@@ -232,3 +189,5 @@ Service = _api.Service
 AuditMap = _api.AuditMap
 PycadfAuditApiConfigError = _api.PycadfAuditApiConfigError
 OpenStackAuditApi = _api.OpenStackAuditApi
+ClientResource = _api.ClientResource
+KeystoneCredential = _api.KeystoneCredential
