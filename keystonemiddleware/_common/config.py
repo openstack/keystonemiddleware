@@ -67,6 +67,10 @@ def _conf_values_type_convert(group_name, all_options, conf):
 class Config(object):
 
     def __init__(self, name, group_name, all_options, conf):
+        local_oslo_config = conf.pop('oslo_config_config', None)
+        local_config_project = conf.pop('oslo_config_project', None)
+        local_config_file = conf.pop('oslo_config_file', None)
+
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
@@ -81,21 +85,14 @@ class Config(object):
         # AuthProtocol can pass in an existing oslo.config as the
         # value of the "oslo_config_config" key in conf. If both are
         # set "olso_config_config" is used.
-        local_oslo_config = None
+        if local_config_project and not local_oslo_config:
+            config_files = [local_config_file] if local_config_file else None
 
-        try:
-            local_oslo_config = conf['oslo_config_config']
-        except KeyError:
-            if 'oslo_config_project' in conf:
-                if 'oslo_config_file' in conf:
-                    config_files = [conf['oslo_config_file']]
-                else:
-                    config_files = None
-                local_oslo_config = cfg.ConfigOpts()
-                local_oslo_config([],
-                                  project=conf['oslo_config_project'],
-                                  default_config_files=config_files,
-                                  validate_default_values=True)
+            local_oslo_config = cfg.ConfigOpts()
+            local_oslo_config([],
+                              project=local_config_project,
+                              default_config_files=config_files,
+                              validate_default_values=True)
 
         if local_oslo_config:
             for group, opts in all_options:
