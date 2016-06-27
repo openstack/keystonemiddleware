@@ -205,6 +205,39 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
             service_name='pycadf', project=project_name)
         self.assertEqual(project_name, self.middleware._conf.project)
 
+    def test_no_response(self):
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        req = webob.Request.blank(url,
+                                  environ=self.get_environ_header('GET'),
+                                  remote_addr='192.168.0.1')
+        req.context = {}
+        self.middleware._process_request(req)
+        payload = req.environ['cadf_event'].as_dict()
+        self.middleware._process_response(req, None)
+        payload2 = req.environ['cadf_event'].as_dict()
+        self.assertEqual(payload['id'], payload2['id'])
+        self.assertEqual(payload['tags'], payload2['tags'])
+        self.assertEqual(payload2['outcome'], 'unknown')
+        self.assertNotIn('reason', payload2)
+        self.assertEqual(len(payload2['reporterchain']), 1)
+        self.assertEqual(payload2['reporterchain'][0]['role'], 'modifier')
+        self.assertEqual(payload2['reporterchain'][0]['reporter']['id'],
+                         'target')
+
+    def test_missing_req(self):
+        req = webob.Request.blank('http://admin_host:8774/v2/'
+                                  + str(uuid.uuid4()) + '/servers',
+                                  environ=self.get_environ_header('GET'))
+        req.context = {}
+        self.assertNotIn('cadf_event', req.environ)
+        self.middleware._process_response(req, webob.Response())
+        self.assertIn('cadf_event', req.environ)
+        payload = req.environ['cadf_event'].as_dict()
+        self.assertEqual(payload['outcome'], 'success')
+        self.assertEqual(payload['reason']['reasonType'], 'HTTP')
+        self.assertEqual(payload['reason']['reasonCode'], '200')
+        self.assertEqual(payload['observer']['id'], 'target')
+
 
 def _get_transport(conf, aliases=None, url=None):
     transport = mock.MagicMock()

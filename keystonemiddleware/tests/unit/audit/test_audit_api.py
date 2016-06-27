@@ -12,7 +12,6 @@
 
 import uuid
 
-import mock
 from pycadf import cadftaxonomy as taxonomy
 import webob
 
@@ -20,20 +19,26 @@ from keystonemiddleware import audit
 from keystonemiddleware.tests.unit.audit import base
 
 
-@mock.patch('oslo_messaging.rpc', mock.MagicMock())
 class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
 
-    def api_request(self, method, url):
-        req = webob.Request.blank(url, environ=self.get_environ_header(method),
+    def get_payload(self, method, url,
+                    audit_map=None, body=None, environ=None):
+        audit_map = audit_map or self.audit_map
+        environ = environ or self.get_environ_header(method)
+
+        req = webob.Request.blank(url,
+                                  body=body,
+                                  environ=environ,
                                   remote_addr='192.168.0.1')
-        req.context = {}
-        self.middleware._process_request(req)
-        return req
+
+        middleware = audit.OpenStackAuditApi(audit_map)
+        return middleware._create_event(req).as_dict()
 
     def test_get_list(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        path = '/v2/' + str(uuid.uuid4()) + '/servers'
+        url = 'http://admin_host:8774' + path
+        payload = self.get_payload('GET', url)
+
         self.assertEqual(payload['action'], 'read/list')
         self.assertEqual(payload['typeURI'],
                          'http://schemas.dmtf.org/cloud/audit/1.0/event')
@@ -62,22 +67,22 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertNotIn('reason', payload)
         self.assertNotIn('reporterchain', payload)
         self.assertEqual(payload['observer']['id'], 'target')
-        self.assertEqual(req.path, payload['requestPath'])
+        self.assertEqual(path, payload['requestPath'])
 
     def test_get_read(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers/'
-                               + str(uuid.uuid4()))
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/servers/%s' % (uuid.uuid4().hex,
+                                                           uuid.uuid4().hex)
+        payload = self.get_payload('GET', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers/server')
         self.assertEqual(payload['action'], 'read')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_get_unknown_endpoint(self):
-        req = self.api_request('GET', 'http://unknown:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://unknown:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url)
+
         self.assertEqual(payload['action'], 'read/list')
         self.assertEqual(payload['outcome'], 'pending')
         self.assertEqual(payload['target']['name'], 'unknown')
@@ -93,13 +98,9 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
             f.write("[service_endpoints]\n")
             f.write("compute = service/compute")
 
-        self.middleware = audit.AuditMiddleware(
-            base.FakeApp(), audit_map_file=self.audit_map,
-            service_name='pycadf')
+        url = 'http://unknown:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url)
 
-        req = self.api_request('GET', 'http://unknown:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
         self.assertEqual(payload['action'], 'read/list')
         self.assertEqual(payload['outcome'], 'pending')
         self.assertEqual(payload['target']['name'], 'nova')
@@ -108,103 +109,99 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                          'service/compute/servers')
 
     def test_put(self):
-        req = self.api_request('PUT', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('PUT', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
         self.assertEqual(payload['action'], 'update')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_delete(self):
-        req = self.api_request('DELETE', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('DELETE', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
         self.assertEqual(payload['action'], 'delete')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_head(self):
-        req = self.api_request('HEAD', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('HEAD', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
         self.assertEqual(payload['action'], 'read')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_post_update(self):
-        req = self.api_request('POST',
-                               'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers/'
-                               + str(uuid.uuid4()))
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/servers/%s' % (uuid.uuid4().hex,
+                                                           uuid.uuid4().hex)
+        payload = self.get_payload('POST', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers/server')
         self.assertEqual(payload['action'], 'update')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_post_create(self):
-        req = self.api_request('POST', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('POST', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers')
         self.assertEqual(payload['action'], 'create')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_post_action(self):
-        req = webob.Request.blank('http://admin_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers/action',
-                                  environ=self.get_environ_header('POST'))
-        req.body = b'{"createImage" : {"name" : "new-image","metadata": ' \
-                   b'{"ImageType": "Gold","ImageVersion": "2.0"}}}'
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/servers/action' % uuid.uuid4().hex
+        body = b'{"createImage" : {"name" : "new-image","metadata": ' \
+               b'{"ImageType": "Gold","ImageVersion": "2.0"}}}'
+        payload = self.get_payload('POST', url, body=body)
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers/action')
         self.assertEqual(payload['action'], 'update/createImage')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_post_empty_body_action(self):
-        req = self.api_request('POST', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers/action')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/servers/action' % uuid.uuid4().hex
+        payload = self.get_payload('POST', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/servers/action')
         self.assertEqual(payload['action'], 'create')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_custom_action(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/os-hosts/'
-                               + str(uuid.uuid4()) + '/reboot')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/os-hosts/%s/reboot' % (
+            uuid.uuid4().hex, uuid.uuid4().hex)
+        payload = self.get_payload('GET', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/os-hosts/host/reboot')
         self.assertEqual(payload['action'], 'start/reboot')
         self.assertEqual(payload['outcome'], 'pending')
 
     def test_custom_action_complex(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/os-migrations')
-        payload = req.environ['cadf_event'].as_dict()
+        url = 'http://admin_host:8774/v2/%s/os-migrations' % uuid.uuid4().hex
+        payload = self.get_payload('GET', url)
+
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/os-migrations')
         self.assertEqual(payload['action'], 'read')
-        req = self.api_request('POST', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/os-migrations')
-        payload = req.environ['cadf_event'].as_dict()
+        payload = self.get_payload('POST', url)
         self.assertEqual(payload['target']['typeURI'],
                          'service/compute/os-migrations')
         self.assertEqual(payload['action'], 'create')
 
     def test_response_mod_msg(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        req = webob.Request.blank(url,
+                                  environ=self.get_environ_header('GET'),
+                                  remote_addr='192.168.0.1')
         req.context = {}
+        self.middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         self.middleware._process_response(req, webob.Response())
         payload2 = req.environ['cadf_event'].as_dict()
@@ -217,36 +214,6 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload2['reporterchain'][0]['role'], 'modifier')
         self.assertEqual(payload2['reporterchain'][0]['reporter']['id'],
                          'target')
-
-    def test_no_response(self):
-        req = self.api_request('GET', 'http://admin_host:8774/v2/'
-                               + str(uuid.uuid4()) + '/servers')
-        req.context = {}
-        payload = req.environ['cadf_event'].as_dict()
-        self.middleware._process_response(req, None)
-        payload2 = req.environ['cadf_event'].as_dict()
-        self.assertEqual(payload['id'], payload2['id'])
-        self.assertEqual(payload['tags'], payload2['tags'])
-        self.assertEqual(payload2['outcome'], 'unknown')
-        self.assertNotIn('reason', payload2)
-        self.assertEqual(len(payload2['reporterchain']), 1)
-        self.assertEqual(payload2['reporterchain'][0]['role'], 'modifier')
-        self.assertEqual(payload2['reporterchain'][0]['reporter']['id'],
-                         'target')
-
-    def test_missing_req(self):
-        req = webob.Request.blank('http://admin_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers',
-                                  environ=self.get_environ_header('GET'))
-        req.context = {}
-        self.assertNotIn('cadf_event', req.environ)
-        self.middleware._process_response(req, webob.Response())
-        self.assertIn('cadf_event', req.environ)
-        payload = req.environ['cadf_event'].as_dict()
-        self.assertEqual(payload['outcome'], 'success')
-        self.assertEqual(payload['reason']['reasonType'], 'HTTP')
-        self.assertEqual(payload['reason']['reasonCode'], '200')
-        self.assertEqual(payload['observer']['id'], 'target')
 
     def test_missing_catalog_endpoint_id(self):
         env_headers = {'HTTP_X_SERVICE_CATALOG':
@@ -266,12 +233,9 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                        'HTTP_X_PROJECT_ID': 'tenant_id',
                        'HTTP_X_IDENTITY_STATUS': 'Confirmed',
                        'REQUEST_METHOD': 'GET'}
-        req = webob.Request.blank('http://admin_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers',
-                                  environ=env_headers)
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual(payload['target']['id'], 'nova')
 
     def test_endpoint_missing_internal_url(self):
@@ -290,12 +254,9 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                        'HTTP_X_PROJECT_ID': 'tenant_id',
                        'HTTP_X_IDENTITY_STATUS': 'Confirmed',
                        'REQUEST_METHOD': 'GET'}
-        req = webob.Request.blank('http://admin_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers',
-                                  environ=env_headers)
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual((payload['target']['addresses'][1]['url']), "unknown")
 
     def test_endpoint_missing_public_url(self):
@@ -314,12 +275,9 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                        'HTTP_X_PROJECT_ID': 'tenant_id',
                        'HTTP_X_IDENTITY_STATUS': 'Confirmed',
                        'REQUEST_METHOD': 'GET'}
-        req = webob.Request.blank('http://admin_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers',
-                                  environ=env_headers)
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+
+        url = 'http://admin_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual((payload['target']['addresses'][2]['url']), "unknown")
 
     def test_endpoint_missing_admin_url(self):
@@ -338,12 +296,9 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                        'HTTP_X_PROJECT_ID': 'tenant_id',
                        'HTTP_X_IDENTITY_STATUS': 'Confirmed',
                        'REQUEST_METHOD': 'GET'}
-        req = webob.Request.blank('http://public_host:8774/v2/'
-                                  + str(uuid.uuid4()) + '/servers',
-                                  environ=env_headers)
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+
+        url = 'http://public_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual((payload['target']['addresses'][0]['url']), "unknown")
 
     def test_no_auth_token(self):
@@ -353,13 +308,11 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         # an exception.
         env_headers = {'HTTP_X_IDENTITY_STATUS': 'Invalid',
                        'REQUEST_METHOD': 'GET'}
-        req = webob.Request.blank('https://23.253.72.207/v1/'
-                                  + str(uuid.uuid4()),
-                                  environ=env_headers,
-                                  remote_addr='192.168.0.1')
-        req.context = {}
-        self.middleware._process_request(req)
-        payload = req.environ['cadf_event'].as_dict()
+
+        path = '/v1/' + str(uuid.uuid4())
+        url = 'https://23.253.72.207' + path
+        payload = self.get_payload('GET', url, environ=env_headers)
+
         self.assertEqual(payload['action'], 'read')
         self.assertEqual(payload['typeURI'],
                          'http://schemas.dmtf.org/cloud/audit/1.0/event')
@@ -384,4 +337,4 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertNotIn('reason', payload)
         self.assertNotIn('reporterchain', payload)
         self.assertEqual(payload['observer']['id'], 'target')
-        self.assertEqual(req.path, payload['requestPath'])
+        self.assertEqual(path, payload['requestPath'])

@@ -12,6 +12,7 @@
 
 import ast
 import collections
+import logging
 import re
 
 from pycadf import cadftaxonomy as taxonomy
@@ -74,7 +75,7 @@ class KeystoneCredential(credential.Credential):
 
 class OpenStackAuditApi(object):
 
-    def __init__(self, cfg_file, log):
+    def __init__(self, cfg_file, log=logging.getLogger(__name__)):
         """Configure to recognize and map known api paths."""
         path_kw = {}
         custom_actions = {}
