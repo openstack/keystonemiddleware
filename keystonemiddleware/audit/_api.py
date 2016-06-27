@@ -15,8 +15,14 @@ import collections
 import re
 
 from pycadf import cadftaxonomy as taxonomy
+from pycadf import cadftype
+from pycadf import credential
 from pycadf import endpoint
+from pycadf import eventfactory as factory
+from pycadf import host
+from pycadf import identifier
 from pycadf import resource
+from pycadf import tag
 import six
 from six.moves import configparser
 from six.moves.urllib import parse as urlparse
@@ -50,6 +56,20 @@ class PycadfAuditApiConfigError(Exception):
     """Error raised when pyCADF fails to configure correctly."""
 
     pass
+
+
+class ClientResource(resource.Resource):
+    def __init__(self, project_id=None, **kwargs):
+        super(ClientResource, self).__init__(**kwargs)
+        if project_id is not None:
+            self.project_id = project_id
+
+
+class KeystoneCredential(credential.Credential):
+    def __init__(self, identity_status=None, **kwargs):
+        super(KeystoneCredential, self).__init__(**kwargs)
+        if identity_status is not None:
+            self.identity_status = identity_status
 
 
 class OpenStackAuditApi(object):
@@ -261,3 +281,31 @@ class OpenStackAuditApi(object):
             if default_endpoint:
                 service_info = self._get_service_info(default_endpoint)
         return self._build_target(req, service_info)
+
+    def _create_event(self, req):
+        correlation_id = identifier.generate_uuid()
+        action = self.get_action(req)
+
+        initiator = ClientResource(
+            typeURI=taxonomy.ACCOUNT_USER,
+            id=req.environ.get('HTTP_X_USER_ID', taxonomy.UNKNOWN),
+            name=req.environ.get('HTTP_X_USER_NAME', taxonomy.UNKNOWN),
+            host=host.Host(address=req.client_addr, agent=req.user_agent),
+            credential=KeystoneCredential(
+                token=req.environ.get('HTTP_X_AUTH_TOKEN', ''),
+                identity_status=req.environ.get('HTTP_X_IDENTITY_STATUS',
+                                                taxonomy.UNKNOWN)),
+            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN))
+        target = self.get_target_resource(req)
+
+        event = factory.EventFactory().new_event(
+            eventType=cadftype.EVENTTYPE_ACTIVITY,
+            outcome=taxonomy.OUTCOME_PENDING,
+            action=action,
+            initiator=initiator,
+            target=target,
+            observer=resource.Resource(id='target'))
+        event.requestPath = req.path_qs
+        event.add_tag(tag.generate_name_value_tag('correlation_id',
+                                                  correlation_id))
+        return event
