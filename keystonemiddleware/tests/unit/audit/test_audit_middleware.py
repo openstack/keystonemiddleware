@@ -198,8 +198,13 @@ class AuditMiddlewareTest(BaseAuditMiddlewareTest):
     def test_api_request_no_messaging(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        with mock.patch('keystonemiddleware.audit.messaging', None):
+        with mock.patch('keystonemiddleware.audit._notifier.oslo_messaging',
+                        None):
             with mock.patch('keystonemiddleware.audit._LOG.info') as log:
+                self.middleware = audit.AuditMiddleware(
+                    FakeApp(),
+                    audit_map_file=self.audit_map)
+
                 self.middleware(req)
                 # Check first notification with only 'request'
                 call_args = log.call_args_list[0][0]

@@ -22,16 +22,9 @@ provides.
 import copy
 import functools
 import logging
-import os.path
-import sys
 
 from oslo_config import cfg
 from oslo_context import context as oslo_context
-try:
-    import oslo_messaging
-    messaging = True
-except ImportError:
-    messaging = False
 from pycadf import cadftaxonomy as taxonomy
 from pycadf import cadftype
 from pycadf import credential
@@ -47,7 +40,8 @@ import webob.dec
 
 from keystonemiddleware._common import config
 from keystonemiddleware.audit import _api
-from keystonemiddleware.i18n import _LE, _LI
+from keystonemiddleware.audit import _notifier
+from keystonemiddleware.i18n import _LE
 
 
 _LOG = None
@@ -107,21 +101,6 @@ class AuditMiddleware(object):
     http://docs.openstack.org/developer/keystonemiddleware/audit.html
     """
 
-    @staticmethod
-    def _get_aliases(proj):
-        aliases = {}
-        if proj:
-            # Aliases to support backward compatibility
-            aliases = {
-                '%s.openstack.common.rpc.impl_kombu' % proj: 'rabbit',
-                '%s.openstack.common.rpc.impl_qpid' % proj: 'qpid',
-                '%s.openstack.common.rpc.impl_zmq' % proj: 'zmq',
-                '%s.rpc.impl_kombu' % proj: 'rabbit',
-                '%s.rpc.impl_qpid' % proj: 'qpid',
-                '%s.rpc.impl_zmq' % proj: 'zmq',
-            }
-        return aliases
-
     def __init__(self, app, **conf):
         self._application = app
         self._conf = config.Config('audit',
@@ -135,32 +114,7 @@ class AuditMiddleware(object):
                                  conf.get('ignore_req_list', '').split(',')]
         self._cadf_audit = _api.OpenStackAuditApi(conf.get('audit_map_file'),
                                                   _LOG)
-
-        project = self._conf.project or taxonomy.UNKNOWN
-        transport_aliases = self._get_aliases(project)
-        if messaging:
-            transport = oslo_messaging.get_transport(
-                cfg.CONF,
-                url=self._conf.get('transport_url'),
-                aliases=transport_aliases)
-            self._notifier = oslo_messaging.Notifier(
-                transport,
-                os.path.basename(sys.argv[0]),
-                driver=self._conf.get('driver'),
-                topics=self._conf.get('topics'))
-
-    def _emit_audit(self, context, event_type, payload):
-        """Emit audit notification.
-
-        if oslo.messaging enabled, send notification. if not, log event.
-        """
-        if messaging:
-            self._notifier.info(context, event_type, payload)
-        else:
-            _LOG.info(_LI('Event type: %(event_type)s, Context: %(context)s, '
-                          'Payload: %(payload)s'), {'context': context,
-                                                    'event_type': event_type,
-                                                    'payload': payload})
+        self._notifier = _notifier.create_notifier(self._conf, _LOG)
 
     def _create_event(self, req):
         correlation_id = identifier.generate_uuid()
@@ -194,10 +148,9 @@ class AuditMiddleware(object):
 
     @_log_and_ignore_error
     def _process_request(self, request):
-        event = self._create_event(request)
-
-        self._emit_audit(request.context, 'audit.http.request',
-                         event.as_dict())
+        self._notifier.notify(request.context,
+                              'audit.http.request',
+                              self._create_event(request).as_dict())
 
     @_log_and_ignore_error
     def _process_response(self, request, response=None):
@@ -223,8 +176,9 @@ class AuditMiddleware(object):
                 reporter=resource.Resource(id='target'),
                 reporterTime=timestamp.get_utc_now()))
 
-        self._emit_audit(request.context, 'audit.http.response',
-                         event.as_dict())
+        self._notifier.notify(request.context,
+                              'audit.http.response',
+                              event.as_dict())
 
     @webob.dec.wsgify
     def __call__(self, req):
