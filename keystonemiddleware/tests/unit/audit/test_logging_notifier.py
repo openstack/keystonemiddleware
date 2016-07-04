@@ -12,7 +12,6 @@
 
 import fixtures
 import mock
-import webob
 
 from keystonemiddleware.tests.unit.audit import base
 
@@ -28,11 +27,8 @@ class TestLoggingNotifier(base.BaseAuditMiddlewareTest):
 
     @mock.patch('keystonemiddleware.audit._LOG.info')
     def test_api_request_no_messaging(self, log):
-        middleware = self.create_simple_middleware()
-
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        req.get_response(middleware)
+        self.create_simple_app().get('/foo/bar',
+                                     extra_environ=self.get_environ_header())
 
         # Check first notification with only 'request'
         call_args = log.call_args_list[0][0]

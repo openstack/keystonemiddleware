@@ -11,7 +11,6 @@
 # under the License.
 
 import mock
-import webob
 
 from keystonemiddleware.tests.unit.audit import base
 
@@ -20,13 +19,10 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
 
     def test_conf_middleware_log_and_default_as_messaging(self):
         self.cfg.config(driver='log', group='audit_middleware_notifications')
-        middleware = self.create_simple_middleware()
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        req.context = {}
+        app = self.create_simple_app()
         with mock.patch('oslo_messaging.notify._impl_log.LogDriver.notify',
                         side_effect=Exception('error')) as driver:
-            middleware._process_request(req)
+            app.get('/foo/bar', extra_environ=self.get_environ_header())
             # audit middleware conf has 'log' make sure that driver is invoked
             # and not the one specified in DEFAULT section
             self.assertTrue(driver.called)
@@ -37,13 +33,10 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         self.cfg.config(driver='log',
                         group='audit_middleware_notifications')
 
-        middleware = self.create_simple_middleware()
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        req.context = {}
+        app = self.create_simple_app()
         with mock.patch('oslo_messaging.notify._impl_log.LogDriver.notify',
                         side_effect=Exception('error')) as driver:
-            middleware._process_request(req)
+            app.get('/foo/bar', extra_environ=self.get_environ_header())
             # audit middleware conf has 'log' make sure that driver is invoked
             # and not the one specified in oslo_messaging_notifications section
             self.assertTrue(driver.called)
@@ -52,16 +45,13 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         self.cfg.config(driver='log', group='oslo_messaging_notifications')
         self.cfg.config(driver='messaging',
                         group='audit_middleware_notifications')
-        middleware = self.create_simple_middleware()
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        req.context = {}
+        app = self.create_simple_app()
         with mock.patch('oslo_messaging.notify.messaging.MessagingDriver'
                         '.notify',
                         side_effect=Exception('error')) as driver:
             # audit middleware has 'messaging' make sure that driver is invoked
             # and not the one specified in oslo_messaging_notifications section
-            middleware._process_request(req)
+            app.get('/foo/bar', extra_environ=self.get_environ_header())
             self.assertTrue(driver.called)
 
     def test_with_no_middleware_notification_conf(self):
@@ -69,16 +59,13 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
                         group='oslo_messaging_notifications')
         self.cfg.config(driver=None, group='audit_middleware_notifications')
 
-        middleware = self.create_simple_middleware()
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        req.context = {}
+        app = self.create_simple_app()
         with mock.patch('oslo_messaging.notify.messaging.MessagingDriver'
                         '.notify',
                         side_effect=Exception('error')) as driver:
             # audit middleware section is not set. So driver needs to be
             # invoked from oslo_messaging_notifications section.
-            middleware._process_request(req)
+            app.get('/foo/bar', extra_environ=self.get_environ_header())
             self.assertTrue(driver.called)
 
     @mock.patch('oslo_messaging.get_transport')

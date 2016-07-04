@@ -32,10 +32,8 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         super(AuditMiddlewareTest, self).setUp()
 
     def test_api_request(self):
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-
-        self.create_simple_middleware()(req)
+        self.create_simple_app().get('/foo/bar',
+                                     extra_environ=self.get_environ_header())
 
         # Check first notification with only 'request'
         call_args = self.notifier.notify.call_args_list[0][0]
@@ -55,18 +53,18 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
 
     def test_api_request_failure(self):
 
-        def cb(self, req):
-            raise Exception('It happens!')
+        class CustomException(Exception):
+            pass
 
-        middleware = self.create_middleware(cb)
-
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
+        def cb(req):
+            raise CustomException('It happens!')
 
         try:
-            middleware(req)
+            self.create_app(cb).get('/foo/bar',
+                                    extra_environ=self.get_environ_header())
+
             self.fail('Application exception has not been re-raised')
-        except Exception:
+        except CustomException:
             pass
 
         # Check first notification with only 'request'
@@ -101,22 +99,17 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         self.assertTrue(self.notifier.notify.called)
 
     def test_ignore_req_opt(self):
-        middleware = self.create_simple_middleware(ignore_req_list='get, PUT')
-
-        req = webob.Request.blank('/skip/foo',
-                                  environ=self.get_environ_header('GET'))
-        req1 = webob.Request.blank('/skip/foo',
-                                   environ=self.get_environ_header('PUT'))
-        req2 = webob.Request.blank('/accept/foo',
-                                   environ=self.get_environ_header('POST'))
+        app = self.create_simple_app(ignore_req_list='get, PUT')
 
         # Check GET/PUT request does not send notification
-        middleware(req)
-        middleware(req1)
+        app.get('/skip/foo', extra_environ=self.get_environ_header())
+        app.put('/skip/foo', extra_environ=self.get_environ_header())
+
         self.assertFalse(self.notifier.notify.called)
 
         # Check non-GET/PUT request does send notification
-        middleware(req2)
+        app.post('/accept/foo', extra_environ=self.get_environ_header())
+
         self.assertEqual(2, self.notifier.notify.call_count)
 
         call_args = self.notifier.notify.call_args_list[0][0]
@@ -128,10 +121,8 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         self.assertEqual('/accept/foo', call_args[2]['requestPath'])
 
     def test_cadf_event_context_scoped(self):
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-
-        self.create_simple_middleware()(req)
+        self.create_simple_app().get('/foo/bar',
+                                     extra_environ=self.get_environ_header())
 
         self.assertEqual(2, self.notifier.notify.call_count)
         first, second = [a[0] for a in self.notifier.notify.call_args_list]
@@ -143,10 +134,9 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         self.assertIs(first[0], second[0])
 
     def test_cadf_event_scoped_to_request(self):
-        req = webob.Request.blank('/foo/bar',
-                                  environ=self.get_environ_header('GET'))
-        self.create_simple_middleware()(req)
-        self.assertIsNotNone(req.environ.get('cadf_event'))
+        app = self.create_simple_app()
+        resp = app.get('/foo/bar', extra_environ=self.get_environ_header())
+        self.assertIsNotNone(resp.request.environ.get('cadf_event'))
 
         # ensure exact same event is used between request and response
         self.assertEqual(self.notifier.calls[0].payload['id'],

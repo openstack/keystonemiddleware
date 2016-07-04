@@ -24,10 +24,11 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
     def get_payload(self, method, url,
                     audit_map=None, body=None, environ=None):
         audit_map = audit_map or self.audit_map
-        environ = environ or self.get_environ_header(method)
+        environ = environ or self.get_environ_header()
 
         req = webob.Request.blank(url,
                                   body=body,
+                                  method=method,
                                   environ=environ,
                                   remote_addr='192.168.0.1')
 

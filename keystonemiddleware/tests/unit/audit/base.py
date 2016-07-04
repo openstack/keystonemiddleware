@@ -67,7 +67,7 @@ class BaseAuditMiddlewareTest(utils.MiddlewareTestCase):
         return self.audit_map_file_fixture.path
 
     @staticmethod
-    def get_environ_header(req_type):
+    def get_environ_header(req_type=None):
         env_headers = {'HTTP_X_SERVICE_CATALOG':
                        '''[{"endpoints_links": [],
                             "endpoints": [{"adminURL":
@@ -85,5 +85,6 @@ class BaseAuditMiddlewareTest(utils.MiddlewareTestCase):
                        'HTTP_X_AUTH_TOKEN': 'token',
                        'HTTP_X_PROJECT_ID': 'tenant_id',
                        'HTTP_X_IDENTITY_STATUS': 'Confirmed'}
-        env_headers['REQUEST_METHOD'] = req_type
+        if req_type:
+            env_headers['REQUEST_METHOD'] = req_type
         return env_headers

@@ -21,6 +21,7 @@ import mock
 import oslotest.base as oslotest
 import requests
 import webob
+import webtest
 
 
 class BaseTestCase(oslotest.BaseTestCase):
@@ -94,6 +95,12 @@ class MiddlewareTestCase(BaseTestCase):
             return resp
 
         return self.create_middleware(cb, **kwargs)
+
+    def create_app(self, *args, **kwargs):
+        return webtest.TestApp(self.create_middleware(*args, **kwargs))
+
+    def create_simple_app(self, *args, **kwargs):
+        return webtest.TestApp(self.create_simple_middleware(*args, **kwargs))
 
 
 class TestResponse(requests.Response):
