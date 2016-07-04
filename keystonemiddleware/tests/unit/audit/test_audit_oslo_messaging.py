@@ -13,7 +13,6 @@
 import mock
 import webob
 
-from keystonemiddleware import audit
 from keystonemiddleware.tests.unit.audit import base
 
 
@@ -21,10 +20,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
 
     def test_conf_middleware_log_and_default_as_messaging(self):
         self.cfg.config(driver='log', group='audit_middleware_notifications')
-        middleware = audit.AuditMiddleware(
-            base.FakeApp(),
-            audit_map_file=self.audit_map,
-            service_name='pycadf')
+        middleware = self.create_simple_middleware()
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
         req.context = {}
@@ -41,10 +37,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         self.cfg.config(driver='log',
                         group='audit_middleware_notifications')
 
-        middleware = audit.AuditMiddleware(
-            base.FakeApp(),
-            audit_map_file=self.audit_map,
-            service_name='pycadf')
+        middleware = self.create_simple_middleware()
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
         req.context = {}
@@ -59,10 +52,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         self.cfg.config(driver='log', group='oslo_messaging_notifications')
         self.cfg.config(driver='messaging',
                         group='audit_middleware_notifications')
-        middleware = audit.AuditMiddleware(
-            base.FakeApp(),
-            audit_map_file=self.audit_map,
-            service_name='pycadf')
+        middleware = self.create_simple_middleware()
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
         req.context = {}
@@ -79,10 +69,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
                         group='oslo_messaging_notifications')
         self.cfg.config(driver=None, group='audit_middleware_notifications')
 
-        middleware = audit.AuditMiddleware(
-            base.FakeApp(),
-            audit_map_file=self.audit_map,
-            service_name='pycadf')
+        middleware = self.create_simple_middleware()
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
         req.context = {}
@@ -101,10 +88,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
                         transport_url=transport_url,
                         group='audit_middleware_notifications')
 
-        audit.AuditMiddleware(
-            base.FakeApp(),
-            audit_map_file=self.audit_map,
-            service_name='pycadf')
+        self.create_simple_middleware()
         self.assertTrue(m.called)
         # make sure first call kwarg 'url' is same as provided transport_url
         self.assertEqual(transport_url, m.call_args_list[0][1]['url'])

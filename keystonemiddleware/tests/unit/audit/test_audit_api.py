@@ -201,9 +201,10 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                                   environ=self.get_environ_header('GET'),
                                   remote_addr='192.168.0.1')
         req.context = {}
-        self.middleware._process_request(req)
+        middleware = self.create_simple_middleware()
+        middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
-        self.middleware._process_response(req, webob.Response())
+        middleware._process_response(req, webob.Response())
         payload2 = req.environ['cadf_event'].as_dict()
         self.assertEqual(payload['id'], payload2['id'])
         self.assertEqual(payload['tags'], payload2['tags'])

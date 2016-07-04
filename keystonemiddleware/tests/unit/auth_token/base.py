@@ -24,7 +24,7 @@ from keystonemiddleware import auth_token
 from keystonemiddleware.tests.unit import utils
 
 
-class BaseAuthTokenTestCase(utils.BaseTestCase):
+class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
 
     def setUp(self):
         super(BaseAuthTokenTestCase, self).setUp()
@@ -48,18 +48,6 @@ class BaseAuthTokenTestCase(utils.BaseTestCase):
             opts.update(conf or {})
 
         return auth_token.AuthProtocol(_do_cb, opts)
-
-    def create_simple_middleware(self,
-                                 status='200 OK',
-                                 body='',
-                                 headers=None,
-                                 **kwargs):
-        def cb(req):
-            resp = webob.Response(body, status)
-            resp.headers.update(headers or {})
-            return resp
-
-        return self.create_middleware(cb, **kwargs)
 
     def call(self, middleware, method='GET', path='/', headers=None,
              expected_status=http_client.OK):

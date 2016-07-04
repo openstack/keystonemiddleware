@@ -13,13 +13,14 @@
 import logging
 import sys
 import time
+import uuid
 import warnings
 
 import fixtures
 import mock
 import oslotest.base as oslotest
 import requests
-import uuid
+import webob
 
 
 class BaseTestCase(oslotest.BaseTestCase):
@@ -31,6 +32,8 @@ class BaseTestCase(oslotest.BaseTestCase):
         warnings.filterwarnings('error', category=DeprecationWarning,
                                 module='^keystonemiddleware\\.')
         self.addCleanup(warnings.resetwarnings)
+
+        self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
 
 
 class TestCase(BaseTestCase):
@@ -49,7 +52,6 @@ class TestCase(BaseTestCase):
 
     def setUp(self):
         super(TestCase, self).setUp()
-        self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         self.time_patcher = mock.patch.object(time, 'time', lambda: 1234)
         self.time_patcher.start()
 
@@ -74,6 +76,24 @@ if tuple(sys.version_info)[0:2] < (2, 7):
                 self.fail(standardMsg)
 
     TestCase.assertDictEqual = assertDictEqual
+
+
+class MiddlewareTestCase(BaseTestCase):
+
+    def create_middleware(self, cb, **kwargs):
+        raise NotImplemented("implement this in your tests")
+
+    def create_simple_middleware(self,
+                                 status='200 OK',
+                                 body='',
+                                 headers=None,
+                                 **kwargs):
+        def cb(req):
+            resp = webob.Response(body, status)
+            resp.headers.update(headers or {})
+            return resp
+
+        return self.create_middleware(cb, **kwargs)
 
 
 class TestResponse(requests.Response):
