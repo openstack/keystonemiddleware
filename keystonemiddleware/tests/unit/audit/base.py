@@ -82,8 +82,8 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
                                            "internalURL":
                                            "http://internal_host:8774",
                                            "id": "resource_id"}],
-                           "type": "compute",
-                           "name": "nova"},]''',
+                            "type": "compute",
+                            "name": "nova"}]''',
                        'HTTP_X_USER_ID': 'user_id',
                        'HTTP_X_USER_NAME': 'user_name',
                        'HTTP_X_AUTH_TOKEN': 'token',
