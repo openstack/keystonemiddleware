@@ -12,6 +12,7 @@
 
 
 from oslo_config import fixture as cfg_fixture
+from oslo_messaging import conffixture as msg_fixture
 from oslotest import createfile
 
 from keystonemiddleware import audit
@@ -60,6 +61,8 @@ class BaseAuditMiddlewareTest(utils.BaseTestCase):
             createfile.CreateFileWithContent('audit', audit_map_content))
 
         self.cfg = self.useFixture(cfg_fixture.Config())
+        self.msg = self.useFixture(msg_fixture.ConfFixture(self.cfg.conf))
+
         self.cfg.conf([], project=self.PROJECT_NAME)
 
         self.middleware = audit.AuditMiddleware(

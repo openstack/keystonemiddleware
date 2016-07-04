@@ -10,7 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import fixtures
 import mock
 import webob
 
@@ -19,19 +18,6 @@ from keystonemiddleware.tests.unit.audit import base
 
 
 class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
-
-    def setUp(self):
-        super(AuditNotifierConfigTest, self).setUp()
-
-        f = fixtures.MockPatch('oslo_messaging.get_transport',
-                               side_effect=self._get_transport)
-        self.transport_fixture = self.useFixture(f)
-
-    def _get_transport(self, conf, aliases=None, url=None):
-        transport = mock.MagicMock()
-        transport.conf = conf
-        conf.register_opts = mock.MagicMock()
-        return transport
 
     def test_conf_middleware_log_and_default_as_messaging(self):
         self.cfg.config(driver='log', group='audit_middleware_notifications')
@@ -108,7 +94,8 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             middleware._process_request(req)
             self.assertTrue(driver.called)
 
-    def test_conf_middleware_messaging_and_transport_set(self):
+    @mock.patch('oslo_messaging.get_transport')
+    def test_conf_middleware_messaging_and_transport_set(self, m):
         transport_url = 'rabbit://me:passwd@host:5672/virtual_host'
         self.cfg.config(driver='messaging',
                         transport_url=transport_url,
@@ -118,7 +105,6 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             base.FakeApp(),
             audit_map_file=self.audit_map,
             service_name='pycadf')
-        m = self.transport_fixture.mock
         self.assertTrue(m.called)
         # make sure first call kwarg 'url' is same as provided transport_url
         self.assertEqual(transport_url, m.call_args_list[0][1]['url'])
