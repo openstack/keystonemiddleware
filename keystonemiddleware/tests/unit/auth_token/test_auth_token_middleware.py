@@ -41,9 +41,9 @@ import webob.dec
 
 from keystonemiddleware import auth_token
 from keystonemiddleware.auth_token import _base
+from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _revocations
-from keystonemiddleware.openstack.common import memorycache
 from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import client_fixtures
 
@@ -1048,7 +1048,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_swift_memcache_set_expired(self):
         extra_conf = {'cache': 'swift.cache'}
-        extra_environ = {'swift.cache': memorycache.Client()}
+        extra_environ = {'swift.cache': _cache._FakeClient()}
         self.test_memcache_set_expired(extra_conf, extra_environ)
 
     def test_http_error_not_cached_token(self):
@@ -1251,7 +1251,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
         # The token cache has to be initialized with our cache instance.
         self.middleware._token_cache._env_cache_name = 'cache'
-        cache = memorycache.Client()
+        cache = _cache._FakeClient()
         self.middleware._token_cache.initialize(env={'cache': cache})
 
         # Mock cache.set since then the test can verify call_count.
