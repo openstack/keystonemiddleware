@@ -442,26 +442,6 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
 
-    def test_token_is_v2_accepts_v2(self):
-        token = self.examples.UUID_TOKEN_DEFAULT
-        token_response = self.examples.TOKEN_RESPONSES[token]
-        self.assertTrue(auth_token._token_is_v2(token_response))
-
-    def test_token_is_v2_rejects_v3(self):
-        token = self.examples.v3_UUID_TOKEN_DEFAULT
-        token_response = self.examples.TOKEN_RESPONSES[token]
-        self.assertFalse(auth_token._token_is_v2(token_response))
-
-    def test_token_is_v3_rejects_v2(self):
-        token = self.examples.UUID_TOKEN_DEFAULT
-        token_response = self.examples.TOKEN_RESPONSES[token]
-        self.assertFalse(auth_token._token_is_v3(token_response))
-
-    def test_token_is_v3_accepts_v3(self):
-        token = self.examples.v3_UUID_TOKEN_DEFAULT
-        token_response = self.examples.TOKEN_RESPONSES[token]
-        self.assertTrue(auth_token._token_is_v3(token_response))
-
     def test_fixed_cache_key_length(self):
         self.set_middleware()
         short_string = uuid.uuid4().hex
