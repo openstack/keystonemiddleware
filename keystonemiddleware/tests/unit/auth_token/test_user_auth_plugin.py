@@ -109,7 +109,7 @@ class V2UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         self.requests_mock.post(url, json=self.service_token)
 
     def get_role_names(self, token):
-        return set(x['name'] for x in token['access']['user'].get('roles', []))
+        return [x['name'] for x in token['access']['user'].get('roles', [])]
 
     def get_token(self):
         token = fixture.V2Token()
@@ -174,7 +174,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
             json=self.service_token)
 
     def get_role_names(self, token):
-        return set(x['name'] for x in token['token'].get('roles', []))
+        return [x['name'] for x in token['token'].get('roles', [])]
 
     def get_token(self, project=True):
         token_id = uuid.uuid4().hex
