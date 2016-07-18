@@ -10,11 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import ast
 import collections
 import logging
 import re
 
+from oslo_serialization import jsonutils
 from pycadf import cadftaxonomy as taxonomy
 from pycadf import cadftype
 from pycadf import credential
@@ -251,8 +251,7 @@ class OpenStackAuditApi(object):
 
         catalog = {}
         try:
-            catalog = ast.literal_eval(
-                req.environ['HTTP_X_SERVICE_CATALOG'])
+            catalog = jsonutils.loads(req.environ['HTTP_X_SERVICE_CATALOG'])
         except KeyError:
             msg = _LW('Unable to discover target information because '
                       'service catalog is missing. Either the incoming '

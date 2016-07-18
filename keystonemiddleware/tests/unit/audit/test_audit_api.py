@@ -225,8 +225,8 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                                            "http://public_host:8774",
                                            "internalURL":
                                            "http://internal_host:8774"}],
-                           "type": "compute",
-                           "name": "nova"},]''',
+                            "type": "compute",
+                            "name": "nova"}]''',
                        'HTTP_X_USER_ID': 'user_id',
                        'HTTP_X_USER_NAME': 'user_name',
                        'HTTP_X_AUTH_TOKEN': 'token',
@@ -246,8 +246,8 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                                            "region": "RegionOne",
                                            "publicURL":
                                            "http://public_host:8774"}],
-                            "type": "compute",
-                            "name": "nova"},]''',
+                             "type": "compute",
+                             "name": "nova"}]''',
                        'HTTP_X_USER_ID': 'user_id',
                        'HTTP_X_USER_NAME': 'user_name',
                        'HTTP_X_AUTH_TOKEN': 'token',
@@ -267,8 +267,8 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                                            "region": "RegionOne",
                                            "internalURL":
                                            "http://internal_host:8774"}],
-                            "type": "compute",
-                            "name": "nova"},]''',
+                             "type": "compute",
+                             "name": "nova"}]''',
                        'HTTP_X_USER_ID': 'user_id',
                        'HTTP_X_USER_NAME': 'user_name',
                        'HTTP_X_AUTH_TOKEN': 'token',
@@ -288,8 +288,8 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
                                            "http://public_host:8774",
                                            "internalURL":
                                            "http://internal_host:8774"}],
-                            "type": "compute",
-                            "name": "nova"},]''',
+                             "type": "compute",
+                             "name": "nova"}]''',
                        'HTTP_X_USER_ID': 'user_id',
                        'HTTP_X_USER_NAME': 'user_name',
                        'HTTP_X_AUTH_TOKEN': 'token',
