@@ -285,14 +285,6 @@ class _BIND_MODE(object):
     KERBEROS = 'kerberos'
 
 
-def _token_is_v2(token_info):
-    return ('access' in token_info)
-
-
-def _token_is_v3(token_info):
-    return ('token' in token_info)
-
-
 def _uncompress_pkiz(token):
     # TypeError If the signed_text is not zlib compressed binascii.Error if
     # signed_text has incorrect base64 padding (py34)
