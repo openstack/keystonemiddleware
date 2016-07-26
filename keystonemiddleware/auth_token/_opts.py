@@ -62,7 +62,11 @@ _OPTS = [
                help='How many times are we trying to reconnect when'
                ' communicating with Identity API Server.'),
     cfg.StrOpt('cache',
-               help='Env key for the swift cache.'),
+               help='Request environment key where the Swift cache object is'
+               ' stored. When auth_token middleware is deployed with a Swift'
+               ' cache, use this option to have the middleware share a caching'
+               ' backend with swift. Otherwise, use the ``memcached_servers``'
+               ' option instead.'),
     cfg.StrOpt('certfile',
                help='Required if identity server requires client certificate'),
     cfg.StrOpt('keyfile',
