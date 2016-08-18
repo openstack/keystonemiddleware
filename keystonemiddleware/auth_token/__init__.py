@@ -582,14 +582,13 @@ class AuthProtocol(BaseAuthProtocol):
                     content_type='application/json')
 
         if request.user_token_valid:
-            user_auth_ref = request.token_auth._user_auth_ref
-            request.set_user_headers(user_auth_ref)
+            request.set_user_headers(request.token_auth.user)
 
             if self._include_service_catalog:
-                request.set_service_catalog_headers(user_auth_ref)
+                request.set_service_catalog_headers(request.token_auth.user)
 
         if request.service_token and request.service_token_valid:
-            request.set_service_headers(request.token_auth._serv_auth_ref)
+            request.set_service_headers(request.token_auth.service)
 
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug('Received request from %s',
