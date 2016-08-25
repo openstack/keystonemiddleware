@@ -850,7 +850,7 @@ class AuthProtocol(BaseAuthProtocol):
             sess,
             auth=auth_plugin,
             service_type='identity',
-            interface='admin',
+            interface='internal',
             region_name=self._conf.get('region_name'),
             connect_retries=self._conf.get('http_request_max_retries'))
 
