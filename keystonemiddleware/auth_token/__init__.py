@@ -570,7 +570,8 @@ class AuthProtocol(BaseAuthProtocol):
                 self.log.info(_LI('Deferring reject downstream'))
             else:
                 self.log.info(_LI('Rejecting request'))
-                message = 'The request you have made requires authentication.'
+                message = _('The request you have made requires '
+                            'authentication.')
                 body = {'error': {
                     'code': 401,
                     'title': 'Unauthorized',
