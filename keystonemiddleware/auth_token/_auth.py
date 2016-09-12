@@ -45,8 +45,8 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
         if not identity_uri:
             log.warning(_LW('Configuring admin URI using auth fragments was '
                             'deprecated in the Kilo release, and will be '
-                            'removed in the N release, use \'identity_uri\ '
-                            'instead.'))
+                            'removed in the Newton release, '
+                            'use \'identity_uri\ instead.'))
 
             if ':' in auth_host:
                 # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
@@ -73,8 +73,8 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
         if admin_token:
             log.warning(_LW(
                 "The admin_token option in auth_token middleware was "
-                "deprecated in the Kilo release, and will be removed in the N "
-                "release, use admin_user and admin_password instead."))
+                "deprecated in the Kilo release, and will be removed in the "
+                "Newton release, use admin_user and admin_password instead."))
             self._plugin = token_endpoint.Token(auth_url, admin_token)
         else:
             self._plugin = v2.Password(auth_url,
