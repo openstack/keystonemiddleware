@@ -20,27 +20,6 @@ class MemcacheCryptPositiveTests(utils.BaseTestCase):
     def _setup_keys(self, strategy):
         return memcache_crypt.derive_keys(b'token', b'secret', strategy)
 
-    def test_constant_time_compare(self):
-        # make sure it works as a compare, the "constant time" aspect
-        # isn't appropriate to test in unittests
-        ctc = memcache_crypt.constant_time_compare
-        self.assertTrue(ctc('abcd', 'abcd'))
-        self.assertTrue(ctc('', ''))
-        self.assertFalse(ctc('abcd', 'efgh'))
-        self.assertFalse(ctc('abc', 'abcd'))
-        self.assertFalse(ctc('abc', 'abc\x00'))
-        self.assertFalse(ctc('', 'abc'))
-
-        # For Python 3, we want to test these functions with both str and bytes
-        # as input.
-        if six.PY3:
-            self.assertTrue(ctc(b'abcd', b'abcd'))
-            self.assertTrue(ctc(b'', b''))
-            self.assertFalse(ctc(b'abcd', b'efgh'))
-            self.assertFalse(ctc(b'abc', b'abcd'))
-            self.assertFalse(ctc(b'abc', b'abc\x00'))
-            self.assertFalse(ctc(b'', b'abc'))
-
     def test_derive_keys(self):
         keys = self._setup_keys(b'strategy')
         self.assertEqual(len(keys['ENCRYPTION']),
