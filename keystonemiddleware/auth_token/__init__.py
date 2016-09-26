@@ -407,7 +407,7 @@ class BaseAuthProtocol(object):
         :returns: The token data
         :rtype: dict
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def process_response(self, response):
         """Do whatever you'd like to the response.
