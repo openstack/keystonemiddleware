@@ -318,10 +318,14 @@ class BaseAuthProtocol(object):
     def __init__(self,
                  app,
                  log=_LOG,
-                 enforce_token_bind=_BIND_MODE.PERMISSIVE):
+                 enforce_token_bind=_BIND_MODE.PERMISSIVE,
+                 service_token_roles=None,
+                 service_token_roles_required=False):
         self.log = log
         self._app = app
         self._enforce_token_bind = enforce_token_bind
+        self._service_token_roles = set(service_token_roles or [])
+        self._service_token_roles_required = service_token_roles_required
 
     @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):
@@ -350,20 +354,7 @@ class BaseAuthProtocol(object):
         """
         user_auth_ref = None
         serv_auth_ref = None
-
-        if request.user_token:
-            self.log.debug('Authenticating user token')
-            try:
-                data, user_auth_ref = self._do_fetch_token(request.user_token)
-                self._validate_token(user_auth_ref)
-                if not request.service_token:
-                    self._confirm_token_bind(user_auth_ref, request)
-            except ksm_exceptions.InvalidToken:
-                self.log.info(_LI('Invalid user token'))
-                request.user_token_valid = False
-            else:
-                request.user_token_valid = True
-                request.token_info = data
+        allow_expired = False
 
         if request.service_token:
             self.log.debug('Authenticating service token')
@@ -375,12 +366,56 @@ class BaseAuthProtocol(object):
                 self.log.info(_LI('Invalid service token'))
                 request.service_token_valid = False
             else:
-                request.service_token_valid = True
+                # FIXME(jamielennox): The new behaviour for service tokens is
+                # that they have to pass the policy check to be allowed.
+                # Previously any token was accepted here. For now we will
+                # continue to mark service tokens as valid if they are valid
+                # but we will only allow service role tokens to do
+                # allow_expired. In future we should reject any token that
+                # isn't a service token here.
+                role_names = set(serv_auth_ref.role_names)
+                check = self._service_token_roles.intersection(role_names)
+                role_check_passed = bool(check)
+
+                # if service_token_role_required then the service token is only
+                # valid if the roles check out. Otherwise at this point it is
+                # true because keystone has already validated it.
+                if self._service_token_roles_required:
+                    request.service_token_valid = role_check_passed
+                else:
+                    self.log.warning(_LW('A valid token was submitted as a '
+                                         'service token, but it was not a '
+                                         'valid service token. This is '
+                                         'incorrect but backwards compatible '
+                                         'behaviour. This will be removed in '
+                                         'future releases.'))
+
+                    request.service_token_valid = True
+
+                # allow_expired always requires passing the role check.
+                allow_expired = role_check_passed
+
+        if request.user_token:
+            self.log.debug('Authenticating user token')
+            try:
+                data, user_auth_ref = self._do_fetch_token(
+                    request.user_token,
+                    allow_expired=allow_expired)
+                self._validate_token(user_auth_ref,
+                                     allow_expired=allow_expired)
+                if not request.service_token:
+                    self._confirm_token_bind(user_auth_ref, request)
+            except ksm_exceptions.InvalidToken:
+                self.log.info(_LI('Invalid user token'))
+                request.user_token_valid = False
+            else:
+                request.user_token_valid = True
+                request.token_info = data
 
         request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
                                                          serv_auth_ref)
 
-    def _validate_token(self, auth_ref):
+    def _validate_token(self, auth_ref, allow_expired=False):
         """Perform the validation steps on the token.
 
         :param auth_ref: The token data
@@ -389,7 +424,7 @@ class BaseAuthProtocol(object):
         :raises exc.InvalidToken: if token is rejected
         """
         # 0 seconds of validity means it is invalid right now
-        if auth_ref.will_expire_soon(stale_duration=0):
+        if (not allow_expired) and auth_ref.will_expire_soon(stale_duration=0):
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
     def _do_fetch_token(self, token, **kwargs):
@@ -518,10 +553,20 @@ class AuthProtocol(BaseAuthProtocol):
                                    list_opts(),
                                    conf)
 
+        token_roles_required = self._conf.get('service_token_roles_required')
+
+        if not token_roles_required:
+            log.warning(_LW('AuthToken middleware is set with '
+                            'keystone_authtoken.service_token_roles_required '
+                            'set to False. This is backwards compatible but '
+                            'deprecated behaviour. Please set this to True.'))
+
         super(AuthProtocol, self).__init__(
             app,
             log=log,
-            enforce_token_bind=self._conf.get('enforce_token_bind'))
+            enforce_token_bind=self._conf.get('enforce_token_bind'),
+            service_token_roles=self._conf.get('service_token_roles'),
+            service_token_roles_required=token_roles_required)
 
         # delay_auth_decision means we still allow unauthenticated requests
         # through and we let the downstream service make the final decision
@@ -674,7 +719,7 @@ class AuthProtocol(BaseAuthProtocol):
             if cached:
                 return cached
 
-    def fetch_token(self, token):
+    def fetch_token(self, token, allow_expired=False):
         """Retrieve a token from either a PKI bundle or the identity server.
 
         :param str token: token id
@@ -709,7 +754,9 @@ class AuthProtocol(BaseAuthProtocol):
             else:
                 data = self._validate_offline(token, token_hashes)
                 if not data:
-                    data = self._identity_server.verify_token(token)
+                    data = self._identity_server.verify_token(
+                        token,
+                        allow_expired=allow_expired)
 
                 self._token_cache.set(token_hashes[0], data)
 
@@ -765,8 +812,8 @@ class AuthProtocol(BaseAuthProtocol):
 
             return data
 
-    def _validate_token(self, auth_ref):
-        super(AuthProtocol, self)._validate_token(auth_ref)
+    def _validate_token(self, auth_ref, **kwargs):
+        super(AuthProtocol, self)._validate_token(auth_ref, **kwargs)
 
         if auth_ref.version == 'v2.0' and not auth_ref.project_id:
             msg = _('Unable to determine service tenancy.')

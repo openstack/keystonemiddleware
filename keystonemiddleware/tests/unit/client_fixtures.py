@@ -248,7 +248,7 @@ class Examples(fixtures.Fixture):
         SERVICE_USER_NAME = 'service_user_name1'
         SERVICE_DOMAIN_ID = 'service_domain_id1'
         SERVICE_DOMAIN_NAME = 'service_domain_name1'
-        SERVICE_ROLE_NAME1 = 'service_role1'
+        SERVICE_ROLE_NAME1 = 'service'
         SERVICE_ROLE_NAME2 = 'service_role2'
 
         self.SERVICE_TYPE = 'identity'

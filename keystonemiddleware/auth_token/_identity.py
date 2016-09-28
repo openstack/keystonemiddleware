@@ -44,7 +44,7 @@ class _RequestStrategy(object):
     def __init__(self, adap, include_service_catalog=None):
         self._include_service_catalog = include_service_catalog
 
-    def verify_token(self, user_token):
+    def verify_token(self, user_token, allow_expired=False):
         pass
 
     @_convert_fetch_cert_exception
@@ -73,7 +73,8 @@ class _V2RequestStrategy(_RequestStrategy):
         super(_V2RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v2_client.Client(session=adap)
 
-    def verify_token(self, token):
+    def verify_token(self, token, allow_expired=False):
+        # NOTE(jamielennox): allow_expired is ignored on V2
         auth_ref = self._client.tokens.validate_access_info(token)
 
         if not auth_ref:
@@ -100,10 +101,11 @@ class _V3RequestStrategy(_RequestStrategy):
         super(_V3RequestStrategy, self).__init__(adap, **kwargs)
         self._client = v3_client.Client(session=adap)
 
-    def verify_token(self, token):
+    def verify_token(self, token, allow_expired=False):
         auth_ref = self._client.tokens.validate(
             token,
-            include_catalog=self._include_service_catalog)
+            include_catalog=self._include_service_catalog,
+            allow_expired=allow_expired)
 
         if not auth_ref:
             msg = _('Failed to fetch token data from identity server')
@@ -197,13 +199,14 @@ class IdentityServer(object):
         msg = _('No compatible apis supported by server')
         raise ksm_exceptions.ServiceError(msg)
 
-    def verify_token(self, user_token, retry=True):
+    def verify_token(self, user_token, retry=True, allow_expired=False):
         """Authenticate user token with identity server.
 
         :param user_token: user's token id
         :param retry: flag that forces the middleware to retry
                       user authentication when an indeterminate
                       response is received. Optional.
+        :param allow_expired: Allow retrieving an expired token.
         :returns: access info received from identity server on success
         :rtype: :py:class:`keystoneauth1.access.AccessInfo`
         :raises exc.InvalidToken: if token is rejected
@@ -211,7 +214,9 @@ class IdentityServer(object):
 
         """
         try:
-            auth_ref = self._request_strategy.verify_token(user_token)
+            auth_ref = self._request_strategy.verify_token(
+                user_token,
+                allow_expired=allow_expired)
         except ksa_exceptions.NotFound as e:
             self._LOG.warning(_LW('Authorization failed for token'))
             self._LOG.warning(_LW('Identity response: %s'), e.response.text)

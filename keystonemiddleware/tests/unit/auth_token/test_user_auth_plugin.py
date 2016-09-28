@@ -72,7 +72,7 @@ class BaseUserPluginTests(object):
 
     def test_with_service_information(self):
         token_id, token = self.get_token()
-        service_id, service = self.get_token()
+        service_id, service = self.get_token(service=True)
 
         plugin = self.get_plugin(token_id, service_id)
 
@@ -111,10 +111,12 @@ class V2UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
     def get_role_names(self, token):
         return [x['name'] for x in token['access']['user'].get('roles', [])]
 
-    def get_token(self):
+    def get_token(self, service=False):
         token = fixture.V2Token()
         token.set_scope()
         token.add_role()
+        if service:
+            token.add_role('service')
 
         request_headers = {'X-Auth-Token': self.service_token.token_id}
 
@@ -176,12 +178,14 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
     def get_role_names(self, token):
         return [x['name'] for x in token['token'].get('roles', [])]
 
-    def get_token(self, project=True):
+    def get_token(self, project=True, service=False):
         token_id = uuid.uuid4().hex
         token = fixture.V3Token()
         if project:
             token.set_project_scope()
         token.add_role()
+        if service:
+            token.add_role('service')
 
         request_headers = {'X-Auth-Token': self.service_token_id,
                            'X-Subject-Token': token_id}
