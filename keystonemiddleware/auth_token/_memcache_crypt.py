@@ -34,7 +34,8 @@ import hmac
 import math
 import os
 import six
-import sys
+
+from oslo_utils import secretutils
 
 from keystonemiddleware.i18n import _
 
@@ -80,28 +81,6 @@ def assert_crypto_availability(f):
             raise CryptoUnavailableError()
         return f(*args, **kwds)
     return wrapper
-
-
-if sys.version_info >= (3, 3):
-    constant_time_compare = hmac.compare_digest
-else:
-    def constant_time_compare(first, second):
-        """Return True if both string inputs are equal, otherwise False.
-
-        This function should take a constant amount of time regardless of
-        how many characters in the strings match.
-
-        """
-        if len(first) != len(second):
-            return False
-        result = 0
-        if six.PY3 and isinstance(first, bytes) and isinstance(second, bytes):
-            for x, y in zip(first, second):
-                result |= x ^ y
-        else:
-            for x, y in zip(first, second):
-                result |= ord(x) ^ ord(y)
-        return result == 0
 
 
 def derive_keys(token, secret, strategy):
@@ -192,7 +171,7 @@ def unprotect_data(keys, signed_data):
         signed_data[DIGEST_LENGTH_B64:])
 
     # Then verify that it matches the provided value
-    if not constant_time_compare(provided_mac, calculated_mac):
+    if not secretutils.constant_time_compare(provided_mac, calculated_mac):
         raise InvalidMacError(_('Invalid MAC; data appears to be corrupted.'))
 
     data = base64.b64decode(signed_data[DIGEST_LENGTH_B64:])
