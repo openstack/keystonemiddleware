@@ -216,6 +216,7 @@ import binascii
 import copy
 import datetime
 import logging
+import warnings
 
 from keystoneauth1 import access
 from keystoneauth1 import adapter
@@ -306,6 +307,14 @@ class BaseAuthProtocol(object):
                                    perform.
     """
 
+    # NOTE(jamielennox): Default to True and remove in Pike.
+    kwargs_to_fetch_token = False
+    """A compatibility flag to allow passing **kwargs to fetch_token().
+
+    This is basically to allow compatibility with keystone's override. We will
+    assume all subclasses are ok with this being True in the Pike release.
+    """
+
     def __init__(self,
                  app,
                  log=_LOG,
@@ -383,9 +392,16 @@ class BaseAuthProtocol(object):
         if auth_ref.will_expire_soon(stale_duration=0):
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
-    def _do_fetch_token(self, token):
+    def _do_fetch_token(self, token, **kwargs):
         """Helper method to fetch a token and convert it into an AccessInfo."""
-        data = self.fetch_token(token)
+        if self.kwargs_to_fetch_token:
+            data = self.fetch_token(token, **kwargs)
+        else:
+            m = _('Implementations of auth_token must set '
+                  'kwargs_to_fetch_token this will be the required and '
+                  'assumed in Pike.')
+            warnings.warn(m)
+            data = self.fetch_token(token)
 
         try:
             return data, access.create(body=data, auth_token=token)
@@ -393,7 +409,7 @@ class BaseAuthProtocol(object):
             self.log.warning(_LW('Invalid token contents.'), exc_info=True)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
-    def fetch_token(self, token):
+    def fetch_token(self, token, **kwargs):
         """Fetch the token data based on the value in the header.
 
         Retrieve the data associated with the token value that was in the
@@ -401,6 +417,10 @@ class BaseAuthProtocol(object):
         whatever is required.
 
         :param str token: The token present in the request header.
+        :param dict kwargs: Additional keyword arguments may be passed through
+                            here to support new features. If an implementation
+                            is not aware of how to use these arguments it
+                            should ignore them.
 
         :raises exc.InvalidToken: if token is invalid.
 
@@ -486,6 +506,8 @@ class AuthProtocol(BaseAuthProtocol):
 
     _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
     _SIGNING_CA_FILE_NAME = 'cacert.pem'
+
+    kwargs_to_fetch_token = True
 
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get('log_name', __name__))

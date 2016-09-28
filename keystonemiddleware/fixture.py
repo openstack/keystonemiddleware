@@ -89,7 +89,7 @@ class AuthTokenFixture(fixtures.Fixture):
         self._token_data[token_id] = token_data
         return token_id
 
-    def fetch_token(self, token):
+    def fetch_token(self, token, **kwargs):
         """Low level replacement of fetch_token for AuthProtocol."""
         token_data = self._token_data.get(token, {})
         if token_data:
