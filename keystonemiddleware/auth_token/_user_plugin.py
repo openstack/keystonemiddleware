@@ -31,11 +31,16 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
     authentication plugin when communicating via a session.
     """
 
-    def __init__(self, user_auth_ref, serv_auth_ref):
+    def __init__(self, user_auth_ref, serv_auth_ref, session=None, auth=None):
         super(UserAuthPlugin, self).__init__(reauthenticate=False)
 
         self.user = user_auth_ref
         self.service = serv_auth_ref
+
+        # NOTE(jamielennox): adding a service token requires the original
+        # session and auth plugin from auth_token
+        self._session = session
+        self._auth = auth
 
     @property
     def has_user_token(self):
@@ -64,3 +69,14 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
             msg.append('service: %s' % _log_format(self.service))
 
         return ' '.join(msg)
+
+    def get_headers(self, session, **kwargs):
+        headers = super(UserAuthPlugin, self).get_headers(session, **kwargs)
+
+        if headers is not None and self._session:
+            token = self._session.get_token(auth=self._auth)
+
+            if token:
+                headers['X-Service-Token'] = token
+
+        return headers

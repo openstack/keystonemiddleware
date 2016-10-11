@@ -1295,6 +1295,28 @@ class CommonAuthTokenMiddlewareTest(object):
         r = m(env, _start_response)
         self.assertEqual(text, r)
 
+    def test_auth_plugin_service_token(self):
+        url = 'http://test.url'
+        text = uuid.uuid4().hex
+        self.requests_mock.get(url, text=text)
+
+        token = self.token_dict['uuid_token_default']
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+
+        s = session.Session(auth=resp.request.environ['keystone.token_auth'])
+
+        resp = s.get(url)
+
+        self.assertEqual(text, resp.text)
+        self.assertEqual(200, resp.status_code)
+
+        headers = self.requests_mock.last_request.headers
+
+        self.assertEqual(FAKE_ADMIN_TOKEN_ID, headers['X-Service-Token'])
+
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                    testresources.ResourcedTestCase):

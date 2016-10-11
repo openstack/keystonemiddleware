@@ -508,6 +508,8 @@ class AuthProtocol(BaseAuthProtocol):
             'include_service_catalog')
         self._hash_algorithms = self._conf.get('hash_algorithms')
 
+        self._auth = self._create_auth_plugin()
+        self._session = self._create_session()
         self._identity_server = self._create_identity_server()
 
         self._auth_uri = self._conf.get('auth_uri')
@@ -587,6 +589,10 @@ class AuthProtocol(BaseAuthProtocol):
 
             if self._include_service_catalog:
                 request.set_service_catalog_headers(request.token_auth.user)
+
+        if request.token_auth:
+            request.token_auth._auth = self._auth
+            request.token_auth._session = self._session
 
         if request.service_token and request.service_token_valid:
             request.set_service_headers(request.token_auth.service)
@@ -791,7 +797,7 @@ class AuthProtocol(BaseAuthProtocol):
             self._SIGNING_CA_FILE_NAME,
             self._identity_server.fetch_ca_cert())
 
-    def _get_auth_plugin(self):
+    def _create_auth_plugin(self):
         # NOTE(jamielennox): Ideally this would use load_from_conf_options
         # however that is not possible because we have to support the override
         # pattern we use in _conf.get. This function therefore does a manual
@@ -830,25 +836,24 @@ class AuthProtocol(BaseAuthProtocol):
         getter = lambda opt: self._conf.get(opt.dest, group=group)
         return plugin_loader.load_from_options_getter(getter)
 
-    def _create_identity_server(self):
+    def _create_session(self, **kwargs):
         # NOTE(jamielennox): Loading Session here should be exactly the
         # same as calling Session.load_from_conf_options(CONF, GROUP)
         # however we can't do that because we have to use _conf.get to
         # support the paste.ini options.
-        sess = session_loading.Session().load_from_options(
-            cert=self._conf.get('certfile'),
-            key=self._conf.get('keyfile'),
-            cacert=self._conf.get('cafile'),
-            insecure=self._conf.get('insecure'),
-            timeout=self._conf.get('http_connect_timeout'),
-            user_agent=self._conf.user_agent,
-        )
+        kwargs.setdefault('cert', self._conf.get('certfile'))
+        kwargs.setdefault('key', self._conf.get('keyfile'))
+        kwargs.setdefault('cacert', self._conf.get('cafile'))
+        kwargs.setdefault('insecure', self._conf.get('insecure'))
+        kwargs.setdefault('timeout', self._conf.get('http_connect_timeout'))
+        kwargs.setdefault('user_agent', self._conf.user_agent)
 
-        auth_plugin = self._get_auth_plugin()
+        return session_loading.Session().load_from_options(**kwargs)
 
+    def _create_identity_server(self):
         adap = adapter.Adapter(
-            sess,
-            auth=auth_plugin,
+            self._session,
+            auth=self._auth,
             service_type='identity',
             interface='admin',
             region_name=self._conf.get('region_name'),
