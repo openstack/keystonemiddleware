@@ -78,7 +78,12 @@ _OPTS = [
     cfg.StrOpt('region_name',
                help='The region in which the identity server can be found.'),
     cfg.StrOpt('signing_dir',
-               help='Directory used to cache files related to PKI tokens.'),
+               deprecated_for_removal=True,
+               deprecated_reason='PKI token format is no longer supported.',
+               deprecated_since='Ocata',
+               help='Directory used to cache files related to PKI tokens. This'
+               ' option has been deprecated in the Ocata release and will be'
+               ' removed in the P release.'),
     cfg.ListOpt('memcached_servers',
                 deprecated_name='memcache_servers',
                 help='Optionally specify a list of memcached server(s) to'
@@ -92,11 +97,15 @@ _OPTS = [
                ' caching completely.'),
     cfg.IntOpt('revocation_cache_time',
                default=10,
+               deprecated_for_removal=True,
+               deprecated_reason='PKI token format is no longer supported.',
+               deprecated_since='Ocata',
                help='Determines the frequency at which the list of revoked'
                ' tokens is retrieved from the Identity service (in seconds). A'
                ' high number of revocation events combined with a low cache'
                ' duration may significantly reduce performance. Only valid'
-               ' for PKI tokens.'),
+               ' for PKI tokens. This option has been deprecated in the Ocata'
+               ' release and will be removed in the P release.'),
     cfg.StrOpt('memcache_security_strategy',
                default='None',
                choices=('None', 'MAC', 'ENCRYPT'),
@@ -153,10 +162,16 @@ _OPTS = [
                ' token binding is needed to be allowed. Finally the name of a'
                ' binding method that must be present in tokens.'),
     cfg.BoolOpt('check_revocations_for_cached', default=False,
+                deprecated_for_removal=True,
+                deprecated_reason='PKI token format is no longer supported.',
+                deprecated_since='Ocata',
                 help='If true, the revocation list will be checked for cached'
                 ' tokens. This requires that PKI tokens are configured on the'
                 ' identity server.'),
     cfg.ListOpt('hash_algorithms', default=['md5'],
+                deprecated_for_removal=True,
+                deprecated_reason='PKI token format is no longer supported.',
+                deprecated_since='Ocata',
                 help='Hash algorithms to use for hashing PKI tokens. This may'
                 ' be a single algorithm or multiple. The algorithms are those'
                 ' supported by Python standard hashlib.new(). The hashes will'
