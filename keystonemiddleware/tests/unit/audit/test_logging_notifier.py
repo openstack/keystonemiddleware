@@ -25,15 +25,16 @@ class TestLoggingNotifier(base.BaseAuditMiddlewareTest):
 
         super(TestLoggingNotifier, self).setUp()
 
-    @mock.patch('keystonemiddleware.audit._LOG.info')
-    def test_api_request_no_messaging(self, log):
-        self.create_simple_app().get('/foo/bar',
-                                     extra_environ=self.get_environ_header())
+    def test_api_request_no_messaging(self):
+        app = self.create_simple_app()
 
-        # Check first notification with only 'request'
-        call_args = log.call_args_list[0][0]
-        self.assertEqual('audit.http.request', call_args[1]['event_type'])
+        with mock.patch('keystonemiddleware.audit._LOG.info') as log:
+            app.get('/foo/bar', extra_environ=self.get_environ_header())
 
-        # Check second notification with request + response
-        call_args = log.call_args_list[1][0]
-        self.assertEqual('audit.http.response', call_args[1]['event_type'])
+            # Check first notification with only 'request'
+            call_args = log.call_args_list[0][0]
+            self.assertEqual('audit.http.request', call_args[1]['event_type'])
+
+            # Check second notification with request + response
+            call_args = log.call_args_list[1][0]
+            self.assertEqual('audit.http.response', call_args[1]['event_type'])
