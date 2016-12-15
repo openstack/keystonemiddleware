@@ -47,6 +47,13 @@ using `Gerrit`_.
 Run tests with ``tox -e py27`` if running with python 2.7. See the
 ``tox.ini`` file for other test environment options.
 
+Code Documentation
+==================
+.. toctree::
+   :maxdepth: 1
+
+   api/modules
+
 Indices and tables
 ==================
 
