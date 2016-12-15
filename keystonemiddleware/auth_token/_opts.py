@@ -181,6 +181,19 @@ _OPTS = [
                 ' only while migrating from a less secure algorithm to a more'
                 ' secure one. Once all the old tokens are expired this option'
                 ' should be set to a single value for better performance.'),
+    cfg.ListOpt('service_token_roles', default=['service'],
+                help='A choice of roles that must be present in a service'
+                ' token. Service tokens are allowed to request that an expired'
+                ' token can be used and so this check should tightly control'
+                ' that only actual services should be sending this token.'
+                ' Roles here are applied as an ANY check so any role in this'
+                ' list must be present. For backwards compatibility reasons'
+                ' this currently only affects the allow_expired check.'),
+    cfg.BoolOpt('service_token_roles_required', default=False,
+                help='For backwards compatibility reasons we must let valid'
+                ' service tokens pass that don\'t pass the service_token_roles'
+                ' check as valid. Setting this true will become the default'
+                ' in a future release and should be enabled if possible.'),
 ]
 
 

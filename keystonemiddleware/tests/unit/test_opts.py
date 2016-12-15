@@ -69,6 +69,8 @@ class OptsTestCase(utils.TestCase):
             'hash_algorithms',
             'auth_type',
             'auth_section',
+            'service_token_roles',
+            'service_token_roles_required',
         ]
         opt_names = [o.name for (g, l) in result_of_old_opts for o in l]
         self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
@@ -113,6 +115,8 @@ class OptsTestCase(utils.TestCase):
             'hash_algorithms',
             'auth_type',
             'auth_section',
+            'service_token_roles',
+            'service_token_roles_required',
         ]
         opt_names = [o.name for (g, l) in result for o in l]
         self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))

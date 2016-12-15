@@ -67,7 +67,7 @@ EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE = {
     'HTTP_X_SERVICE_PROJECT_NAME': 'service_project_name1',
     'HTTP_X_SERVICE_USER_ID': 'service_user_id1',
     'HTTP_X_SERVICE_USER_NAME': 'service_user_name1',
-    'HTTP_X_SERVICE_ROLES': 'service_role1,service_role2',
+    'HTTP_X_SERVICE_ROLES': 'service,service_role2',
 }
 
 EXPECTED_V3_DEFAULT_ENV_ADDITIONS = {
@@ -1317,6 +1317,63 @@ class CommonAuthTokenMiddlewareTest(object):
 
         self.assertEqual(FAKE_ADMIN_TOKEN_ID, headers['X-Service-Token'])
 
+    def test_service_token_with_valid_service_role_not_required(self):
+        self.conf['service_token_roles'] = ['service']
+        self.conf['service_token_roles_required'] = False
+        self.set_middleware(conf=self.conf)
+
+        user_token = self.token_dict['uuid_token_default']
+        service_token = self.token_dict['uuid_service_token_default']
+
+        resp = self.call_middleware(headers={'X-Auth-Token': user_token,
+                                             'X-Service-Token': service_token})
+
+        self.assertEqual('Confirmed',
+                         resp.request.headers['X-Service-Identity-Status'])
+
+    def test_service_token_with_invalid_service_role_not_required(self):
+        self.conf['service_token_roles'] = [uuid.uuid4().hex]
+        self.conf['service_token_roles_required'] = False
+        self.set_middleware(conf=self.conf)
+
+        user_token = self.token_dict['uuid_token_default']
+        service_token = self.token_dict['uuid_service_token_default']
+
+        resp = self.call_middleware(headers={'X-Auth-Token': user_token,
+                                             'X-Service-Token': service_token})
+
+        self.assertEqual('Confirmed',
+                         resp.request.headers['X-Service-Identity-Status'])
+
+    def test_service_token_with_valid_service_role_required(self):
+        self.conf['service_token_roles'] = ['service']
+        self.conf['service_token_roles_required'] = True
+        self.set_middleware(conf=self.conf)
+
+        user_token = self.token_dict['uuid_token_default']
+        service_token = self.token_dict['uuid_service_token_default']
+
+        resp = self.call_middleware(headers={'X-Auth-Token': user_token,
+                                             'X-Service-Token': service_token})
+
+        self.assertEqual('Confirmed',
+                         resp.request.headers['X-Service-Identity-Status'])
+
+    def test_service_token_with_invalid_service_role_required(self):
+        self.conf['service_token_roles'] = [uuid.uuid4().hex]
+        self.conf['service_token_roles_required'] = True
+        self.set_middleware(conf=self.conf)
+
+        user_token = self.token_dict['uuid_token_default']
+        service_token = self.token_dict['uuid_service_token_default']
+
+        resp = self.call_middleware(headers={'X-Auth-Token': user_token,
+                                             'X-Service-Token': service_token},
+                                    expected_status=401)
+
+        self.assertEqual('Invalid',
+                         resp.request.headers['X-Service-Identity-Status'])
+
 
 class V2CertDownloadMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                    testresources.ResourcedTestCase):
@@ -1503,6 +1560,8 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             'revoked_token_hash': self.examples.REVOKED_TOKEN_HASH,
             'revoked_token_hash_sha256':
             self.examples.REVOKED_TOKEN_HASH_SHA256,
+            'uuid_service_token_default':
+            self.examples.UUID_SERVICE_TOKEN_DEFAULT,
         }
 
         self.requests_mock.get(BASE_URI,
@@ -1521,6 +1580,7 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                       self.examples.UUID_TOKEN_BIND,
                       self.examples.UUID_TOKEN_UNKNOWN_BIND,
                       self.examples.UUID_TOKEN_NO_SERVICE_CATALOG,
+                      self.examples.UUID_SERVICE_TOKEN_DEFAULT,
                       self.examples.SIGNED_TOKEN_SCOPED_KEY,
                       self.examples.SIGNED_TOKEN_SCOPED_PKIZ_KEY,):
             url = "%s/v2.0/tokens/%s" % (BASE_URI, token)
@@ -1579,10 +1639,11 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def test_user_plugin_token_properties(self):
         token = self.examples.UUID_TOKEN_DEFAULT
         token_data = self.examples.TOKEN_RESPONSES[token]
+        service = self.examples.UUID_SERVICE_TOKEN_DEFAULT
 
         resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
                                              'X-Auth-Token': token,
-                                             'X-Service-Token': token})
+                                             'X-Service-Token': service})
 
         self.assertEqual(FakeApp.SUCCESS, resp.body)
 
@@ -1591,17 +1652,22 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertTrue(token_auth.has_user_token)
         self.assertTrue(token_auth.has_service_token)
 
-        for t in [token_auth.user, token_auth.service]:
-            self.assertEqual(token_data.user_id, t.user_id)
-            self.assertEqual(token_data.tenant_id, t.project_id)
+        self.assertEqual(token_data.user_id, token_auth.user.user_id)
+        self.assertEqual(token_data.tenant_id, token_auth.user.project_id)
 
-            self.assertThat(t.role_names, matchers.HasLength(2))
-            self.assertIn('role1', t.role_names)
-            self.assertIn('role2', t.role_names)
+        self.assertThat(token_auth.user.role_names, matchers.HasLength(2))
+        self.assertIn('role1', token_auth.user.role_names)
+        self.assertIn('role2', token_auth.user.role_names)
 
-            self.assertIsNone(t.trust_id)
-            self.assertIsNone(t.user_domain_id)
-            self.assertIsNone(t.project_domain_id)
+        self.assertIsNone(token_auth.user.trust_id)
+        self.assertIsNone(token_auth.user.user_domain_id)
+        self.assertIsNone(token_auth.user.project_domain_id)
+
+        self.assertThat(token_auth.service.role_names, matchers.HasLength(2))
+        self.assertIn('service', token_auth.service.role_names)
+        self.assertIn('service_role2', token_auth.service.role_names)
+
+        self.assertIsNone(token_auth.service.trust_id)
 
 
 class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
@@ -1699,6 +1765,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             self.examples.REVOKED_v3_TOKEN_HASH_SHA256,
             'revoked_token_pkiz_hash':
             self.examples.REVOKED_v3_PKIZ_TOKEN_HASH,
+            'uuid_service_token_default':
+            self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT,
         }
 
         self.requests_mock.get(BASE_URI,
@@ -1813,10 +1881,12 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def test_user_plugin_token_properties(self):
         token = self.examples.v3_UUID_TOKEN_DEFAULT
         token_data = self.examples.TOKEN_RESPONSES[token]
+        service = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
+        service_data = self.examples.TOKEN_RESPONSES[service]
 
         resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
                                              'X-Auth-Token': token,
-                                             'X-Service-Token': token})
+                                             'X-Service-Token': service})
 
         self.assertEqual(FakeApp.SUCCESS, resp.body)
 
@@ -1825,17 +1895,30 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.assertTrue(token_auth.has_user_token)
         self.assertTrue(token_auth.has_service_token)
 
-        for t in [token_auth.user, token_auth.service]:
-            self.assertEqual(token_data.user_id, t.user_id)
-            self.assertEqual(token_data.project_id, t.project_id)
-            self.assertEqual(token_data.user_domain_id, t.user_domain_id)
-            self.assertEqual(token_data.project_domain_id, t.project_domain_id)
+        self.assertEqual(token_data.user_id, token_auth.user.user_id)
+        self.assertEqual(token_data.project_id, token_auth.user.project_id)
+        self.assertEqual(token_data.user_domain_id,
+                         token_auth.user.user_domain_id)
+        self.assertEqual(token_data.project_domain_id,
+                         token_auth.user.project_domain_id)
 
-            self.assertThat(t.role_names, matchers.HasLength(2))
-            self.assertIn('role1', t.role_names)
-            self.assertIn('role2', t.role_names)
+        self.assertThat(token_auth.user.role_names, matchers.HasLength(2))
+        self.assertIn('role1', token_auth.user.role_names)
+        self.assertIn('role2', token_auth.user.role_names)
+        self.assertIsNone(token_auth.user.trust_id)
 
-            self.assertIsNone(t.trust_id)
+        self.assertEqual(service_data.user_id, token_auth.service.user_id)
+        self.assertEqual(service_data.project_id,
+                         token_auth.service.project_id)
+        self.assertEqual(service_data.user_domain_id,
+                         token_auth.service.user_domain_id)
+        self.assertEqual(service_data.project_domain_id,
+                         token_auth.service.project_domain_id)
+
+        self.assertThat(token_auth.service.role_names, matchers.HasLength(2))
+        self.assertIn('service', token_auth.service.role_names)
+        self.assertIn('service_role2', token_auth.service.role_names)
+        self.assertIsNone(token_auth.service.trust_id)
 
     def test_expire_stored_in_cache(self):
         # tests the upgrade path from storing a tuple vs just the data in the
@@ -1857,6 +1940,34 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         req = self.assert_valid_request_200(token)
         self.assertIs(False,
                       req.environ['keystone.token_auth'].user.is_admin_project)
+
+    def test_service_token_with_valid_service_role_not_required(self):
+        s = super(v3AuthTokenMiddlewareTest, self)
+        s.test_service_token_with_valid_service_role_not_required()
+
+        e = self.requests_mock.request_history[3].qs.get('allow_expired')
+        self.assertEqual(['1'], e)
+
+    def test_service_token_with_invalid_service_role_not_required(self):
+        s = super(v3AuthTokenMiddlewareTest, self)
+        s.test_service_token_with_invalid_service_role_not_required()
+
+        e = self.requests_mock.request_history[3].qs.get('allow_expired')
+        self.assertIsNone(e)
+
+    def test_service_token_with_valid_service_role_required(self):
+        s = super(v3AuthTokenMiddlewareTest, self)
+        s.test_service_token_with_valid_service_role_required()
+
+        e = self.requests_mock.request_history[3].qs.get('allow_expired')
+        self.assertEqual(['1'], e)
+
+    def test_service_token_with_invalid_service_role_required(self):
+        s = super(v3AuthTokenMiddlewareTest, self)
+        s.test_service_token_with_invalid_service_role_required()
+
+        e = self.requests_mock.request_history[3].qs.get('allow_expired')
+        self.assertIsNone(e)
 
 
 class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
