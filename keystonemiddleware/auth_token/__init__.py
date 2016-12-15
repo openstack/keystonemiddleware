@@ -307,13 +307,11 @@ class BaseAuthProtocol(object):
                                    perform.
     """
 
-    # NOTE(jamielennox): Default to True and remove in Pike.
+    # NOTE(jamielennox): Default to True and remove in Pike. This is a
+    # compatibility flag to allow passing **kwargs to fetch_token(). This
+    # is basically to allow compatibility with keystone's override. We will
+    # assume all subclasses are ok with this being True in the Pike release.
     kwargs_to_fetch_token = False
-    """A compatibility flag to allow passing **kwargs to fetch_token().
-
-    This is basically to allow compatibility with keystone's override. We will
-    assume all subclasses are ok with this being True in the Pike release.
-    """
 
     def __init__(self,
                  app,
