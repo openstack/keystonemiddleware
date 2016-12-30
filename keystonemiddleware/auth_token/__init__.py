@@ -324,6 +324,7 @@ class BaseAuthProtocol(object):
         self._enforce_token_bind = enforce_token_bind
         self._service_token_roles = set(service_token_roles or [])
         self._service_token_roles_required = service_token_roles_required
+        self._service_token_warning_emitted = False
 
     @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):
@@ -381,12 +382,15 @@ class BaseAuthProtocol(object):
                 if self._service_token_roles_required:
                     request.service_token_valid = role_check_passed
                 else:
-                    self.log.warning(_LW('A valid token was submitted as a '
-                                         'service token, but it was not a '
-                                         'valid service token. This is '
-                                         'incorrect but backwards compatible '
-                                         'behaviour. This will be removed in '
-                                         'future releases.'))
+                    if not self._service_token_warning_emitted:
+                        self.log.warning(_LW('A valid token was submitted as '
+                                             'a service token, but it was not '
+                                             'a valid service token. This is '
+                                             'incorrect but backwards '
+                                             'compatible behaviour. This will '
+                                             'be removed in future releases.'))
+                        # prevent log spam on every single request
+                        self._service_token_warning_emitted = True
 
                     request.service_token_valid = True
 
