@@ -579,6 +579,7 @@ class AuthProtocol(BaseAuthProtocol):
                 raise webob.exc.HTTPUnauthorized(
                     body=jsonutils.dumps(body),
                     headers=self._reject_auth_headers,
+                    charset='UTF-8',
                     content_type='application/json')
 
         if request.user_token_valid:
