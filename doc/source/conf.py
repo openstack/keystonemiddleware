@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # keystonemiddleware documentation build configuration file, created by
 # sphinx-quickstart on Sun Dec  6 14:19:25 2009.
 #
