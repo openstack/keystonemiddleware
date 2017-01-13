@@ -215,7 +215,6 @@ object is stored.
 import binascii
 import copy
 import datetime
-import logging
 import warnings
 
 from keystoneauth1 import access
@@ -226,6 +225,7 @@ from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import six
 import webob.dec

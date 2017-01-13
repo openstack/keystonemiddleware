@@ -21,9 +21,9 @@
 import collections
 import contextlib
 import itertools
-import logging
 import time
 
+from oslo_log import log as logging
 from six.moves import queue
 
 from keystonemiddleware.i18n import _LC

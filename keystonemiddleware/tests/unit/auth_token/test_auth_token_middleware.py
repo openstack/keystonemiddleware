@@ -13,7 +13,6 @@
 # under the License.
 
 import datetime
-import logging
 import os
 import shutil
 import stat
@@ -29,6 +28,7 @@ from keystoneauth1 import session
 from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
 import mock
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import pbr.version

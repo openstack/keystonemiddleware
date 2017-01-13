@@ -11,9 +11,9 @@
 # under the License.
 
 import collections
-import logging
 import re
 
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from pycadf import cadftaxonomy as taxonomy
 from pycadf import cadftype

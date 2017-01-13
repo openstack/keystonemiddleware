@@ -31,9 +31,9 @@ This WSGI component:
 
 """
 
-import logging
 import webob
 
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import strutils
 import requests

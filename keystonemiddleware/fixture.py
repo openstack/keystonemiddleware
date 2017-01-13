@@ -10,11 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import logging
 import uuid
 
 import fixtures
 from keystoneauth1 import fixture as client_fixtures
+from oslo_log import log as logging
 from oslo_utils import timeutils
 from positional import positional
 
