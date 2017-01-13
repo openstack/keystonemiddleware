@@ -131,7 +131,7 @@ a WSGI component. Example for the auth_token middleware:
 
 If the ``auth_plugin`` configuration option is set, you may need to refer to
 the `Authentication Plugins <http://docs.openstack.org/developer/
-python-keystoneclient/authentication-plugins.html>`_ document for how to
+keystoneauth/authentication-plugins.html>`_ document for how to
 configure the auth_token middleware.
 
 For services which have a separate paste-deploy ini file, auth_token middleware
