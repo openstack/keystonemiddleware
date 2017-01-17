@@ -18,9 +18,9 @@
 """Starting point for routing EC2 requests."""
 
 import hashlib
-import logging
 
 from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import requests
 import six

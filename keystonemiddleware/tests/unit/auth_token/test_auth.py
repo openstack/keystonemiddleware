@@ -10,12 +10,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import logging
 import uuid
 
 from keystoneauth1 import fixture
 from keystoneauth1 import plugin as ksa_plugin
 from keystoneauth1 import session
+from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
 import six
 

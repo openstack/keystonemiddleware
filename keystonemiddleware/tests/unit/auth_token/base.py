@@ -10,11 +10,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import logging
-
 import fixtures
 from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
+from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
 import six
 from six.moves import http_client

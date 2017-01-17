@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import logging
 import sys
 import time
 import uuid
@@ -18,6 +17,7 @@ import warnings
 
 import fixtures
 import mock
+from oslo_log import log as logging
 import oslotest.base as oslotest
 import requests
 import webob

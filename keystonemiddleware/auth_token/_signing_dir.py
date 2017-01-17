@@ -10,11 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import logging
 import os
 import stat
 import tempfile
 
+from oslo_log import log as logging
 import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
