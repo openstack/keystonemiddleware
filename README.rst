@@ -2,8 +2,8 @@
 Team and repository tags
 ========================
 
-.. image:: http://governance.openstack.org/badges/keystonemiddleware.svg
-    :target: http://governance.openstack.org/reference/tags/index.html
+.. image:: https://governance.openstack.org/badges/keystonemiddleware.svg
+    :target: https://governance.openstack.org/reference/tags/index.html
 
 .. Change things from this point on
 
@@ -27,9 +27,9 @@ Python API features.
 For information on contributing, see ``CONTRIBUTING.rst``.
 
 * License: Apache License, Version 2.0
-* Documentation: http://docs.openstack.org/developer/keystonemiddleware
-* Source: http://git.openstack.org/cgit/openstack/keystonemiddleware
-* Bugs: http://bugs.launchpad.net/keystonemiddleware
+* Documentation: https://docs.openstack.org/developer/keystonemiddleware
+* Source: https://git.openstack.org/cgit/openstack/keystonemiddleware
+* Bugs: https://bugs.launchpad.net/keystonemiddleware
 
 For any other information, refer to the parent project, Keystone:
 

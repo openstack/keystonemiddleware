@@ -22,8 +22,8 @@ In addition to creating the Python Middleware for OpenStack Identity
 API, the Keystone team also provides `Identity Service`_, as well as
 `Python Client Library`_.
 
-.. _`Identity Service`: http://docs.openstack.org/developer/keystone/
-.. _`Python Client Library`: http://docs.openstack.org/developer/python-keystoneclient/
+.. _`Identity Service`: https://docs.openstack.org/developer/keystone/
+.. _`Python Client Library`: https://docs.openstack.org/developer/python-keystoneclient/
 
 Release Notes
 =============
@@ -42,7 +42,7 @@ using `Gerrit`_.
 
 .. _on GitHub: https://github.com/openstack/keystonemiddleware
 .. _Launchpad: https://launchpad.net/keystonemiddleware
-.. _Gerrit: http://docs.openstack.org/infra/manual/developers.html#development-workflow
+.. _Gerrit: https://docs.openstack.org/infra/manual/developers.html#development-workflow
 
 Run tests with ``tox -e py27`` if running with python 2.7. See the
 ``tox.ini`` file for other test environment options.
