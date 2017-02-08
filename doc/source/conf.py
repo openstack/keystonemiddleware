@@ -122,7 +122,7 @@ modindex_common_prefix = ['keystonemiddleware.']
 # Grouping the document tree for man pages.
 # List of tuples 'sourcefile', 'target', 'title', 'Authors name', 'manual'
 
-man_pages = []
+#man_pages = []
 
 # -- Options for HTML output --------------------------------------------------
 
