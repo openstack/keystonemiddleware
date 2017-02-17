@@ -15,13 +15,9 @@ from keystoneauth1.identity import v2
 from keystoneauth1 import plugin
 from keystoneauth1 import token_endpoint
 from oslo_config import cfg
-from oslo_log import log as logging
 
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.i18n import _, _LW
-
-
-_LOG = logging.getLogger(__name__)
 
 
 class AuthTokenPlugin(plugin.BaseAuthPlugin):
