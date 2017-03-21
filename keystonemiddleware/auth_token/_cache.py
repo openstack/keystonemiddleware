@@ -20,7 +20,7 @@ import six
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.auth_token import _memcache_pool as memcache_pool
-from keystonemiddleware.i18n import _, _LE, _LW
+from keystonemiddleware.i18n import _
 
 
 def _hash_key(key):
@@ -57,7 +57,7 @@ class _CachePool(list):
     def __init__(self, memcached_servers, log):
         self._memcached_servers = memcached_servers
         if not self._memcached_servers:
-            log.warning(_LW(
+            log.warning(
                 "Using the in-process token cache is deprecated as of the "
                 "4.2.0 release and may be removed in the 5.0.0 release or "
                 "the 'O' development cycle. The in-process cache causes "
@@ -65,7 +65,7 @@ class _CachePool(list):
                 "is removed the auth_token middleware will not cache tokens "
                 "by default which may result in performance issues. It is "
                 "recommended to use  memcache for the auth_token token cache "
-                "by setting the memcached_servers option."))
+                "by setting the memcached_servers option.")
 
     @contextlib.contextmanager
     def reserve(self):
@@ -274,7 +274,7 @@ class SecureTokenCache(TokenCache):
             # unprotect_data will return None if raw_cached is None
             return memcache_crypt.unprotect_data(context, data)
         except Exception:
-            msg = _LE('Failed to decrypt/verify cache data')
+            msg = 'Failed to decrypt/verify cache data'
             self._LOG.exception(msg)
 
         # this should have the same effect as data not

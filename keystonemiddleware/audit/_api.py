@@ -28,9 +28,6 @@ import six
 from six.moves import configparser
 from six.moves.urllib import parse as urlparse
 
-from keystonemiddleware.i18n import _LW
-
-
 # NOTE(blk-u): Compatibility for Python 2. SafeConfigParser and
 # SafeConfigParser.readfp are deprecated in Python 3. Remove this when we drop
 # support for Python 2.
@@ -253,14 +250,14 @@ class OpenStackAuditApi(object):
         try:
             catalog = jsonutils.loads(req.environ['HTTP_X_SERVICE_CATALOG'])
         except KeyError:
-            msg = _LW('Unable to discover target information because '
-                      'service catalog is missing. Either the incoming '
-                      'request does not contain an auth token or auth '
-                      'token does not contain a service catalog. For '
-                      'the latter, please make sure the '
-                      '"include_service_catalog" property in '
-                      'auth_token middleware is set to "True"')
-            self._log.warning(msg)
+            self._log.warning(
+                'Unable to discover target information because '
+                'service catalog is missing. Either the incoming '
+                'request does not contain an auth token or auth '
+                'token does not contain a service catalog. For '
+                'the latter, please make sure the '
+                '"include_service_catalog" property in '
+                'auth_token middleware is set to "True"')
 
         default_endpoint = None
         for endp in catalog:

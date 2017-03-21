@@ -18,7 +18,7 @@ from oslo_log import log as logging
 import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
-from keystonemiddleware.i18n import _, _LI, _LW
+from keystonemiddleware.i18n import _
 
 _LOG = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class SigningDirectory(object):
         self._directory_name = directory_name
         if self._directory_name:
             self._log.info(
-                _LI('Using %s as cache directory for signing certificate'),
+                'Using %s as cache directory for signing certificate',
                 self._directory_name)
             self._verify_signing_dir()
 
@@ -68,7 +68,7 @@ class SigningDirectory(object):
         if self._directory_name is None:
             self._directory_name = tempfile.mkdtemp(prefix='keystone-signing-')
             self._log.info(
-                _LI('Using %s as cache directory for signing certificate'),
+                'Using %s as cache directory for signing certificate',
                 self._directory_name)
             self._verify_signing_dir()
 
@@ -80,11 +80,11 @@ class SigningDirectory(object):
                     self._directory_name)
             uid = os.getuid()
             if os.stat(self._directory_name).st_uid != uid:
-                self._log.warning(_LW('signing_dir is not owned by %s'), uid)
+                self._log.warning('signing_dir is not owned by %s', uid)
             current_mode = stat.S_IMODE(os.stat(self._directory_name).st_mode)
             if current_mode != stat.S_IRWXU:
                 self._log.warning(
-                    _LW('signing_dir mode is %(mode)s instead of %(need)s'),
+                    'signing_dir mode is %(mode)s instead of %(need)s',
                     {'mode': oct(current_mode), 'need': oct(stat.S_IRWXU)})
         else:
             os.makedirs(self._directory_name, stat.S_IRWXU)

@@ -36,7 +36,6 @@ import webob.dec
 from keystonemiddleware._common import config
 from keystonemiddleware.audit import _api
 from keystonemiddleware.audit import _notifier
-from keystonemiddleware.i18n import _LE
 
 
 _LOG = None
@@ -68,8 +67,8 @@ def _log_and_ignore_error(fn):
         try:
             return fn(*args, **kwargs)
         except Exception as e:
-            _LOG.exception(_LE('An exception occurred processing '
-                               'the API call: %s '), e)
+            _LOG.exception('An exception occurred processing '
+                           'the API call: %s ', e)
     return wrapper
 
 

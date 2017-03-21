@@ -22,7 +22,7 @@ from six.moves import urllib
 
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
-from keystonemiddleware.i18n import _, _LE, _LI, _LW
+from keystonemiddleware.i18n import _
 
 
 def _convert_fetch_cert_exception(fetch_cert):
@@ -193,7 +193,7 @@ class IdentityServer(object):
                 return klass
 
         versions = ['v%d.%d' % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
-        self._LOG.error(_LE('No attempted versions [%s] supported by server'),
+        self._LOG.error('No attempted versions [%s] supported by server',
                         ', '.join(versions))
 
         msg = _('No compatible apis supported by server')
@@ -218,23 +218,23 @@ class IdentityServer(object):
                 user_token,
                 allow_expired=allow_expired)
         except ksa_exceptions.NotFound as e:
-            self._LOG.warning(_LW('Authorization failed for token'))
-            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
+            self._LOG.warning('Authorization failed for token')
+            self._LOG.warning('Identity response: %s', e.response.text)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
         except ksa_exceptions.Unauthorized as e:
-            self._LOG.info(_LI('Identity server rejected authorization'))
-            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
+            self._LOG.info('Identity server rejected authorization')
+            self._LOG.warning('Identity response: %s', e.response.text)
             if retry:
-                self._LOG.info(_LI('Retrying validation'))
+                self._LOG.info('Retrying validation')
                 return self.verify_token(user_token, False)
             msg = _('Identity server rejected authorization necessary to '
                     'fetch token data')
             raise ksm_exceptions.ServiceError(msg)
         except ksa_exceptions.HttpError as e:
             self._LOG.error(
-                _LE('Bad response code while validating token: %s'),
+                'Bad response code while validating token: %s',
                 e.http_status)
-            self._LOG.warning(_LW('Identity response: %s'), e.response.text)
+            self._LOG.warning('Identity response: %s', e.response.text)
             msg = _('Failed to fetch token data from identity server')
             raise ksm_exceptions.ServiceError(msg)
         else:
