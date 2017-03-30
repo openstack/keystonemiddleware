@@ -67,10 +67,10 @@ class MemcacheCryptPositiveTests(utils.BaseTestCase):
                               keys, protected[:-1])
             self.assertIsNone(memcache_crypt.unprotect_data(keys, None))
 
-    def test_no_pycrypt(self):
-        aes = memcache_crypt.AES
-        memcache_crypt.AES = None
+    def test_no_cryptography(self):
+        aes = memcache_crypt.ciphers
+        memcache_crypt.ciphers = None
         self.assertRaises(memcache_crypt.CryptoUnavailableError,
                           memcache_crypt.encrypt_data, 'token', 'secret',
                           'data')
-        memcache_crypt.AES = aes
+        memcache_crypt.ciphers = aes
