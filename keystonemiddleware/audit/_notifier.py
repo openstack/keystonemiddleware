@@ -18,8 +18,6 @@ try:
 except ImportError:
     oslo_messaging = None
 
-from pycadf import cadftaxonomy as taxonomy
-
 from keystonemiddleware.i18n import _LI
 
 
@@ -46,24 +44,8 @@ class _MessagingNotifier(object):
 
 def create_notifier(conf, log):
     if oslo_messaging:
-        proj = conf.project or taxonomy.UNKNOWN
-
-        if proj:
-            # Aliases to support backward compatibility
-            aliases = {
-                '%s.openstack.common.rpc.impl_kombu' % proj: 'rabbit',
-                '%s.openstack.common.rpc.impl_qpid' % proj: 'qpid',
-                '%s.openstack.common.rpc.impl_zmq' % proj: 'zmq',
-                '%s.rpc.impl_kombu' % proj: 'rabbit',
-                '%s.rpc.impl_qpid' % proj: 'qpid',
-                '%s.rpc.impl_zmq' % proj: 'zmq',
-            }
-        else:
-            aliases = {}
-
         transport = oslo_messaging.get_transport(conf.oslo_conf_obj,
-                                                 url=conf.get('transport_url'),
-                                                 aliases=aliases)
+                                                 url=conf.get('transport_url'))
 
         notifier = oslo_messaging.Notifier(
             transport,
