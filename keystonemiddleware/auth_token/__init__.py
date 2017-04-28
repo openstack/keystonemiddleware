@@ -638,7 +638,7 @@ class AuthProtocol(BaseAuthProtocol):
 
         if not (user_status and service_status == 'Confirmed'):
             if self._delay_auth_decision:
-                self.log.info(_LI('Deferring reject downstream'))
+                self.log.debug('Deferring reject downstream')
             else:
                 self.log.info(_LI('Rejecting request'))
                 message = _('The request you have made requires '
