@@ -18,7 +18,8 @@ from keystonemiddleware.tests.unit.audit import base
 class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
 
     def test_conf_middleware_log_and_default_as_messaging(self):
-        self.cfg.config(driver='log', group='audit_middleware_notifications')
+        self.cfg.config(driver='log',
+                        group='audit_middleware_notifications')
         app = self.create_simple_app()
         with mock.patch('oslo_messaging.notify._impl_log.LogDriver.notify',
                         side_effect=Exception('error')) as driver:
@@ -28,7 +29,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_conf_middleware_log_and_oslo_msg_as_messaging(self):
-        self.cfg.config(driver='messaging',
+        self.cfg.config(driver=['messaging'],
                         group='oslo_messaging_notifications')
         self.cfg.config(driver='log',
                         group='audit_middleware_notifications')
@@ -42,7 +43,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_conf_middleware_messaging_and_oslo_msg_as_log(self):
-        self.cfg.config(driver='log', group='oslo_messaging_notifications')
+        self.cfg.config(driver=['log'], group='oslo_messaging_notifications')
         self.cfg.config(driver='messaging',
                         group='audit_middleware_notifications')
         app = self.create_simple_app()
@@ -55,7 +56,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             self.assertTrue(driver.called)
 
     def test_with_no_middleware_notification_conf(self):
-        self.cfg.config(driver='messaging',
+        self.cfg.config(driver=['messaging'],
                         group='oslo_messaging_notifications')
         self.cfg.config(driver=None, group='audit_middleware_notifications')
 
