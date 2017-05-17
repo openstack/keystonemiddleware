@@ -17,7 +17,7 @@ from keystoneauth1 import token_endpoint
 from oslo_config import cfg
 
 from keystonemiddleware.auth_token import _base
-from keystonemiddleware.i18n import _, _LW
+from keystonemiddleware.i18n import _
 
 
 class AuthTokenPlugin(plugin.BaseAuthPlugin):
@@ -26,22 +26,22 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
                  admin_user, admin_password, admin_tenant_name, admin_token,
                  identity_uri, log):
 
-        log.warning(_LW(
+        log.warning(
             "Use of the auth_admin_prefix, auth_host, auth_port, "
             "auth_protocol, identity_uri, admin_token, admin_user, "
             "admin_password, and admin_tenant_name configuration options was "
             "deprecated in the Mitaka release in favor of an auth_plugin and "
             "its related options. This class may be removed in a future "
-            "release."))
+            "release.")
 
         # NOTE(jamielennox): it does appear here that our default arguments
         # are backwards. We need to do it this way so that we can handle the
         # same deprecation strategy for CONF and the conf variable.
         if not identity_uri:
-            log.warning(_LW('Configuring admin URI using auth fragments was '
-                            'deprecated in the Kilo release, and will be '
-                            'removed in the Newton release, '
-                            'use \'identity_uri\ instead.'))
+            log.warning('Configuring admin URI using auth fragments was '
+                        'deprecated in the Kilo release, and will be '
+                        'removed in the Newton release, '
+                        'use \'identity_uri\ instead.')
 
             if ':' in auth_host:
                 # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
@@ -66,10 +66,10 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
         auth_url = '%s/v2.0' % self._identity_uri
 
         if admin_token:
-            log.warning(_LW(
+            log.warning(
                 "The admin_token option in auth_token middleware was "
                 "deprecated in the Kilo release, and will be removed in the "
-                "Newton release, use admin_user and admin_password instead."))
+                "Newton release, use admin_user and admin_password instead.")
             self._plugin = token_endpoint.Token(auth_url, admin_token)
         else:
             self._plugin = v2.Password(auth_url,

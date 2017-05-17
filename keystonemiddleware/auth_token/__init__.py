@@ -241,7 +241,7 @@ from keystonemiddleware.auth_token import _request
 from keystonemiddleware.auth_token import _revocations
 from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
-from keystonemiddleware.i18n import _, _LC, _LE, _LI, _LW
+from keystonemiddleware.i18n import _
 
 
 _LOG = logging.getLogger(__name__)
@@ -362,7 +362,7 @@ class BaseAuthProtocol(object):
                 self._validate_token(serv_auth_ref)
                 self._confirm_token_bind(serv_auth_ref, request)
             except ksm_exceptions.InvalidToken:
-                self.log.info(_LI('Invalid service token'))
+                self.log.info('Invalid service token')
                 request.service_token_valid = False
             else:
                 # FIXME(jamielennox): The new behaviour for service tokens is
@@ -383,12 +383,12 @@ class BaseAuthProtocol(object):
                     request.service_token_valid = role_check_passed
                 else:
                     if not self._service_token_warning_emitted:
-                        self.log.warning(_LW('A valid token was submitted as '
-                                             'a service token, but it was not '
-                                             'a valid service token. This is '
-                                             'incorrect but backwards '
-                                             'compatible behaviour. This will '
-                                             'be removed in future releases.'))
+                        self.log.warning('A valid token was submitted as '
+                                         'a service token, but it was not '
+                                         'a valid service token. This is '
+                                         'incorrect but backwards '
+                                         'compatible behaviour. This will '
+                                         'be removed in future releases.')
                         # prevent log spam on every single request
                         self._service_token_warning_emitted = True
 
@@ -408,7 +408,7 @@ class BaseAuthProtocol(object):
                 if not request.service_token:
                     self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
-                self.log.info(_LI('Invalid user token'))
+                self.log.info('Invalid user token')
                 request.user_token_valid = False
             else:
                 request.user_token_valid = True
@@ -443,7 +443,7 @@ class BaseAuthProtocol(object):
         try:
             return data, access.create(body=data, auth_token=token)
         except Exception:
-            self.log.warning(_LW('Invalid token contents.'), exc_info=True)
+            self.log.warning('Invalid token contents.', exc_info=True)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
     def fetch_token(self, token, **kwargs):
@@ -496,7 +496,7 @@ class BaseAuthProtocol(object):
                 # no bind provided and none required
                 return
             else:
-                self.log.info(_LI('No bind information present in token.'))
+                self.log.info('No bind information present in token.')
                 self._invalid_user_token()
 
         # get the named mode if bind_mode is not one of the predefined
@@ -506,20 +506,20 @@ class BaseAuthProtocol(object):
             name = self._enforce_token_bind
 
         if name and name not in auth_ref.bind:
-            self.log.info(_LI('Named bind mode %s not in bind information'),
+            self.log.info('Named bind mode %s not in bind information',
                           name)
             self._invalid_user_token()
 
         for bind_type, identifier in six.iteritems(auth_ref.bind):
             if bind_type == _BIND_MODE.KERBEROS:
                 if req.auth_type != 'negotiate':
-                    self.log.info(_LI('Kerberos credentials required and '
-                                      'not present.'))
+                    self.log.info('Kerberos credentials required and '
+                                  'not present.')
                     self._invalid_user_token()
 
                 if req.remote_user != identifier:
-                    self.log.info(_LI('Kerberos credentials do not match '
-                                      'those in bind.'))
+                    self.log.info('Kerberos credentials do not match '
+                                  'those in bind.')
                     self._invalid_user_token()
 
                 self.log.debug('Kerberos bind authentication successful.')
@@ -532,8 +532,8 @@ class BaseAuthProtocol(object):
 
             else:
                 self.log.info(
-                    _LI('Couldn`t verify unknown bind: %(bind_type)s: '
-                        '%(identifier)s.'),
+                    'Couldn`t verify unknown bind: %(bind_type)s: '
+                    '%(identifier)s.',
                     {'bind_type': bind_type, 'identifier': identifier})
                 self._invalid_user_token()
 
@@ -548,7 +548,7 @@ class AuthProtocol(BaseAuthProtocol):
 
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get('log_name', __name__))
-        log.info(_LI('Starting Keystone auth_token middleware'))
+        log.info('Starting Keystone auth_token middleware')
 
         self._conf = config.Config('auth_token',
                                    _base.AUTHTOKEN_GROUP,
@@ -558,10 +558,10 @@ class AuthProtocol(BaseAuthProtocol):
         token_roles_required = self._conf.get('service_token_roles_required')
 
         if not token_roles_required:
-            log.warning(_LW('AuthToken middleware is set with '
-                            'keystone_authtoken.service_token_roles_required '
-                            'set to False. This is backwards compatible but '
-                            'deprecated behaviour. Please set this to True.'))
+            log.warning('AuthToken middleware is set with '
+                        'keystone_authtoken.service_token_roles_required '
+                        'set to False. This is backwards compatible but '
+                        'deprecated behaviour. Please set this to True.')
 
         super(AuthProtocol, self).__init__(
             app,
@@ -584,9 +584,9 @@ class AuthProtocol(BaseAuthProtocol):
         self._auth_uri = self._conf.get('auth_uri')
         if not self._auth_uri:
             self.log.warning(
-                _LW('Configuring auth_uri to point to the public identity '
-                    'endpoint is required; clients may not be able to '
-                    'authenticate against an admin endpoint'))
+                'Configuring auth_uri to point to the public identity '
+                'endpoint is required; clients may not be able to '
+                'authenticate against an admin endpoint')
 
             # FIXME(dolph): drop support for this fallback behavior as
             # documented in bug 1207517.
@@ -640,7 +640,7 @@ class AuthProtocol(BaseAuthProtocol):
             if self._delay_auth_decision:
                 self.log.debug('Deferring reject downstream')
             else:
-                self.log.info(_LI('Rejecting request'))
+                self.log.info('Rejecting request')
                 message = _('The request you have made requires '
                             'authentication.')
                 body = {'error': {
@@ -767,14 +767,14 @@ class AuthProtocol(BaseAuthProtocol):
                 ksa_exceptions.RequestTimeout,
                 ksm_exceptions.RevocationListError,
                 ksm_exceptions.ServiceError) as e:
-            self.log.critical(_LC('Unable to validate token: %s'), e)
+            self.log.critical('Unable to validate token: %s', e)
             raise webob.exc.HTTPServiceUnavailable()
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:
                 self._token_cache.set(token_hashes[0],
                                       _CACHE_INVALID_INDICATOR)
-            self.log.warning(_LW('Authorization failed for token'))
+            self.log.warning('Authorization failed for token')
             raise
 
         return data
@@ -794,11 +794,11 @@ class AuthProtocol(BaseAuthProtocol):
             self._revocations.check(token_hashes)
             verified = self._cms_verify(token_data, inform)
         except ksc_exceptions.CertificateConfigError:
-            self.log.warning(_LW('Fetch certificate config failed, '
-                                 'fallback to online validation.'))
+            self.log.warning('Fetch certificate config failed, '
+                             'fallback to online validation.')
         except ksm_exceptions.RevocationListError:
-            self.log.warning(_LW('Fetch revocation list failed, '
-                                 'fallback to online validation.'))
+            self.log.warning('Fetch revocation list failed, '
+                             'fallback to online validation.')
         else:
             data = jsonutils.loads(verified)
 
@@ -839,7 +839,7 @@ class AuthProtocol(BaseAuthProtocol):
                                       inform=inform).decode('utf-8')
             except (ksc_exceptions.CMSError,
                     cms.subprocess.CalledProcessError) as err:
-                self.log.warning(_LW('Verify error: %s'), err)
+                self.log.warning('Verify error: %s', err)
                 msg = _('Token authorization failed')
                 raise ksm_exceptions.InvalidToken(msg)
 
@@ -856,7 +856,7 @@ class AuthProtocol(BaseAuthProtocol):
             except ksc_exceptions.CertificateConfigError as err:
                 # if this is still occurring, something else is wrong and we
                 # need err.output to identify the problem
-                self.log.error(_LE('CMS Verify output: %s'), err.output)
+                self.log.error('CMS Verify output: %s', err.output)
                 raise
 
     def _fetch_signing_cert(self):

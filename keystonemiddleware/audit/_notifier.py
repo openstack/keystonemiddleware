@@ -18,8 +18,6 @@ try:
 except ImportError:
     oslo_messaging = None
 
-from keystonemiddleware.i18n import _LI
-
 
 class _LogNotifier(object):
 
@@ -27,10 +25,10 @@ class _LogNotifier(object):
         self._log = log
 
     def notify(self, context, event_type, payload):
-        self._log.info(_LI('Event type: %(event_type)s, Context: %(context)s, '
-                           'Payload: %(payload)s'), {'context': context,
-                                                     'event_type': event_type,
-                                                     'payload': payload})
+        self._log.info('Event type: %(event_type)s, Context: %(context)s, '
+                       'Payload: %(payload)s', {'context': context,
+                                                'event_type': event_type,
+                                                'payload': payload})
 
 
 class _MessagingNotifier(object):

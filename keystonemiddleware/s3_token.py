@@ -39,9 +39,6 @@ from oslo_utils import strutils
 import requests
 import six
 
-from keystonemiddleware.i18n import _LI, _LW
-
-
 PROTOCOL_NAME = 'S3 Token Authentication'
 
 
@@ -62,11 +59,11 @@ class S3Token(object):
 
         self._request_uri = conf.get('auth_uri')
         if not self._request_uri:
-            self._logger.warning(_LW(
+            self._logger.warning(
                 "Use of the auth_host, auth_port, and auth_protocol "
                 "configuration options was deprecated in the Newton release "
                 "in favor of auth_uri. These options may be removed in a "
-                "future release."))
+                "future release.")
             auth_host = conf.get('auth_host')
             auth_port = int(conf.get('auth_port', 35357))
             auth_protocol = conf.get('auth_protocol', 'https')
@@ -111,7 +108,7 @@ class S3Token(object):
                                      headers=headers, data=creds_json,
                                      verify=self._verify)
         except requests.exceptions.RequestException as e:
-            self._logger.info(_LI('HTTP connection exception: %s'), e)
+            self._logger.info('HTTP connection exception: %s', e)
             resp = self._deny_request('InvalidURI')
             raise ServiceError(resp)
 

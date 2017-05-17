@@ -26,9 +26,6 @@ import time
 from oslo_log import log as logging
 from six.moves import queue
 
-from keystonemiddleware.i18n import _LC
-
-
 _PoolItem = collections.namedtuple('_PoolItem', ['ttl', 'connection'])
 
 
@@ -77,8 +74,8 @@ class ConnectionPool(queue.Queue):
         try:
             conn = self.get(timeout=self._connection_get_timeout)
         except queue.Empty:
-            self._LOG.critical(_LC('Unable to get a connection from pool id '
-                                   '%(id)s after %(seconds)s seconds.'),
+            self._LOG.critical('Unable to get a connection from pool id '
+                               '%(id)s after %(seconds)s seconds.',
                                {'id': id(self),
                                 'seconds': self._connection_get_timeout})
             raise ConnectionGetTimeoutException()
