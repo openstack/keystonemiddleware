@@ -17,8 +17,8 @@
 Utilities for memcache encryption and integrity check.
 
 Data should be serialized before entering these functions. Encryption
-has a dependency on the pycrypto. If pycrypto is not available,
-CryptoUnavailableError will be raised.
+has a dependency on the cryptography module. If cryptography is not
+available, CryptoUnavailableError will be raised.
 
 This module will not be called unless signing or encryption is enabled
 in the config. It will always validate signatures, and will decrypt
@@ -33,17 +33,19 @@ import hashlib
 import hmac
 import math
 import os
-import six
-
-from oslo_utils import secretutils
 
 from keystonemiddleware.i18n import _
+from oslo_utils import secretutils
 
-# make sure pycrypto is available
 try:
-    from Crypto.Cipher import AES
+    from cryptography.hazmat import backends as crypto_backends
+    from cryptography.hazmat.primitives import ciphers
+    from cryptography.hazmat.primitives.ciphers import algorithms
+    from cryptography.hazmat.primitives.ciphers import modes
+    from cryptography.hazmat.primitives import padding
 except ImportError:
-    AES = None
+    ciphers = None
+
 
 HASH_FUNCTION = hashlib.sha384
 DIGEST_LENGTH = HASH_FUNCTION().digest_size
@@ -74,10 +76,10 @@ class CryptoUnavailableError(Exception):
 
 
 def assert_crypto_availability(f):
-    """Ensure Crypto module is available."""
+    """Ensure cryptography module is available."""
     @functools.wraps(f)
     def wrapper(*args, **kwds):
-        if AES is None:
+        if ciphers is None:
             raise CryptoUnavailableError()
         return f(*args, **kwds)
     return wrapper
@@ -116,24 +118,39 @@ def encrypt_data(key, data):
     Padding is n bytes of the value n, where 1 <= n <= blocksize.
     """
     iv = os.urandom(16)
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    padding = 16 - len(data) % 16
-    return iv + cipher.encrypt(data + six.int2byte(padding) * padding)
+    cipher = ciphers.Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=crypto_backends.default_backend())
+
+    # AES algorithm uses block size of 16 bytes = 128 bits, defined in
+    # algorithms.AES.block_size. Previously, we manually padded this using
+    # six.int2byte(padding) * padding.  Using ``cryptography``, we will
+    # analogously use hazmat.primitives.padding to pad it to
+    # the 128-bit block size.
+    padder = padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(data) + padder.finalize()
+    encryptor = cipher.encryptor()
+    return iv + encryptor.update(padded_data) + encryptor.finalize()
 
 
-@assert_crypto_availability
 def decrypt_data(key, data):
     """Decrypt the data with the given secret key."""
     iv = data[:16]
-    cipher = AES.new(key, AES.MODE_CBC, iv)
+    cipher = ciphers.Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=crypto_backends.default_backend())
     try:
-        result = cipher.decrypt(data[16:])
+        decryptor = cipher.decryptor()
+        result = decryptor.update(data[16:]) + decryptor.finalize()
     except Exception:
         raise DecryptError(_('Encrypted data appears to be corrupted.'))
 
     # Strip the last n padding bytes where n is the last value in
     # the plaintext
-    return result[:-1 * six.byte2int([result[-1]])]
+    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+    return unpadder.update(result) + unpadder.finalize()
 
 
 def protect_data(keys, data):
