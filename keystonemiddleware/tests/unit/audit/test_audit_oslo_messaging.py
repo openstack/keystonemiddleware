@@ -69,7 +69,7 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
             app.get('/foo/bar', extra_environ=self.get_environ_header())
             self.assertTrue(driver.called)
 
-    @mock.patch('oslo_messaging.get_transport')
+    @mock.patch('oslo_messaging.get_notification_transport')
     def test_conf_middleware_messaging_and_transport_set(self, m):
         transport_url = 'rabbit://me:passwd@host:5672/virtual_host'
         self.cfg.config(driver='messaging',
