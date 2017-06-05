@@ -491,6 +491,14 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
         self.assertEqual([servers], middleware._conf.get('memcached_servers'))
 
+    def test_conf_values_type_convert_with_wrong_key(self):
+        conf = {
+            'wrong_key': '123'
+        }
+        log = 'The option "wrong_key" in conf is not known to auth_token'
+        auth_token.AuthProtocol(self.fake_app, conf)
+        self.assertThat(self.logger.output, matchers.Contains(log))
+
     def test_conf_values_type_convert_with_wrong_value(self):
         conf = {
             'include_service_catalog': '123',

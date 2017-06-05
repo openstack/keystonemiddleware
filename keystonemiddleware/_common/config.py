@@ -13,6 +13,7 @@
 import pkg_resources
 
 from oslo_config import cfg
+from oslo_log import log as logging
 import pbr
 import six
 
@@ -21,6 +22,7 @@ from keystonemiddleware.i18n import _
 
 CONF = cfg.CONF
 _NOT_SET = object()
+_LOG = logging.getLogger(__name__)
 
 
 def _conf_values_type_convert(group_name, all_options, conf):
@@ -53,8 +55,8 @@ def _conf_values_type_convert(group_name, all_options, conf):
                 v = type_(v)
         except KeyError:  # nosec
             # This option is not known to auth_token. v is not converted.
-            # FIXME(jamielennox): This should probably log a warning.
-            pass
+            _LOG.warning(
+                'The option "%s" in conf is not known to auth_token', k)
         except ValueError as e:
             raise exceptions.ConfigurationError(
                 _('Unable to convert the value of %(key)s option into correct '
