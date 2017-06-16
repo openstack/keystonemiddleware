@@ -41,11 +41,11 @@ _OPTS = [
                help='Complete "public" Identity API endpoint. This endpoint'
                ' should not be an "admin" endpoint, as it should be accessible'
                ' by all end users. Unauthenticated clients are redirected to'
-               ' this endpoint to authenticate. Although this endpoint should '
-               ' ideally be unversioned, client support in the wild varies. '
-               ' If you\'re using a versioned v2 endpoint here, then this '
-               ' should *not* be the same endpoint the service user utilizes '
-               ' for validating tokens, because normal end users may not be '
+               ' this endpoint to authenticate. Although this endpoint should'
+               ' ideally be unversioned, client support in the wild varies.'
+               ' If you\'re using a versioned v2 endpoint here, then this'
+               ' should *not* be the same endpoint the service user utilizes'
+               ' for validating tokens, because normal end users may not be'
                ' able to reach that endpoint.'),
     cfg.StrOpt('auth_version',
                help='API version of the admin Identity API endpoint.'),
