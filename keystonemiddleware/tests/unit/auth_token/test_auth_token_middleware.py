@@ -478,7 +478,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
         self.assertEqual(datetime.timedelta(seconds=24),
                          middleware._revocations._cache_timeout)
-        self.assertEqual(False, middleware._include_service_catalog)
+        self.assertFalse(middleware._include_service_catalog)
         self.assertEqual('0', middleware._conf.get('nonexsit_option'))
 
     def test_deprecated_conf_values(self):
