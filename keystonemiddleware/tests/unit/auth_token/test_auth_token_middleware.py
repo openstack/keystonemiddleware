@@ -1864,7 +1864,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                 # no point checking everything, just that it's in v2 format
                 self.assertIn('adminURL', endpoint)
                 self.assertIn('publicURL', endpoint)
-                self.assertIn('adminURL', endpoint)
+                self.assertIn('internalURL', endpoint)
 
     def test_fallback_to_online_validation_with_signing_error(self):
         self.requests_mock.get('%s/v3/OS-SIMPLE-CERT/certificates' % BASE_URI,
