@@ -237,7 +237,7 @@ latex_documents = [
 # If false, no module index is generated.
 #latex_use_modindex = True
 
-keystoneclient = 'https://docs.openstack.org/developer/python-keystoneclient/'
+keystoneclient = 'https://docs.openstack.org/python-keystoneclient/latest/'
 
 intersphinx_mapping = {'keystoneclient': (keystoneclient, None),
                        }
