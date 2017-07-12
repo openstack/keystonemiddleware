@@ -15,7 +15,6 @@ import pkg_resources
 from oslo_config import cfg
 from oslo_log import log as logging
 import pbr
-import six
 
 from keystonemiddleware import exceptions
 from keystonemiddleware.i18n import _
@@ -47,7 +46,7 @@ def _conf_values_type_convert(group_name, all_options, conf):
 
         break
 
-    for k, v in six.iteritems(conf):
+    for k, v in conf.items():
         dest = k
         try:
             if v is not None:

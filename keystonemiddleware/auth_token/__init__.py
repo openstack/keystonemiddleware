@@ -227,7 +227,6 @@ from keystoneclient.common import cms
 from keystoneclient import exceptions as ksc_exceptions
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
-import six
 import webob.dec
 
 from keystonemiddleware._common import config
@@ -510,7 +509,7 @@ class BaseAuthProtocol(object):
                           name)
             self._invalid_user_token()
 
-        for bind_type, identifier in six.iteritems(auth_ref.bind):
+        for bind_type, identifier in auth_ref.bind.items():
             if bind_type == _BIND_MODE.KERBEROS:
                 if req.auth_type != 'negotiate':
                     self.log.info('Kerberos credentials required and '

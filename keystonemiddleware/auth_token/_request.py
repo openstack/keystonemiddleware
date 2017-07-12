@@ -13,7 +13,6 @@
 import itertools
 
 from oslo_serialization import jsonutils
-import six
 import webob
 
 
@@ -156,7 +155,7 @@ class _AuthTokenRequest(webob.Request):
         names = ','.join(auth_ref.role_names)
         self.headers[self._ROLES_TEMPLATE % prefix] = names
 
-        for header_tmplt, attr in six.iteritems(self._HEADER_TEMPLATE):
+        for header_tmplt, attr in self._HEADER_TEMPLATE.items():
             self.headers[header_tmplt % prefix] = getattr(auth_ref, attr)
 
     def set_user_headers(self, auth_ref):
@@ -168,7 +167,7 @@ class _AuthTokenRequest(webob.Request):
         self._set_auth_headers(auth_ref, self._USER_HEADER_PREFIX)
         self.headers[self._ADMIN_PROJECT_HEADER] = _is_admin_project(auth_ref)
 
-        for k, v in six.iteritems(self._DEPRECATED_HEADER_MAP):
+        for k, v in self._DEPRECATED_HEADER_MAP.items():
             self.headers[k] = self.headers[v]
 
     def set_service_catalog_headers(self, auth_ref):

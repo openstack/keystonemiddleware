@@ -15,7 +15,6 @@ from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
 from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
-import six
 from six.moves import http_client
 import webob.dec
 
@@ -53,7 +52,7 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
         req = webob.Request.blank(path)
         req.method = method
 
-        for k, v in six.iteritems(headers or {}):
+        for k, v in (headers or {}).items():
             req.headers[k] = v
 
         resp = req.get_response(middleware)

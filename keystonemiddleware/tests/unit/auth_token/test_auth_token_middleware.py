@@ -2083,7 +2083,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
 
         # Ensure injection of service headers is not possible
-        for key, value in six.iteritems(self.service_token_expected_env):
+        for key, value in self.service_token_expected_env.items():
             header_key = key[len('HTTP_'):].replace('_', '-')
             req.headers[header_key] = value
         # Check arbitrary headers not removed
@@ -2160,7 +2160,7 @@ class CommonCompositeAuthTests(object):
         req.headers['X-Auth-Token'] = self.token_dict['uuid_token_default']
 
         # Ensure injection of service headers is not possible
-        for key, value in six.iteritems(self.service_token_expected_env):
+        for key, value in self.service_token_expected_env.items():
             header_key = key[len('HTTP_'):].replace('_', '-')
             req.headers[header_key] = value
         # Check arbitrary headers not removed

@@ -15,7 +15,6 @@ import uuid
 
 from keystoneauth1 import fixture
 import mock
-import six
 import testtools
 import webob
 
@@ -73,7 +72,7 @@ class BaseAuthProtocolTests(testtools.TestCase):
         req = webob.Request.blank(path)
         req.method = method
 
-        for k, v in six.iteritems(headers or {}):
+        for k, v in (headers or {}).items():
             req.headers[k] = v
 
         resp = req.get_response(middleware)
