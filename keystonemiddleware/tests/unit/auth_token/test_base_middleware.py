@@ -89,7 +89,7 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
         @webob.dec.wsgify
         def _do_cb(req):
-            self.assertEqual(token_id, req.headers['X-Auth-Token'])
+            self.assertEqual(token_id, req.headers['X-Auth-Token'].strip())
 
             self.assertEqual('Confirmed', req.headers['X-Identity-Status'])
             self.assertNotIn('X-Service-Token', req.headers)
@@ -109,6 +109,10 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
         m = FetchingMiddleware(_do_cb, token_dict)
         self.call(m, headers={'X-Auth-Token': token_id})
+
+        # also try with whitespace in the token
+        self.call(m, headers={'X-Auth-Token': token_id + ' '})
+        self.call(m, headers={'X-Auth-Token': token_id + '\r'})
 
     def test_invalid_user_token(self):
         token_id = uuid.uuid4().hex
@@ -149,7 +153,7 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
         @webob.dec.wsgify
         def _do_cb(req):
-            self.assertEqual(token_id, req.headers['X-Service-Token'])
+            self.assertEqual(token_id, req.headers['X-Service-Token'].strip())
 
             self.assertEqual('Confirmed',
                              req.headers['X-Service-Identity-Status'])
@@ -170,6 +174,10 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
         m = FetchingMiddleware(_do_cb, token_dict)
         self.call(m, headers={'X-Service-Token': token_id})
+
+        # also try with whitespace in the token
+        self.call(m, headers={'X-Service-Token': token_id + ' '})
+        self.call(m, headers={'X-Service-Token': token_id + '\r'})
 
     def test_invalid_service_token(self):
         token_id = uuid.uuid4().hex

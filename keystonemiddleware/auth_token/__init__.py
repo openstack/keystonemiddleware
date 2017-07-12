@@ -430,6 +430,9 @@ class BaseAuthProtocol(object):
 
     def _do_fetch_token(self, token, **kwargs):
         """Helper method to fetch a token and convert it into an AccessInfo."""
+        # NOTE(edmondsw): strip the token to remove any whitespace that may
+        # have been passed along in the header per bug 1689468
+        token = token.strip()
         if self.kwargs_to_fetch_token:
             data = self.fetch_token(token, **kwargs)
         else:
