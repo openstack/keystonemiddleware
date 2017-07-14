@@ -38,7 +38,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
 # extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
-              'sphinx.ext.todo',
               'sphinx.ext.coverage',
               'sphinx.ext.intersphinx',
               'openstackdocstheme',
