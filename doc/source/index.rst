@@ -22,8 +22,8 @@ In addition to creating the Python Middleware for OpenStack Identity
 API, the Keystone team also provides `Identity Service`_, as well as
 `Python Client Library`_.
 
-.. _`Identity Service`: https://docs.openstack.org/developer/keystone/
-.. _`Python Client Library`: https://docs.openstack.org/developer/python-keystoneclient/
+.. _`Identity Service`: https://docs.openstack.org/keystone/latest/
+.. _`Python Client Library`: https://docs.openstack.org/python-keystoneclient/latest/
 
 Release Notes
 =============

@@ -27,7 +27,7 @@ Python API features.
 For information on contributing, see ``CONTRIBUTING.rst``.
 
 * License: Apache License, Version 2.0
-* Documentation: https://docs.openstack.org/developer/keystonemiddleware
+* Documentation: https://docs.openstack.org/keystonemiddleware/latest/
 * Source: https://git.openstack.org/cgit/openstack/keystonemiddleware
 * Bugs: https://bugs.launchpad.net/keystonemiddleware
 

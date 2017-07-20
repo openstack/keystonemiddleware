@@ -78,7 +78,7 @@ class AuditMiddleware(object):
     The audit middleware takes in various configuration options such as the
     ability to skip audit of certain requests. The full list of options can
     be discovered here:
-    https://docs.openstack.org/developer/keystonemiddleware/audit.html
+    https://docs.openstack.org/keystonemiddleware/latest/audit.html
     """
 
     def __init__(self, app, **conf):

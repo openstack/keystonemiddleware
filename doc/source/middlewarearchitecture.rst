@@ -130,9 +130,9 @@ a WSGI component. Example for the auth_token middleware:
 .. literalinclude:: _static/keystonemiddleware.conf.sample
 
 If the ``auth_plugin`` configuration option is set, you may need to refer to
-the `Authentication Plugins <https://docs.openstack.org/developer/
-keystoneauth/authentication-plugins.html>`_ document for how to
-configure the auth_token middleware.
+the `Authentication Plugins <https://docs.openstack.org/keystoneauth/latest/
+authentication-plugins.html>`_ document for how to configure the auth_token
+middleware.
 
 For services which have a separate paste-deploy ini file, auth_token middleware
 can be alternatively configured in [keystone_authtoken] section in the main

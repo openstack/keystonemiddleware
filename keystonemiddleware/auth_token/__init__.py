@@ -26,7 +26,7 @@ This WSGI component:
 * Collects and forwards identity information based on a valid token
   such as user name, domain, project, etc.
 
-Refer to: https://docs.openstack.org/developer/keystonemiddleware/\
+Refer to: https://docs.openstack.org/keystonemiddleware/latest/\
 middlewarearchitecture.html
 
 
