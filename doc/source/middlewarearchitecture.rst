@@ -203,8 +203,8 @@ they've been stored in the cache may continue to work. Deployments using
 `memcached`_ may use the following keystonemiddleware configuration options
 instead of an in-memory cache.
 
-* ``memcached_servers``: (optional) if defined, the memcached server(s) to use for
-  caching. It will be ignored if Swift MemcacheRing is used instead.
+* ``memcached_servers``: (optional) if defined, the memcached server(s) to use
+  for caching. It will be ignored if Swift MemcacheRing is used instead.
 * ``token_cache_time``: (optional, default 300 seconds) Set to -1 to disable
   caching completely.
 
