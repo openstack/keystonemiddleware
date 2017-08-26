@@ -230,15 +230,6 @@ the requirements.txt file.
 .. _`python-memcached`: https://pypi.python.org/pypi/python-memcached
 .. _`pycrypto`: https://pypi.python.org/pypi/pycrypto
 
-Memcached and System Time
-=========================
-
-When using `memcached`_ with ``auth_token`` middleware, ensure that the system
-time of memcached hosts is set to UTC. Memcached uses the host's system
-time in determining whether a key has expired, whereas Keystone sets
-key expiry in UTC.  The timezone used by Keystone and memcached must
-match if key expiry is to behave as expected.
-
 Memcache Protection
 ===================
 
