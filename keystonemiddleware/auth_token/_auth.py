@@ -91,7 +91,7 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
         determine the endpoint.
 
         :param session: The session object that the auth_plugin belongs to.
-        :type session: keystoneclient.session.Session
+        :type session: keystoneauth1.session.Session
         :param version: The version number required for this endpoint.
         :type version: tuple or str
         :param str interface: what visibility the endpoint should have.
