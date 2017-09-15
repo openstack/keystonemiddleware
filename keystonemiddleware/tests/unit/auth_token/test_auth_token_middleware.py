@@ -2442,7 +2442,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         s = admin_token.add_service('identity', name='keystone')
         s.add_standard_endpoints(admin=self.KEYSTONE_URL)
 
-        self.requests_mock.post(self.DISC_URL + '/v3/auth/tokens',
+        self.requests_mock.post('%s/v3/auth/tokens' % self.AUTH_URL,
                                 json=admin_token,
                                 headers={'X-Subject-Token': admin_token_id})
 
@@ -2454,7 +2454,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         request_headers = {'X-Subject-Token': user_token_id,
                            'X-Auth-Token': admin_token_id}
 
-        self.requests_mock.get(self.CRUD_URL + '/v3/auth/tokens',
+        self.requests_mock.get('%s/v3/auth/tokens' % self.KEYSTONE_BASE_URL,
                                request_headers=request_headers,
                                json=user_token,
                                headers={'X-Subject-Token': uuid.uuid4().hex})
