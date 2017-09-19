@@ -177,6 +177,11 @@ when ``auth_plugin`` is set to ``password``.
     auth_url = http://127.0.0.1:35357
     # Any of the options that could be set in api-paste.ini can be set here.
 
+If using an ``auth_plugin``, connection to the Identity service will be
+established on the ``admin`` interface as registered in the service catalog.
+In the case where you are using an ``auth_plugin`` and have multiple regions,
+also specify the ``region_name`` option to fetch the correct endpoint.
+
 If the service doesn't use the global oslo.config object (CONF), then the
 oslo config project name can be set it in paste config and
 keystonemiddleware will load the project configuration itself.
