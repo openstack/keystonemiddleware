@@ -12,12 +12,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import fixtures
 import mock
 from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture
 import six
 from six.moves import urllib
+from testtools import matchers
 import webob
 
 from keystonemiddleware import s3_token
@@ -39,14 +41,14 @@ class FakeApp(object):
 
 class S3TokenMiddlewareTestBase(utils.TestCase):
 
-    TEST_AUTH_URI = 'https://fakehost/identity'
-    TEST_URL = '%s/v2.0/s3tokens' % (TEST_AUTH_URI, )
+    TEST_WWW_AUTHENTICATE_URI = 'https://fakehost/identity'
+    TEST_URL = '%s/v2.0/s3tokens' % (TEST_WWW_AUTHENTICATE_URI, )
 
     def setUp(self):
         super(S3TokenMiddlewareTestBase, self).setUp()
 
         self.conf = {
-            'auth_uri': self.TEST_AUTH_URI,
+            'www_authenticate_uri': self.TEST_WWW_AUTHENTICATE_URI,
         }
 
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
@@ -225,3 +227,25 @@ class S3TokenMiddlewareTestBad(S3TokenMiddlewareTestBase):
         s3_invalid_req = self.middleware._deny_request('InvalidURI')
         self.assertEqual(resp.body, s3_invalid_req.body)
         self.assertEqual(resp.status_int, s3_invalid_req.status_int)
+
+
+class S3TokenMiddlewareTestDeprecatedOptions(S3TokenMiddlewareTestBase):
+    def setUp(self):
+        super(S3TokenMiddlewareTestDeprecatedOptions, self).setUp()
+        self.conf = {
+            'auth_uri': self.TEST_WWW_AUTHENTICATE_URI,
+        }
+        self.logger = self.useFixture(fixtures.FakeLogger())
+        self.middleware = s3_token.S3Token(FakeApp(), self.conf)
+
+        self.requests_mock.post(self.TEST_URL,
+                                status_code=201,
+                                json=GOOD_RESPONSE)
+
+    def test_logs_warning(self):
+        req = webob.Request.blank('/')
+        self.middleware(req.environ, self.start_fake_response)
+        self.assertEqual(self.response_status, 200)
+        log = "Use of the auth_uri option was deprecated in the Queens " \
+            "release in favor of www_authenticate_uri."
+        self.assertThat(self.logger.output, matchers.Contains(log))

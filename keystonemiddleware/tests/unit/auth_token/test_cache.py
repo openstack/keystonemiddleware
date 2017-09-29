@@ -80,7 +80,7 @@ class NoMemcacheAuthToken(base.BaseAuthTokenTestCase):
             'auth_host': 'keystone.example.com',
             'auth_port': '1234',
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'auth_uri': 'https://keystone.example.com:1234',
+            'www_authenticate_uri': 'https://keystone.example.com:1234',
         }
 
         self.create_simple_middleware(conf=conf)

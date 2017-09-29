@@ -280,7 +280,7 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
             'identity_uri': 'https://keystone.example.com:1234/testadmin/',
             'signing_dir': signing_dir,
             'auth_version': auth_version,
-            'auth_uri': 'https://keystone.example.com:1234',
+            'www_authenticate_uri': 'https://keystone.example.com:1234',
             'admin_user': uuid.uuid4().hex,
         }
 
@@ -460,7 +460,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def test_config_revocation_cache_timeout(self):
         conf = {
             'revocation_cache_time': '24',
-            'auth_uri': 'https://keystone.example.com:1234',
+            'www_authenticate_uri': 'https://keystone.example.com:1234',
             'admin_user': uuid.uuid4().hex
         }
         middleware = auth_token.AuthProtocol(self.fake_app, conf)
@@ -591,12 +591,12 @@ class CommonAuthTokenMiddlewareTest(object):
             'auth_host': '2001:2013:1:f101::1',
             'auth_port': '1234',
             'auth_protocol': 'http',
-            'auth_uri': None,
+            'www_authenticate_uri': None,
             'auth_version': 'v3.0',
         }
         middleware = self.create_simple_middleware(conf=conf)
         self.assertEqual('http://[2001:2013:1:f101::1]:1234',
-                         middleware._auth_uri)
+                         middleware._www_authenticate_uri)
 
     def assert_valid_request_200(self, token, with_catalog=True):
         resp = self.call_middleware(headers={'X-Auth-Token': token})
@@ -1982,10 +1982,10 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
     def test_header_in_401(self):
         body = uuid.uuid4().hex
-        auth_uri = 'http://local.test'
+        www_authenticate_uri = 'http://local.test'
         conf = {'delay_auth_decision': 'True',
                 'auth_version': 'v3.0',
-                'auth_uri': auth_uri}
+                'www_authenticate_uri': www_authenticate_uri}
 
         middleware = self.create_simple_middleware(status='401 Unauthorized',
                                                    body=body,
@@ -1993,11 +1993,11 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         resp = self.call(middleware, expected_status=401)
         self.assertEqual(six.b(body), resp.body)
 
-        self.assertEqual("Keystone uri='%s'" % auth_uri,
+        self.assertEqual("Keystone uri='%s'" % www_authenticate_uri,
                          resp.headers['WWW-Authenticate'])
 
     def test_delayed_auth_values(self):
-        conf = {'auth_uri': 'http://local.test'}
+        conf = {'www_authenticate_uri': 'http://local.test'}
         status = '401 Unauthorized'
 
         middleware = self.create_simple_middleware(status=status, conf=conf)
@@ -2005,7 +2005,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         for v in ('True', '1', 'on', 'yes'):
             conf = {'delay_auth_decision': v,
-                    'auth_uri': 'http://local.test'}
+                    'www_authenticate_uri': 'http://local.test'}
 
             middleware = self.create_simple_middleware(status=status,
                                                        conf=conf)
@@ -2013,7 +2013,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         for v in ('False', '0', 'no'):
             conf = {'delay_auth_decision': v,
-                    'auth_uri': 'http://local.test'}
+                    'www_authenticate_uri': 'http://local.test'}
 
             middleware = self.create_simple_middleware(status=status,
                                                        conf=conf)
@@ -2021,8 +2021,11 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
     def test_auth_plugin_with_no_tokens(self):
         body = uuid.uuid4().hex
-        auth_uri = 'http://local.test'
-        conf = {'delay_auth_decision': True, 'auth_uri': auth_uri}
+        www_authenticate_uri = 'http://local.test'
+        conf = {
+            'delay_auth_decision': True,
+            'www_authenticate_uri': www_authenticate_uri
+        }
 
         middleware = self.create_simple_middleware(body=body, conf=conf)
         resp = self.call(middleware)

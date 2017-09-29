@@ -57,13 +57,20 @@ class S3Token(object):
         self._reseller_prefix = conf.get('reseller_prefix', 'AUTH_')
         # where to find the auth service (we use this to validate tokens)
 
-        self._request_uri = conf.get('auth_uri')
+        self._request_uri = conf.get('www_authenticate_uri')
+        auth_uri = conf.get('auth_uri')
+        if not self._request_uri and auth_uri:
+            self._logger.warning(
+                "Use of the auth_uri option was deprecated "
+                "in the Queens release in favor of www_authenticate_uri. This "
+                "option will be removed in the S release.")
+            self._request_uri = auth_uri
         if not self._request_uri:
             self._logger.warning(
                 "Use of the auth_host, auth_port, and auth_protocol "
                 "configuration options was deprecated in the Newton release "
-                "in favor of auth_uri. These options may be removed in a "
-                "future release.")
+                "in favor of www_authenticate_uri. These options will be "
+                "removed in the S release.")
             auth_host = conf.get('auth_host')
             auth_port = int(conf.get('auth_port', 35357))
             auth_protocol = conf.get('auth_protocol', 'https')

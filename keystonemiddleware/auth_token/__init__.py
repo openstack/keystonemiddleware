@@ -583,17 +583,20 @@ class AuthProtocol(BaseAuthProtocol):
         self._session = self._create_session()
         self._identity_server = self._create_identity_server()
 
-        self._auth_uri = self._conf.get('auth_uri')
-        if not self._auth_uri:
+        self._www_authenticate_uri = self._conf.get('www_authenticate_uri')
+        if not self._www_authenticate_uri:
+            self._www_authenticate_uri = self._conf.get('auth_uri')
+        if not self._www_authenticate_uri:
             self.log.warning(
-                'Configuring auth_uri to point to the public identity '
-                'endpoint is required; clients may not be able to '
+                'Configuring www_authenticate_uri to point to the public '
+                'identity endpoint is required; clients may not be able to '
                 'authenticate against an admin endpoint')
 
             # FIXME(dolph): drop support for this fallback behavior as
             # documented in bug 1207517.
 
-            self._auth_uri = self._identity_server.auth_uri
+            self._www_authenticate_uri = \
+                self._identity_server.www_authenticate_uri
 
         self._signing_directory = _signing_dir.SigningDirectory(
             directory_name=self._conf.get('signing_dir'), log=self.log)
@@ -687,7 +690,7 @@ class AuthProtocol(BaseAuthProtocol):
 
     @property
     def _reject_auth_headers(self):
-        header_val = 'Keystone uri=\'%s\'' % self._auth_uri
+        header_val = 'Keystone uri=\'%s\'' % self._www_authenticate_uri
         return [('WWW-Authenticate', header_val)]
 
     def _token_hashes(self, token):

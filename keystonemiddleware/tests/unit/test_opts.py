@@ -35,6 +35,7 @@ class OptsTestCase(utils.TestCase):
             'auth_host',
             'auth_port',
             'auth_protocol',
+            'www_authenticate_uri',
             'auth_uri',
             'identity_uri',
             'auth_version',
@@ -86,6 +87,7 @@ class OptsTestCase(utils.TestCase):
 
         # This is the sample config generator list WITHOUT deprecations
         expected_opt_names = [
+            'www_authenticate_uri',
             'auth_uri',
             'auth_version',
             'delay_auth_decision',

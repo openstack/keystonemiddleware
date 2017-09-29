@@ -147,16 +147,18 @@ class IdentityServer(object):
         self._request_strategy_obj = None
 
     @property
-    def auth_uri(self):
-        auth_uri = self._adapter.get_endpoint(interface=plugin.AUTH_INTERFACE)
+    def www_authenticate_uri(self):
+        www_authenticate_uri = self._adapter.get_endpoint(
+            interface=plugin.AUTH_INTERFACE)
 
         # NOTE(jamielennox): This weird stripping of the prefix hack is
         # only relevant to the legacy case. We urljoin '/' to get just the
         # base URI as this is the original behaviour.
         if isinstance(self._adapter.auth, _auth.AuthTokenPlugin):
-            auth_uri = urllib.parse.urljoin(auth_uri, '/').rstrip('/')
+            www_authenticate_uri = urllib.parse.urljoin(
+                www_authenticate_uri, '/').rstrip('/')
 
-        return auth_uri
+        return www_authenticate_uri
 
     @property
     def auth_version(self):
