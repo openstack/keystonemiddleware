@@ -152,9 +152,7 @@ and set in ``nova.conf``:
     auth_strategy=keystone
 
     [keystone_authtoken]
-    auth_host = 127.0.0.1
-    auth_port = 35357
-    auth_protocol = http
+    identity_uri = http://127.0.0.1:35357
     admin_user = admin
     admin_password = SuperSekretPassword
     admin_tenant_name = service
