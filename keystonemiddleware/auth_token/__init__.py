@@ -802,6 +802,13 @@ class AuthProtocol(BaseAuthProtocol):
             self.log.warning('Fetch revocation list failed, '
                              'fallback to online validation.')
         else:
+            self.log.warning('auth_token middleware received a PKI/Z token. '
+                             'This form of token is deprecated and has been '
+                             'removed from keystone server and will be '
+                             'removed from auth_token middleware in the Rocky '
+                             'release. Please contact your administrator '
+                             'about upgrading keystone and the token format.')
+
             data = jsonutils.loads(verified)
 
             audit_ids = None
