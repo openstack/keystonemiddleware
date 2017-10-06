@@ -18,7 +18,7 @@ from keystonemiddleware.tests.unit import utils
 
 class MemcacheCryptPositiveTests(utils.BaseTestCase):
     def _setup_keys(self, strategy):
-        return memcache_crypt.derive_keys(b'token', b'secret', strategy)
+        return memcache_crypt.derive_keys('token', 'secret', strategy)
 
     def test_derive_keys(self):
         keys = self._setup_keys(b'strategy')
