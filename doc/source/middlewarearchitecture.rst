@@ -259,7 +259,8 @@ swift/cloud files and for legacy Rackspace use. If the token isn't present and
 the middleware is configured to not delegate auth responsibility, it will
 respond to the HTTP request with HTTPUnauthorized, returning the header
 ``WWW-Authenticate`` with the value `Keystone uri='...'` to indicate where to
-request a token. The auth_uri returned is configured  with the middleware.
+request a token. The URI returned is configured with the
+``www_authenticate_uri`` option.
 
 The authentication middleware extends the HTTP request with the header
 ``X-Identity-Status``.  If a request is successfully authenticated, the value

@@ -36,7 +36,7 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
         # in the 'keystone_authtoken' group. Additional options, from
         # plugins, are registered dynamically so must not be used here.
         self.oslo_options = {
-            'auth_uri': uuid.uuid4().hex,
+            'www_authenticate_uri': uuid.uuid4().hex,
             'identity_uri': uuid.uuid4().hex,
         }
 
@@ -56,14 +56,14 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
 
         self.file_options = {
             'auth_type': 'password',
-            'auth_uri': uuid.uuid4().hex,
+            'www_authenticate_uri': uuid.uuid4().hex,
             'password': uuid.uuid4().hex,
         }
 
         content = ("[keystone_authtoken]\n"
                    "auth_type=%(auth_type)s\n"
-                   "auth_uri=%(auth_uri)s\n"
-                   "auth_url=%(auth_uri)s\n"
+                   "www_authenticate_uri=%(www_authenticate_uri)s\n"
+                   "auth_url=%(www_authenticate_uri)s\n"
                    "password=%(password)s\n" % self.file_options)
 
         self.conf_file_fixture = self.useFixture(
@@ -108,5 +108,5 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
         for option in self.oslo_options:
             self.assertEqual(self.oslo_options[option],
                              conf_get(app, option))
-        self.assertNotEqual(self.file_options['auth_uri'],
-                            conf_get(app, 'auth_uri'))
+        self.assertNotEqual(self.file_options['www_authenticate_uri'],
+                            conf_get(app, 'www_authenticate_uri'))

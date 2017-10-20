@@ -28,7 +28,7 @@ from keystonemiddleware.auth_token import _base
 # options via CONF.
 
 _OPTS = [
-    cfg.StrOpt('auth_uri',
+    cfg.StrOpt('www_authenticate_uri',
                # FIXME(dolph): should be default='http://127.0.0.1:5000/v2.0/',
                # or (depending on client support) an unversioned, publicly
                # accessible identity endpoint (see bug 1207517). Further, we
@@ -38,6 +38,7 @@ _OPTS = [
                # This wasn't an option originally when many auth_token
                # deployments were configured with the "ADMIN" token and
                # endpoint combination.
+               deprecated_name='auth_uri',
                help='Complete "public" Identity API endpoint. This endpoint'
                ' should not be an "admin" endpoint, as it should be accessible'
                ' by all end users. Unauthenticated clients are redirected to'
@@ -47,6 +48,23 @@ _OPTS = [
                ' should *not* be the same endpoint the service user utilizes'
                ' for validating tokens, because normal end users may not be'
                ' able to reach that endpoint.'),
+    cfg.StrOpt('auth_uri',
+               deprecated_for_removal=True,
+               deprecated_reason='The auth_uri option is deprecated in favor'
+               ' of www_authenticate_uri and will be removed in the S '
+               ' release.',
+               deprecated_since='Queens',
+               help='Complete "public" Identity API endpoint. This endpoint'
+               ' should not be an "admin" endpoint, as it should be accessible'
+               ' by all end users. Unauthenticated clients are redirected to'
+               ' this endpoint to authenticate. Although this endpoint should'
+               ' ideally be unversioned, client support in the wild varies.'
+               ' If you\'re using a versioned v2 endpoint here, then this'
+               ' should *not* be the same endpoint the service user utilizes'
+               ' for validating tokens, because normal end users may not be'
+               ' able to reach that endpoint. This option is deprecated in'
+               ' favor of www_authenticate_uri and will be removed in the S'
+               ' release.'),
     cfg.StrOpt('auth_version',
                help='API version of the admin Identity API endpoint.'),
     cfg.BoolOpt('delay_auth_decision',
