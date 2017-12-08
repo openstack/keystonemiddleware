@@ -559,6 +559,8 @@ class AuthProtocol(BaseAuthProtocol):
                                    _base.AUTHTOKEN_GROUP,
                                    list_opts(),
                                    conf)
+        if self._conf.oslo_conf_obj != cfg.CONF:
+            oslo_cache.configure(self._conf.oslo_conf_obj)
 
         token_roles_required = self._conf.get('service_token_roles_required')
 
@@ -957,9 +959,8 @@ class AuthProtocol(BaseAuthProtocol):
 
     def _create_oslo_cache(self):
         # having this as a function makes test mocking easier
-        conf = cfg.CONF
         region = oslo_cache.create_region()
-        oslo_cache.configure_cache_region(conf, region)
+        oslo_cache.configure_cache_region(self._conf.oslo_conf_obj, region)
         return region
 
     def _token_cache_factory(self):
