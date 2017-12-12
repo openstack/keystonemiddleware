@@ -13,7 +13,6 @@
 import contextlib
 import hashlib
 
-from oslo_cache import _memcache_pool as memcache_pool
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import six
@@ -90,8 +89,9 @@ class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
 
     def __init__(self, memcache_servers, **kwargs):
-        self._pool = memcache_pool.MemcacheClientPool(memcache_servers,
-                                                      **kwargs)
+        from oslo_cache import _memcache_pool
+        self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
+                                                       **kwargs)
 
     @contextlib.contextmanager
     def reserve(self):
