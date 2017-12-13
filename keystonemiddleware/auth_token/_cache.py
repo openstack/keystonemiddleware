@@ -89,6 +89,8 @@ class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
 
     def __init__(self, memcache_servers, **kwargs):
+        # NOTE(sileht): This will import python-memcached, we don't want
+        # it as hard dependency, so lazy load it.
         from oslo_cache import _memcache_pool
         self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
                                                        **kwargs)
