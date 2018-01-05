@@ -220,8 +220,8 @@ class IdentityServer(object):
                 user_token,
                 allow_expired=allow_expired)
         except ksa_exceptions.NotFound as e:
-            self._LOG.warning('Authorization failed for token')
-            self._LOG.warning('Identity response: %s', e.response.text)
+            self._LOG.info('Authorization failed for token')
+            self._LOG.info('Identity response: %s', e.response.text)
             raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
         except ksa_exceptions.Unauthorized as e:
             self._LOG.info('Identity server rejected authorization')
