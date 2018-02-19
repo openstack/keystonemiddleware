@@ -42,6 +42,13 @@ _LOG = None
 AUDIT_MIDDLEWARE_GROUP = 'audit_middleware_notifications'
 
 _AUDIT_OPTS = [
+    cfg.BoolOpt('use_oslo_messaging',
+                default=True,
+                help='Indicate whether to use oslo_messaging as the notifier. '
+                     'If set to False, the local logger will be used as the '
+                     'notifier. If set to True, the oslo_messaging package '
+                     'must also be present. Otherwise, the local will be used '
+                     'instead.'),
     cfg.StrOpt('driver',
                help='The Driver to handle sending notifications. Possible '
                     'values are messaging, messagingv2, routing, log, test, '

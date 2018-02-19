@@ -12,6 +12,7 @@
 
 import mock
 
+from keystonemiddleware import audit
 from keystonemiddleware.tests.unit.audit import base
 
 
@@ -80,3 +81,13 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         self.assertTrue(m.called)
         # make sure first call kwarg 'url' is same as provided transport_url
         self.assertEqual(transport_url, m.call_args_list[0][1]['url'])
+
+    def test_do_not_use_oslo_messaging(self):
+        self.cfg.config(use_oslo_messaging=False,
+                        group='audit_middleware_notifications')
+        audit_middleware = self.create_simple_middleware()
+
+        # make sure it is using a local notifier instead of oslo_messaging
+        self.assertTrue(
+            isinstance(audit_middleware._notifier,
+                       audit._notifier._LogNotifier))
