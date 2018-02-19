@@ -41,7 +41,7 @@ class _MessagingNotifier(object):
 
 
 def create_notifier(conf, log):
-    if oslo_messaging:
+    if oslo_messaging and conf.get('use_oslo_messaging'):
         transport = oslo_messaging.get_notification_transport(
             conf.oslo_conf_obj,
             url=conf.get('transport_url'))
