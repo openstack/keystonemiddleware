@@ -778,7 +778,8 @@ class AuthProtocol(BaseAuthProtocol):
                 ksm_exceptions.RevocationListError,
                 ksm_exceptions.ServiceError) as e:
             self.log.critical('Unable to validate token: %s', e)
-            raise webob.exc.HTTPServiceUnavailable()
+            raise webob.exc.HTTPServiceUnavailable(
+                'The Keystone service is temporarily unavailable.')
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             if token_hashes:

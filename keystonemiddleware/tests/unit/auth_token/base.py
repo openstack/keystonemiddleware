@@ -15,6 +15,7 @@ from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
 from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
+import six
 from six.moves import http_client
 import webob.dec
 
@@ -48,7 +49,8 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
         return auth_token.AuthProtocol(_do_cb, opts)
 
     def call(self, middleware, method='GET', path='/', headers=None,
-             expected_status=http_client.OK):
+             expected_status=http_client.OK,
+             expected_body_string=None):
         req = webob.Request.blank(path)
         req.method = method
 
@@ -57,5 +59,7 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
 
         resp = req.get_response(middleware)
         self.assertEqual(expected_status, resp.status_int)
+        if expected_body_string:
+            self.assertIn(expected_body_string, six.text_type(resp.body))
         resp.request = req
         return resp
