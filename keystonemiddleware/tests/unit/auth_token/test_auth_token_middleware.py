@@ -1071,13 +1071,15 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_http_request_max_retries(self):
         times_retry = 10
+        body_string = 'The Keystone service is temporarily unavailable.'
 
         conf = {'http_request_max_retries': '%s' % times_retry}
         self.set_middleware(conf=conf)
 
         with mock.patch('time.sleep') as mock_obj:
             self.call_middleware(headers={'X-Auth-Token': ERROR_TOKEN},
-                                 expected_status=503)
+                                 expected_status=503,
+                                 expected_body_string=body_string)
 
         self.assertEqual(mock_obj.call_count, times_retry)
 
