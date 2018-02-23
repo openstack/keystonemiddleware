@@ -1063,7 +1063,7 @@ class CommonAuthTokenMiddlewareTest(object):
         We use UUID tokens since they are the easiest one to reach
         get_http_connection.
         """
-        self.middleware._http_request_max_retries = 0
+        self.set_middleware(conf={'http_request_max_retries': '0'})
         self.call_middleware(headers={'X-Auth-Token': ERROR_TOKEN},
                              expected_status=503)
         self.assertIsNone(self._get_cached_token(ERROR_TOKEN))
