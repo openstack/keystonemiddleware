@@ -98,8 +98,7 @@ class _MemcacheClientPool(object):
 
     @contextlib.contextmanager
     def reserve(self):
-        with self._pool.get() as client:
-            yield client
+        yield self._pool.get()
 
 
 class TokenCache(object):
