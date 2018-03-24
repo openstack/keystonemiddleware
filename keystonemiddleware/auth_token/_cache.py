@@ -88,11 +88,12 @@ class _CachePool(list):
 class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
 
-    def __init__(self, memcache_servers, **kwargs):
+    def __init__(self, memcache_servers, arguments, **kwargs):
         # NOTE(sileht): This will import python-memcached, we don't want
         # it as hard dependency, so lazy load it.
         from oslo_cache import _memcache_pool
         self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
+                                                       arguments,
                                                        **kwargs)
 
     @contextlib.contextmanager
@@ -120,12 +121,17 @@ class TokenCache(object):
 
     def __init__(self, log, cache_time=None,
                  env_cache_name=None, memcached_servers=None,
-                 use_advanced_pool=False, **kwargs):
+                 use_advanced_pool=False, dead_retry=None, socket_timeout=None,
+                 **kwargs):
         self._LOG = log
         self._cache_time = cache_time
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
         self._use_advanced_pool = use_advanced_pool
+        self._arguments = {
+            'dead_retry': dead_retry,
+            'socket_timeout': socket_timeout
+        }
         self._memcache_pool_options = kwargs
 
         self._cache_pool = None
@@ -137,6 +143,7 @@ class TokenCache(object):
 
         elif self._use_advanced_pool and self._memcached_servers:
             return _MemcacheClientPool(self._memcached_servers,
+                                       self._arguments,
                                        **self._memcache_pool_options)
 
         else:
