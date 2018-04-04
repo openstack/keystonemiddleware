@@ -215,7 +215,6 @@ object is stored.
 import binascii
 import copy
 import datetime
-import warnings
 
 from keystoneauth1 import access
 from keystoneauth1 import adapter
@@ -308,12 +307,6 @@ class BaseAuthProtocol(object):
     :param str enforce_token_bind: The style of token binding enforcement to
                                    perform.
     """
-
-    # NOTE(jamielennox): Default to True and remove in Queens. This is a
-    # compatibility flag to allow passing **kwargs to fetch_token(). This
-    # is basically to allow compatibility with keystone's override. We will
-    # assume all subclasses are ok with this being True in the Queens release.
-    kwargs_to_fetch_token = False
 
     def __init__(self,
                  app,
@@ -436,14 +429,7 @@ class BaseAuthProtocol(object):
         # NOTE(edmondsw): strip the token to remove any whitespace that may
         # have been passed along in the header per bug 1689468
         token = token.strip()
-        if self.kwargs_to_fetch_token:
-            data = self.fetch_token(token, **kwargs)
-        else:
-            m = _('Implementations of auth_token must set '
-                  'kwargs_to_fetch_token this will be the required and '
-                  'assumed in Queens.')
-            warnings.warn(m)
-            data = self.fetch_token(token)
+        data = self.fetch_token(token, **kwargs)
 
         try:
             return data, access.create(body=data, auth_token=token)
@@ -548,8 +534,6 @@ class AuthProtocol(BaseAuthProtocol):
 
     _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
     _SIGNING_CA_FILE_NAME = 'cacert.pem'
-
-    kwargs_to_fetch_token = True
 
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get('log_name', __name__))

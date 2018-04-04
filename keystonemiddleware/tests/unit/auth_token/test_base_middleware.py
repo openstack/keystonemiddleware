@@ -31,8 +31,6 @@ class FakeApp(object):
 
 class FetchingMiddleware(auth_token.BaseAuthProtocol):
 
-    kwargs_to_fetch_token = True
-
     def __init__(self, app, token_dict={}, **kwargs):
         super(FetchingMiddleware, self).__init__(app, **kwargs)
         self.token_dict = token_dict
