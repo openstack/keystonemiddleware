@@ -98,6 +98,7 @@ VERSION_LIST_v3 = fixture.DiscoveryList(href=BASE_URI)
 VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
 
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
+TIMEOUT_TOKEN = '4ed1c5e53beee59458adcf8261a8cae2'
 
 
 def cleanup_revoked_file(filename):
@@ -1083,6 +1084,12 @@ class CommonAuthTokenMiddlewareTest(object):
 
         self.assertEqual(mock_obj.call_count, times_retry)
 
+    def test_request_timeout(self):
+        self.call_middleware(headers={'X-Auth-Token': TIMEOUT_TOKEN},
+                             expected_status=503)
+        self.assertIsNone(self._get_cached_token(TIMEOUT_TOKEN))
+        self.assert_valid_last_url(TIMEOUT_TOKEN)
+
     def test_nocatalog(self):
         conf = {
             'include_service_catalog': 'False'
@@ -1545,6 +1552,11 @@ def network_error_response(request, context):
     raise ksa_exceptions.ConnectFailure("Network connection refused.")
 
 
+def request_timeout_response(request, context):
+    raise ksa_exceptions.RequestTimeout(
+        "Request to https://host/token/path timed out")
+
+
 class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                 CommonAuthTokenMiddlewareTest,
                                 testresources.ResourcedTestCase):
@@ -1617,6 +1629,9 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
         url = '%s/v2.0/tokens/%s' % (BASE_URI, ERROR_TOKEN)
         self.requests_mock.get(url, text=network_error_response)
+
+        url = '%s/v2.0/tokens/%s' % (BASE_URI, TIMEOUT_TOKEN)
+        self.requests_mock.get(url, text=request_timeout_response)
 
         self.set_middleware()
 
@@ -1824,6 +1839,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         if token_id == ERROR_TOKEN:
             msg = "Network connection refused."
             raise ksa_exceptions.ConnectFailure(msg)
+        elif token_id == TIMEOUT_TOKEN:
+            request_timeout_response(request, context)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -2372,6 +2389,8 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
         if token_id == ERROR_TOKEN:
             msg = "Network connection refused."
             raise ksc_exceptions.ConnectionRefused(msg)
+        elif token_id == TIMEOUT_TOKEN:
+            request_timeout_response(request, context)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]

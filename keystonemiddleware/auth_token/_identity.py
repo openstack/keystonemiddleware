@@ -234,9 +234,10 @@ class IdentityServer(object):
             raise ksm_exceptions.ServiceError(msg)
         except ksa_exceptions.HttpError as e:
             self._LOG.error(
-                'Bad response code while validating token: %s',
-                e.http_status)
-            self._LOG.warning('Identity response: %s', e.response.text)
+                'Bad response code while validating token: %s %s',
+                e.http_status, e.message)
+            if hasattr(e.response, 'text'):
+                self._LOG.warning('Identity response: %s', e.response.text)
             msg = _('Failed to fetch token data from identity server')
             raise ksm_exceptions.ServiceError(msg)
         else:
