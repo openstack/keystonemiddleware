@@ -956,37 +956,37 @@ class CommonAuthTokenMiddlewareTest(object):
 
         resp = self.call_middleware(headers={'X-Auth-Token': 'invalid-token'},
                                     expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_request_invalid_signed_token(self):
         token = self.examples.INVALID_SIGNED_TOKEN
         resp = self.call_middleware(headers={'X-Auth-Token': token},
                                     expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_request_invalid_signed_pkiz_token(self):
         token = self.examples.INVALID_SIGNED_PKIZ_TOKEN
         resp = self.call_middleware(headers={'X-Auth-Token': token},
                                     expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_request_no_token(self):
         resp = self.call_middleware(expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_request_no_token_http(self):
         resp = self.call_middleware(method='HEAD', expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_request_blank_token(self):
         resp = self.call_middleware(headers={'X-Auth-Token': ''},
                                     expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def _get_cached_token(self, token, mode='md5'):
@@ -1126,7 +1126,7 @@ class CommonAuthTokenMiddlewareTest(object):
             self.assert_valid_last_url(token)
         else:
             self.assertEqual(401, resp.status_int)
-            msg = "Keystone uri='https://keystone.example.com:1234'"
+            msg = 'Keystone uri="https://keystone.example.com:1234"'
             self.assertEqual(msg, resp.headers['WWW-Authenticate'])
 
     def test_uuid_bind_token_disabled_with_kerb_user(self):
@@ -1660,7 +1660,7 @@ class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         """Unscoped requests with no default tenant ID should be rejected."""
         resp = self.call_middleware(headers={'X-Auth-Token': token},
                                     expected_status=401)
-        self.assertEqual("Keystone uri='https://keystone.example.com:1234'",
+        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
                          resp.headers['WWW-Authenticate'])
 
     def test_unscoped_uuid_token_receives_401(self):
@@ -2030,7 +2030,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         resp = self.call(middleware, expected_status=401)
         self.assertEqual(six.b(body), resp.body)
 
-        self.assertEqual("Keystone uri='%s'" % www_authenticate_uri,
+        self.assertEqual('Keystone uri="%s"' % www_authenticate_uri,
                          resp.headers['WWW-Authenticate'])
 
     def test_delayed_auth_values(self):

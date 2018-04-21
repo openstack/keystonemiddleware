@@ -679,7 +679,7 @@ class AuthProtocol(BaseAuthProtocol):
 
     @property
     def _reject_auth_headers(self):
-        header_val = 'Keystone uri=\'%s\'' % self._www_authenticate_uri
+        header_val = 'Keystone uri="%s"' % self._www_authenticate_uri
         return [('WWW-Authenticate', header_val)]
 
     def _token_hashes(self, token):
