@@ -1871,6 +1871,21 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                       with_catalog=False)
         self.assertLastPath('/v3/auth/tokens')
 
+    def test_valid_system_scoped_token_request(self):
+        delta_expected_env = {
+            'HTTP_OPENSTACK_SYSTEM_SCOPE': 'all',
+            'HTTP_X_PROJECT_ID': None,
+            'HTTP_X_PROJECT_NAME': None,
+            'HTTP_X_PROJECT_DOMAIN_ID': None,
+            'HTTP_X_PROJECT_DOMAIN_NAME': None,
+            'HTTP_X_TENANT_ID': None,
+            'HTTP_X_TENANT_NAME': None,
+            'HTTP_X_TENANT': None
+        }
+        self.set_middleware(expected_env=delta_expected_env)
+        self.assert_valid_request_200(self.examples.v3_SYSTEM_SCOPED_TOKEN)
+        self.assertLastPath('/v3/auth/tokens')
+
     def test_domain_scoped_uuid_request(self):
         # Modify items compared to default token for a domain scope
         delta_expected_env = {

@@ -62,6 +62,13 @@ def _is_admin_project(auth_ref):
     return 'True' if auth_ref.is_admin_project else 'False'
 
 
+def _get_system_scope(auth_ref):
+    """Return the scope information of a system scoped token."""
+    if auth_ref.system_scoped:
+        if auth_ref.system.get('all'):
+            return 'all'
+
+
 # NOTE(jamielennox): this should probably be moved into its own file, but at
 # the moment there's no real logic here so just keep it locally.
 class _AuthTokenResponse(webob.Response):
@@ -95,6 +102,7 @@ class _AuthTokenRequest(webob.Request):
     _SERVICE_STATUS_HEADER = 'X-Service-Identity-Status'
 
     _ADMIN_PROJECT_HEADER = 'X-Is-Admin-Project'
+    _SYSTEM_SCOPE_HEADER = 'OpenStack-System-Scope'
 
     _SERVICE_CATALOG_HEADER = 'X-Service-Catalog'
     _TOKEN_AUTH = 'keystone.token_auth'
@@ -154,6 +162,7 @@ class _AuthTokenRequest(webob.Request):
     def _set_auth_headers(self, auth_ref, prefix):
         names = ','.join(auth_ref.role_names)
         self.headers[self._ROLES_TEMPLATE % prefix] = names
+        self.headers[self._SYSTEM_SCOPE_HEADER] = _get_system_scope(auth_ref)
 
         for header_tmplt, attr in self._HEADER_TEMPLATE.items():
             self.headers[header_tmplt % prefix] = getattr(auth_ref, attr)

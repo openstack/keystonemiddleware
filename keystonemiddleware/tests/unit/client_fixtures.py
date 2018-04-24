@@ -127,6 +127,7 @@ class Examples(fixtures.Fixture):
         self.v3_UUID_TOKEN_DOMAIN_SCOPED = 'e8a7b63aaa4449f38f0c5c05c3581792'
         self.v3_UUID_TOKEN_BIND = '2f61f73e1c854cbb9534c487f9bd63c2'
         self.v3_UUID_TOKEN_UNKNOWN_BIND = '7ed9781b62cd4880b8d8c6788ab1d1e2'
+        self.v3_SYSTEM_SCOPED_TOKEN = '9ca6e88364b6418a88ffc02e6a24afd8'
 
         self.UUID_SERVICE_TOKEN_DEFAULT = 'fe4c0710ec2f492748596c1b53ab124'
         self.UUID_SERVICE_TOKEN_BIND = '5e43439613d34a13a7e03b2762bd08ab'
@@ -379,6 +380,17 @@ class Examples(fixtures.Fixture):
                                 user_domain_id=DOMAIN_ID,
                                 user_domain_name=DOMAIN_NAME)
         self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNSCOPED] = token
+
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME)
+        token.system = {'all': True}
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_SYSTEM_SCOPED_TOKEN] = token
 
         token = fixture.V3Token(user_id=USER_ID,
                                 user_name=USER_NAME,
