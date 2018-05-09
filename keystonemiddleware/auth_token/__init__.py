@@ -72,6 +72,11 @@ HTTP_X_IDENTITY_STATUS, HTTP_X_SERVICE_IDENTITY_STATUS
     presented. This allows the underlying service to determine if a
     denial should use ``401 Unauthenticated`` or ``403 Forbidden``.
 
+HTTP_OPENSTACK_SYSTEM_SCOPE
+    A string relaying system information about the token's scope. This
+    attribute is only present if the token is system-scoped. The string ``all``
+    means the token is scoped to the entire deployment system.
+
 HTTP_X_DOMAIN_ID, HTTP_X_SERVICE_DOMAIN_ID
     Identity service managed unique identifier, string. Only present if
     this is a domain-scoped token.
