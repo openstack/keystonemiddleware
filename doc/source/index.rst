@@ -29,10 +29,9 @@ API, the Keystone team also provides `Identity Service`_, as well as
 Release Notes
 =============
 
-.. toctree::
-   :maxdepth: 1
+`Release Notes`_
 
-   history
+.. _Release Notes: https://docs.openstack.org/releasenotes/keystonemiddleware/
 
 Contributing
 ============
