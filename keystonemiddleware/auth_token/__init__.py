@@ -763,6 +763,7 @@ class AuthProtocol(BaseAuthProtocol):
                 self._token_cache.set(token_hashes[0], data)
 
         except (ksa_exceptions.ConnectFailure,
+                ksa_exceptions.DiscoveryFailure,
                 ksa_exceptions.RequestTimeout,
                 ksm_exceptions.RevocationListError,
                 ksm_exceptions.ServiceError) as e:
