@@ -97,7 +97,10 @@ class _MemcacheClientPool(object):
 
     @contextlib.contextmanager
     def reserve(self):
-        with self._pool.get() as client:
+        # NOTE(morgan): We must use "acquire" if we want all the added context
+        # manager logic that places the connection back into the pool at the
+        # end of it's use.
+        with self._pool.acquire() as client:
             yield client
 
 
