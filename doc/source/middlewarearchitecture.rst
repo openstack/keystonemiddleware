@@ -152,7 +152,7 @@ and set in ``nova.conf``:
     auth_strategy=keystone
 
     [keystone_authtoken]
-    identity_uri = http://127.0.0.1:35357
+    identity_uri = http://127.0.0.1:5000
     admin_user = admin
     admin_password = SuperSekretPassword
     admin_tenant_name = service
@@ -174,7 +174,7 @@ when ``auth_plugin`` is set to ``password``.
     user_domain_name = Default
     username = nova
     password = ServicePassword
-    auth_url = http://127.0.0.1:35357
+    auth_url = http://127.0.0.1:5000
     # Any of the options that could be set in api-paste.ini can be set here.
 
 If using an ``auth_plugin``, connection to the Identity service will be
