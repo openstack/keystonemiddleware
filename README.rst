@@ -30,6 +30,7 @@ For information on contributing, see ``CONTRIBUTING.rst``.
 * Documentation: https://docs.openstack.org/keystonemiddleware/latest/
 * Source: https://git.openstack.org/cgit/openstack/keystonemiddleware
 * Bugs: https://bugs.launchpad.net/keystonemiddleware
+* Release notes: https://docs.openstack.org/releasenotes/keystonemiddleware/
 
 For any other information, refer to the parent project, Keystone:
 
