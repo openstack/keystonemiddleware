@@ -1070,6 +1070,17 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertIsNone(self._get_cached_token(ERROR_TOKEN))
         self.assert_valid_last_url(ERROR_TOKEN)
 
+    def test_discovery_failure(self):
+        def discovery_failure_response(request, context):
+            raise ksa_exceptions.DiscoveryFailure(
+                "Could not determine a suitable URL for the plugin")
+
+        self.requests_mock.get(BASE_URI, text=discovery_failure_response)
+        self.call_middleware(headers={'X-Auth-Token': 'token'},
+                             expected_status=503)
+        self.assertIsNone(self._get_cached_token('token'))
+        self.assertEqual(BASE_URI, self.requests_mock.last_request.url)
+
     def test_http_request_max_retries(self):
         times_retry = 10
         body_string = 'The Keystone service is temporarily unavailable.'
