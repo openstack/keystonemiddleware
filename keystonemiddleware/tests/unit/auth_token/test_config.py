@@ -60,7 +60,9 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
             'password': uuid.uuid4().hex,
         }
 
-        content = ("[keystone_authtoken]\n"
+        content = ("[DEFAULT]\n"
+                   "test_opt=15\n"
+                   "[keystone_authtoken]\n"
                    "auth_type=%(auth_type)s\n"
                    "www_authenticate_uri=%(www_authenticate_uri)s\n"
                    "auth_url=%(www_authenticate_uri)s\n"
@@ -98,6 +100,16 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
         for option in self.oslo_options:
             self.assertEqual(self.oslo_options[option],
                              conf_get(app, option))
+
+    def test_passed_oslo_configuration_with_deprecated_ones(self):
+        deprecated_opt = cfg.IntOpt('test_opt', deprecated_for_removal=True)
+        cfg.CONF.register_opt(deprecated_opt)
+        cfg.CONF(args=[],
+                 default_config_files=[self.conf_file_fixture.path])
+        conf = {'oslo_config_config': cfg.CONF}
+
+        # success to init AuthProtocol
+        self._create_app(conf)
 
     def test_passed_oslo_configuration_wins(self):
         """oslo_config_config has precedence over oslo_config_project."""

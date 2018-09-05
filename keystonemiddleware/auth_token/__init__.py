@@ -548,7 +548,7 @@ class AuthProtocol(BaseAuthProtocol):
                                    _base.AUTHTOKEN_GROUP,
                                    list_opts(),
                                    conf)
-        if self._conf.oslo_conf_obj != cfg.CONF:
+        if self._conf.oslo_conf_obj is not cfg.CONF:
             oslo_cache.configure(self._conf.oslo_conf_obj)
 
         token_roles_required = self._conf.get('service_token_roles_required')
