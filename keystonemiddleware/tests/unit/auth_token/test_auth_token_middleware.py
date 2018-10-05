@@ -2043,6 +2043,18 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
 class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
+    def token_response(self, request, context):
+        auth_id = request.headers.get('X-Auth-Token')
+        self.assertEqual(auth_id, FAKE_ADMIN_TOKEN_ID)
+
+        if request.headers.get('X-Subject-Token') == ERROR_TOKEN:
+            msg = 'Network connection refused.'
+            raise ksc_exceptions.ConnectionRefused(msg)
+
+        # All others just fail
+        context.status_code = 404
+        return ''
+
     def test_header_in_401(self):
         body = uuid.uuid4().hex
         www_authenticate_uri = 'http://local.test'
@@ -2092,6 +2104,60 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         middleware = self.create_simple_middleware(body=body, conf=conf)
         resp = self.call(middleware)
+        self.assertEqual(six.b(body), resp.body)
+
+        token_auth = resp.request.environ['keystone.token_auth']
+
+        self.assertFalse(token_auth.has_user_token)
+        self.assertIsNone(token_auth.user)
+        self.assertFalse(token_auth.has_service_token)
+        self.assertIsNone(token_auth.service)
+
+    def test_auth_plugin_with_token(self):
+        self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
+                               text=self.token_response,
+                               headers={'X-Subject-Token': uuid.uuid4().hex})
+
+        body = uuid.uuid4().hex
+        www_authenticate_uri = 'http://local.test'
+        conf = {
+            'delay_auth_decision': 'True',
+            'www_authenticate_uri': www_authenticate_uri,
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+        }
+
+        middleware = self.create_simple_middleware(body=body, conf=conf)
+        resp = self.call(middleware, headers={
+            'X-Auth-Token': 'non-keystone-token'})
+        self.assertEqual(six.b(body), resp.body)
+
+        token_auth = resp.request.environ['keystone.token_auth']
+
+        self.assertFalse(token_auth.has_user_token)
+        self.assertIsNone(token_auth.user)
+        self.assertFalse(token_auth.has_service_token)
+        self.assertIsNone(token_auth.service)
+
+    def test_auth_plugin_with_token_keystone_down(self):
+        self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
+                               text=self.token_response,
+                               headers={'X-Subject-Token': ERROR_TOKEN})
+
+        body = uuid.uuid4().hex
+        www_authenticate_uri = 'http://local.test'
+        conf = {
+            'delay_auth_decision': 'True',
+            'www_authenticate_uri': www_authenticate_uri,
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'http_request_max_retries': '0'
+        }
+
+        middleware = self.create_simple_middleware(body=body, conf=conf)
+        resp = self.call(middleware, headers={'X-Auth-Token': ERROR_TOKEN})
         self.assertEqual(six.b(body), resp.body)
 
         token_auth = resp.request.environ['keystone.token_auth']

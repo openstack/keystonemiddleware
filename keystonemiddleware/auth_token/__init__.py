@@ -768,6 +768,11 @@ class AuthProtocol(BaseAuthProtocol):
                 ksm_exceptions.RevocationListError,
                 ksm_exceptions.ServiceError) as e:
             self.log.critical('Unable to validate token: %s', e)
+            if self._delay_auth_decision:
+                self.log.debug('Keystone unavailable; marking token as '
+                               'invalid and deferring auth decision.')
+                raise ksm_exceptions.InvalidToken(
+                    'Keystone unavailable: %s' % e)
             raise webob.exc.HTTPServiceUnavailable(
                 'The Keystone service is temporarily unavailable.')
         except ksm_exceptions.InvalidToken:
