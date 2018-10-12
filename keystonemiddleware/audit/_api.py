@@ -272,8 +272,8 @@ class OpenStackAuditApi(object):
             public_urlparse = urlparse.urlparse(
                 endpoint_urls.get('publicURL', ''))
             req_url = urlparse.urlparse(req.host_url)
-            if (req_url.netloc == admin_urlparse.netloc
-                    or req_url.netloc == public_urlparse.netloc):
+            if req_url.port and (req_url.netloc == admin_urlparse.netloc
+                                 or req_url.netloc == public_urlparse.netloc):
                 service_info = self._get_service_info(endp)
                 break
             elif (self._MAP.default_target_endpoint_type and

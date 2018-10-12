@@ -320,6 +320,44 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual(payload['target']['name'], "unknown")
 
+    def test_endpoint_no_service_port(self):
+        with open(self.audit_map, "w") as f:
+            f.write("[DEFAULT]\n")
+            f.write("target_endpoint_type = load-balancer\n")
+            f.write("[path_keywords]\n")
+            f.write("loadbalancers = loadbalancer\n\n")
+            f.write("[service_endpoints]\n")
+            f.write("load-balancer = service/load-balancer")
+
+        env_headers = {'HTTP_X_SERVICE_CATALOG':
+                       '''[{"endpoints_links": [],
+                            "endpoints": [{"adminURL":
+                                           "http://admin_host/compute",
+                                           "region": "RegionOne",
+                                           "publicURL":
+                                           "http://public_host/compute"}],
+                             "type": "compute",
+                             "name": "nova"},
+                           {"endpoints_links": [],
+                            "endpoints": [{"adminURL":
+                                           "http://admin_host/load-balancer",
+                                           "region": "RegionOne",
+                                           "publicURL":
+                                           "http://public_host/load-balancer"}],
+                             "type": "load-balancer",
+                             "name": "octavia"}]''',
+                       'HTTP_X_USER_ID': 'user_id',
+                       'HTTP_X_USER_NAME': 'user_name',
+                       'HTTP_X_AUTH_TOKEN': 'token',
+                       'HTTP_X_PROJECT_ID': 'tenant_id',
+                       'HTTP_X_IDENTITY_STATUS': 'Confirmed',
+                       'REQUEST_METHOD': 'GET'}
+
+        url = ('http://admin_host/load-balancer/v2/loadbalancers/' +
+               str(uuid.uuid4()))
+        payload = self.get_payload('GET', url, environ=env_headers)
+        self.assertEqual(payload['target']['id'], 'octavia')
+
     def test_no_auth_token(self):
         # Test cases where API requests such as Swift list public containers
         # which does not require an auth token. In these cases, CADF event
