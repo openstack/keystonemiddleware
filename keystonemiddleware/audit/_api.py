@@ -261,6 +261,11 @@ class OpenStackAuditApi(object):
 
         default_endpoint = None
         for endp in catalog:
+            if not endp['endpoints']:
+                self._log.warning(
+                    'Skipping service %s as it have no endpoints.',
+                    endp['name'])
+                continue
             endpoint_urls = endp['endpoints'][0]
             admin_urlparse = urlparse.urlparse(
                 endpoint_urls.get('adminURL', ''))
