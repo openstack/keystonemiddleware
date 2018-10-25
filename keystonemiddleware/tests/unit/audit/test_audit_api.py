@@ -303,6 +303,23 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         payload = self.get_payload('GET', url, environ=env_headers)
         self.assertEqual((payload['target']['addresses'][0]['url']), "unknown")
 
+    def test_service_with_no_endpoints(self):
+        env_headers = {'HTTP_X_SERVICE_CATALOG':
+                       '''[{"endpoints_links": [],
+                             "endpoints": [],
+                             "type": "foo",
+                             "name": "bar"}]''',
+                       'HTTP_X_USER_ID': 'user_id',
+                       'HTTP_X_USER_NAME': 'user_name',
+                       'HTTP_X_AUTH_TOKEN': 'token',
+                       'HTTP_X_PROJECT_ID': 'tenant_id',
+                       'HTTP_X_IDENTITY_STATUS': 'Confirmed',
+                       'REQUEST_METHOD': 'GET'}
+
+        url = 'http://public_host:8774/v2/' + str(uuid.uuid4()) + '/servers'
+        payload = self.get_payload('GET', url, environ=env_headers)
+        self.assertEqual(payload['target']['name'], "unknown")
+
     def test_no_auth_token(self):
         # Test cases where API requests such as Swift list public containers
         # which does not require an auth token. In these cases, CADF event
