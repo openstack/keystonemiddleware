@@ -113,17 +113,6 @@ _OPTS = [
                ' tokens, the middleware caches previously-seen tokens for a'
                ' configurable duration (in seconds). Set to -1 to disable'
                ' caching completely.'),
-    cfg.IntOpt('revocation_cache_time',
-               default=10,
-               deprecated_for_removal=True,
-               deprecated_reason='PKI token format is no longer supported.',
-               deprecated_since='Ocata',
-               help='Determines the frequency at which the list of revoked'
-               ' tokens is retrieved from the Identity service (in seconds). A'
-               ' high number of revocation events combined with a low cache'
-               ' duration may significantly reduce performance. Only valid'
-               ' for PKI tokens. This option has been deprecated in the Ocata'
-               ' release and will be removed in the P release.'),
     cfg.StrOpt('memcache_security_strategy',
                default='None',
                choices=('None', 'MAC', 'ENCRYPT'),
@@ -179,13 +168,6 @@ _OPTS = [
                ' unknown the token will be rejected. "required" any form of'
                ' token binding is needed to be allowed. Finally the name of a'
                ' binding method that must be present in tokens.'),
-    cfg.BoolOpt('check_revocations_for_cached', default=False,
-                deprecated_for_removal=True,
-                deprecated_reason='PKI token format is no longer supported.',
-                deprecated_since='Ocata',
-                help='If true, the revocation list will be checked for cached'
-                ' tokens. This requires that PKI tokens are configured on the'
-                ' identity server.'),
     cfg.ListOpt('hash_algorithms', default=['md5'],
                 deprecated_for_removal=True,
                 deprecated_reason='PKI token format is no longer supported.',

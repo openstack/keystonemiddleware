@@ -16,48 +16,12 @@ import json
 import os
 
 from keystoneclient.common import cms
-from keystoneclient import utils
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 def make_filename(*args):
     return os.path.join(CURRENT_DIR, *args)
-
-
-def generate_revocation_list():
-    REVOKED_TOKENS = ['auth_token_revoked', 'auth_v3_token_revoked']
-    revoked_list = []
-    for token in REVOKED_TOKENS:
-        with open(make_filename('cms', '%s.pkiz' % name), 'r') as f:
-            token_data = f.read()
-            id = utils.hash_signed_token(token_data.encode('utf-8'))
-            revoked_list.append({
-                'id': id,
-                "expires": "2112-08-14T17:58:48Z"
-            })
-        with open(make_filename('cms', '%s.pem' % name), 'r') as f:
-            pem_data = f.read()
-            token_data = cms.cms_to_token(pem_data).encode('utf-8')
-            id = utils.hash_signed_token(token_data)
-            revoked_list.append({
-                'id': id,
-                "expires": "2112-08-14T17:58:48Z"
-            })
-    revoked_json = json.dumps({"revoked": revoked_list})
-    with open(make_filename('cms', 'revocation_list.json'), 'w') as f:
-        f.write(revoked_json)
-    encoded = cms.pkiz_sign(revoked_json,
-                            SIGNING_CERT_FILE_NAME,
-                            SIGNING_KEY_FILE_NAME)
-    with open(make_filename('cms', 'revocation_list.pkiz'), 'w') as f:
-        f.write(encoded)
-
-    encoded = cms.cms_sign_data(revoked_json,
-                                SIGNING_CERT_FILE_NAME,
-                                SIGNING_KEY_FILE_NAME)
-    with open(make_filename('cms', 'revocation_list.pem'), 'w') as f:
-        f.write(encoded)
 
 
 CA_CERT_FILE_NAME = make_filename('certs', 'cacert.pem')
@@ -113,5 +77,3 @@ for name in EXAMPLE_TOKENS:
 
     with open(pkiz_file, 'w') as f:
         f.write(encoded)
-
-    generate_revocation_list()

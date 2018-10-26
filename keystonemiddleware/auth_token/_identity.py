@@ -61,9 +61,6 @@ class _RequestStrategy(object):
     def _fetch_ca_cert(self):
         pass
 
-    def fetch_revocation_list(self):
-        pass
-
 
 class _V2RequestStrategy(_RequestStrategy):
 
@@ -88,9 +85,6 @@ class _V2RequestStrategy(_RequestStrategy):
 
     def _fetch_ca_cert(self):
         return self._client.certificates.get_ca_certificate()
-
-    def fetch_revocation_list(self):
-        return self._client.tokens.get_revoked()
 
 
 class _V3RequestStrategy(_RequestStrategy):
@@ -119,9 +113,6 @@ class _V3RequestStrategy(_RequestStrategy):
     def _fetch_ca_cert(self):
         return self._client.simple_cert.get_ca_certificates()
 
-    def fetch_revocation_list(self):
-        return self._client.tokens.get_revoked()
-
 
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
 
@@ -130,7 +121,7 @@ class IdentityServer(object):
     """Base class for operations on the Identity API server.
 
     The auth_token middleware needs to communicate with the Identity API server
-    to validate UUID tokens, fetch the revocation list, signing certificates,
+    to validate UUID tokens, signing certificates,
     etc. This class encapsulates the data and methods to perform these
     operations.
 
@@ -242,17 +233,6 @@ class IdentityServer(object):
             raise ksm_exceptions.ServiceError(msg)
         else:
             return auth_ref
-
-    def fetch_revocation_list(self):
-        try:
-            data = self._request_strategy.fetch_revocation_list()
-        except ksa_exceptions.HttpError as e:
-            msg = _('Failed to fetch token revocation list: %d')
-            raise ksm_exceptions.RevocationListError(msg % e.http_status)
-        if 'signed' not in data:
-            msg = _('Revocation list improperly formatted.')
-            raise ksm_exceptions.RevocationListError(msg)
-        return data['signed']
 
     def fetch_signing_cert(self):
         return self._request_strategy.fetch_signing_cert()

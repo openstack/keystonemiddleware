@@ -20,7 +20,6 @@ from keystoneauth1 import fixture
 from keystoneclient.common import cms
 from keystoneclient import utils
 from oslo_serialization import jsonutils
-from oslo_utils import timeutils
 import six
 import testresources
 
@@ -77,29 +76,17 @@ class Examples(fixtures.Fixture):
             self.SIGNED_v3_TOKEN_SCOPED)
         self.SIGNED_v3_TOKEN_SCOPED_HASH_SHA256 = _hash_signed_token_safe(
             self.SIGNED_v3_TOKEN_SCOPED, mode='sha256')
-        with open(os.path.join(CMSDIR, 'auth_token_revoked.pem')) as f:
-            self.REVOKED_TOKEN = cms.cms_to_token(f.read())
         with open(os.path.join(CMSDIR, 'auth_token_scoped_expired.pem')) as f:
             self.SIGNED_TOKEN_SCOPED_EXPIRED = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_v3_token_revoked.pem')) as f:
-            self.REVOKED_v3_TOKEN = cms.cms_to_token(f.read())
         with open(os.path.join(CMSDIR, 'auth_token_scoped.pkiz')) as f:
             self.SIGNED_TOKEN_SCOPED_PKIZ = cms.cms_to_token(f.read())
         with open(os.path.join(CMSDIR, 'auth_token_unscoped.pkiz')) as f:
             self.SIGNED_TOKEN_UNSCOPED_PKIZ = cms.cms_to_token(f.read())
         with open(os.path.join(CMSDIR, 'auth_v3_token_scoped.pkiz')) as f:
             self.SIGNED_v3_TOKEN_SCOPED_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_token_revoked.pkiz')) as f:
-            self.REVOKED_TOKEN_PKIZ = cms.cms_to_token(f.read())
         with open(os.path.join(CMSDIR,
                                'auth_token_scoped_expired.pkiz')) as f:
             self.SIGNED_TOKEN_SCOPED_EXPIRED_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_v3_token_revoked.pkiz')) as f:
-            self.REVOKED_v3_TOKEN_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'revocation_list.json')) as f:
-            self.REVOCATION_LIST = jsonutils.loads(f.read())
-        with open(os.path.join(CMSDIR, 'revocation_list.pem')) as f:
-            self.SIGNED_REVOCATION_LIST = jsonutils.dumps({'signed': f.read()})
 
         self.SIGNING_CERT_FILE = os.path.join(CERTDIR, 'signing_cert.pem')
         with open(self.SIGNING_CERT_FILE) as f:
@@ -134,50 +121,6 @@ class Examples(fixtures.Fixture):
         self.v3_UUID_SERVICE_TOKEN_DEFAULT = 'g431071bbc2f492748596c1b53cb229'
         self.v3_UUID_SERVICE_TOKEN_BIND = 'be705e4426d0449a89e35ae21c380a05'
         self.v3_NOT_IS_ADMIN_PROJECT = uuid.uuid4().hex
-
-        revoked_token = self.REVOKED_TOKEN
-        if isinstance(revoked_token, six.text_type):
-            revoked_token = revoked_token.encode('utf-8')
-        self.REVOKED_TOKEN_HASH = utils.hash_signed_token(revoked_token)
-        self.REVOKED_TOKEN_HASH_SHA256 = utils.hash_signed_token(revoked_token,
-                                                                 mode='sha256')
-        self.REVOKED_TOKEN_LIST = (
-            {'revoked': [{'id': self.REVOKED_TOKEN_HASH,
-                          'expires': timeutils.utcnow()}]})
-        self.REVOKED_TOKEN_LIST_JSON = jsonutils.dumps(self.REVOKED_TOKEN_LIST)
-
-        revoked_v3_token = self.REVOKED_v3_TOKEN
-        if isinstance(revoked_v3_token, six.text_type):
-            revoked_v3_token = revoked_v3_token.encode('utf-8')
-        self.REVOKED_v3_TOKEN_HASH = utils.hash_signed_token(revoked_v3_token)
-        hash = utils.hash_signed_token(revoked_v3_token, mode='sha256')
-        self.REVOKED_v3_TOKEN_HASH_SHA256 = hash
-        self.REVOKED_v3_TOKEN_LIST = (
-            {'revoked': [{'id': self.REVOKED_v3_TOKEN_HASH,
-                          'expires': timeutils.utcnow()}]})
-        self.REVOKED_v3_TOKEN_LIST_JSON = jsonutils.dumps(
-            self.REVOKED_v3_TOKEN_LIST)
-
-        revoked_token_pkiz = self.REVOKED_TOKEN_PKIZ
-        if isinstance(revoked_token_pkiz, six.text_type):
-            revoked_token_pkiz = revoked_token_pkiz.encode('utf-8')
-        self.REVOKED_TOKEN_PKIZ_HASH = utils.hash_signed_token(
-            revoked_token_pkiz)
-        revoked_v3_token_pkiz = self.REVOKED_v3_TOKEN_PKIZ
-        if isinstance(revoked_v3_token_pkiz, six.text_type):
-            revoked_v3_token_pkiz = revoked_v3_token_pkiz.encode('utf-8')
-        self.REVOKED_v3_PKIZ_TOKEN_HASH = utils.hash_signed_token(
-            revoked_v3_token_pkiz)
-
-        self.REVOKED_TOKEN_PKIZ_LIST = (
-            {'revoked': [{'id': self.REVOKED_TOKEN_PKIZ_HASH,
-                          'expires': timeutils.utcnow()},
-                         {'id': self.REVOKED_v3_PKIZ_TOKEN_HASH,
-                          'expires': timeutils.utcnow()},
-                         ]})
-        self.REVOKED_TOKEN_PKIZ_LIST_JSON = jsonutils.dumps(
-            self.REVOKED_TOKEN_PKIZ_LIST)
-
         self.SIGNED_TOKEN_SCOPED_KEY = cms.cms_hash_token(
             self.SIGNED_TOKEN_SCOPED)
         self.SIGNED_TOKEN_UNSCOPED_KEY = cms.cms_hash_token(
