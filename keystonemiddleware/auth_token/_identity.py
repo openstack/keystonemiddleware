@@ -10,12 +10,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import functools
-
 from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import plugin
-from keystoneclient import exceptions as ksc_exceptions
 from keystoneclient.v2_0 import client as v2_client
 from keystoneclient.v3 import client as v3_client
 from six.moves import urllib
@@ -23,18 +20,6 @@ from six.moves import urllib
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.i18n import _
-
-
-def _convert_fetch_cert_exception(fetch_cert):
-    @functools.wraps(fetch_cert)
-    def wrapper(self):
-        try:
-            text = fetch_cert(self)
-        except ksa_exceptions.HttpError as e:
-            raise ksc_exceptions.CertificateConfigError(e.details)
-        return text
-
-    return wrapper
 
 
 class _RequestStrategy(object):
@@ -47,20 +32,6 @@ class _RequestStrategy(object):
         self._requested_auth_interface = requested_auth_interface
 
     def verify_token(self, user_token, allow_expired=False):
-        pass
-
-    @_convert_fetch_cert_exception
-    def fetch_signing_cert(self):
-        return self._fetch_signing_cert()
-
-    def _fetch_signing_cert(self):
-        pass
-
-    @_convert_fetch_cert_exception
-    def fetch_ca_cert(self):
-        return self._fetch_ca_cert()
-
-    def _fetch_ca_cert(self):
         pass
 
 
@@ -81,12 +52,6 @@ class _V2RequestStrategy(_RequestStrategy):
             raise ksm_exceptions.InvalidToken(msg)
 
         return {'access': auth_ref}
-
-    def _fetch_signing_cert(self):
-        return self._client.certificates.get_signing_certificate()
-
-    def _fetch_ca_cert(self):
-        return self._client.certificates.get_ca_certificate()
 
 
 class _V3RequestStrategy(_RequestStrategy):
@@ -112,12 +77,6 @@ class _V3RequestStrategy(_RequestStrategy):
 
         return {'token': auth_ref}
 
-    def _fetch_signing_cert(self):
-        return self._client.simple_cert.get_certificates()
-
-    def _fetch_ca_cert(self):
-        return self._client.simple_cert.get_ca_certificates()
-
 
 _REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
 
@@ -126,9 +85,8 @@ class IdentityServer(object):
     """Base class for operations on the Identity API server.
 
     The auth_token middleware needs to communicate with the Identity API server
-    to validate UUID tokens, signing certificates,
-    etc. This class encapsulates the data and methods to perform these
-    operations.
+    to validate tokens. This class encapsulates the data and methods to perform
+    the operations.
 
     """
 
@@ -240,12 +198,6 @@ class IdentityServer(object):
             raise ksm_exceptions.ServiceError(msg)
         else:
             return auth_ref
-
-    def fetch_signing_cert(self):
-        return self._request_strategy.fetch_signing_cert()
-
-    def fetch_ca_cert(self):
-        return self._request_strategy.fetch_ca_cert()
 
     def invalidate(self):
         return self._adapter.invalidate()

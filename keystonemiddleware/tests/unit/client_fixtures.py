@@ -17,24 +17,12 @@ import uuid
 
 import fixtures
 from keystoneauth1 import fixture
-from keystoneclient.common import cms
-from keystoneclient import utils
 from oslo_serialization import jsonutils
-import six
 import testresources
 
 
 TESTDIR = os.path.dirname(os.path.abspath(__file__))
 ROOTDIR = os.path.normpath(os.path.join(TESTDIR, '..', '..', '..'))
-CERTDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'certs')
-CMSDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'cms')
-KEYDIR = os.path.join(ROOTDIR, 'examples', 'pki', 'private')
-
-
-def _hash_signed_token_safe(signed_text, **kwargs):
-    if isinstance(signed_text, six.text_type):
-        signed_text = signed_text.encode('utf-8')
-    return utils.hash_signed_token(signed_text, **kwargs)
 
 
 class Examples(fixtures.Fixture):
@@ -55,53 +43,8 @@ class Examples(fixtures.Fixture):
     def setUp(self):
         super(Examples, self).setUp()
 
-        # The data for several tests are signed using openssl and are stored in
-        # files in the signing subdirectory.  In order to keep the values
-        # consistent between the tests and the signed documents, we read them
-        # in for use in the tests.
-        with open(os.path.join(CMSDIR, 'auth_token_scoped.json')) as f:
-            self.TOKEN_SCOPED_DATA = cms.cms_to_token(f.read())
-
-        with open(os.path.join(CMSDIR, 'auth_token_scoped.pem')) as f:
-            self.SIGNED_TOKEN_SCOPED = cms.cms_to_token(f.read())
-        self.SIGNED_TOKEN_SCOPED_HASH = _hash_signed_token_safe(
-            self.SIGNED_TOKEN_SCOPED)
-        self.SIGNED_TOKEN_SCOPED_HASH_SHA256 = _hash_signed_token_safe(
-            self.SIGNED_TOKEN_SCOPED, mode='sha256')
-        with open(os.path.join(CMSDIR, 'auth_token_unscoped.pem')) as f:
-            self.SIGNED_TOKEN_UNSCOPED = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_v3_token_scoped.pem')) as f:
-            self.SIGNED_v3_TOKEN_SCOPED = cms.cms_to_token(f.read())
-        self.SIGNED_v3_TOKEN_SCOPED_HASH = _hash_signed_token_safe(
-            self.SIGNED_v3_TOKEN_SCOPED)
-        self.SIGNED_v3_TOKEN_SCOPED_HASH_SHA256 = _hash_signed_token_safe(
-            self.SIGNED_v3_TOKEN_SCOPED, mode='sha256')
-        with open(os.path.join(CMSDIR, 'auth_token_scoped_expired.pem')) as f:
-            self.SIGNED_TOKEN_SCOPED_EXPIRED = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_token_scoped.pkiz')) as f:
-            self.SIGNED_TOKEN_SCOPED_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_token_unscoped.pkiz')) as f:
-            self.SIGNED_TOKEN_UNSCOPED_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR, 'auth_v3_token_scoped.pkiz')) as f:
-            self.SIGNED_v3_TOKEN_SCOPED_PKIZ = cms.cms_to_token(f.read())
-        with open(os.path.join(CMSDIR,
-                               'auth_token_scoped_expired.pkiz')) as f:
-            self.SIGNED_TOKEN_SCOPED_EXPIRED_PKIZ = cms.cms_to_token(f.read())
-
-        self.SIGNING_CERT_FILE = os.path.join(CERTDIR, 'signing_cert.pem')
-        with open(self.SIGNING_CERT_FILE) as f:
-            self.SIGNING_CERT = f.read()
-
         self.KERBEROS_BIND = 'USER@REALM'
         self.SERVICE_KERBEROS_BIND = 'SERVICE_USER@SERVICE_REALM'
-
-        self.SIGNING_KEY_FILE = os.path.join(KEYDIR, 'signing_key.pem')
-        with open(self.SIGNING_KEY_FILE) as f:
-            self.SIGNING_KEY = f.read()
-
-        self.SIGNING_CA_FILE = os.path.join(CERTDIR, 'cacert.pem')
-        with open(self.SIGNING_CA_FILE) as f:
-            self.SIGNING_CA = f.read()
 
         self.UUID_TOKEN_DEFAULT = "ec6c0710ec2f471498484c1b53ab4f9d"
         self.UUID_TOKEN_NO_SERVICE_CATALOG = '8286720fbe4941e69fa8241723bb02df'
@@ -121,57 +64,6 @@ class Examples(fixtures.Fixture):
         self.v3_UUID_SERVICE_TOKEN_DEFAULT = 'g431071bbc2f492748596c1b53cb229'
         self.v3_UUID_SERVICE_TOKEN_BIND = 'be705e4426d0449a89e35ae21c380a05'
         self.v3_NOT_IS_ADMIN_PROJECT = uuid.uuid4().hex
-        self.SIGNED_TOKEN_SCOPED_KEY = cms.cms_hash_token(
-            self.SIGNED_TOKEN_SCOPED)
-        self.SIGNED_TOKEN_UNSCOPED_KEY = cms.cms_hash_token(
-            self.SIGNED_TOKEN_UNSCOPED)
-        self.SIGNED_v3_TOKEN_SCOPED_KEY = cms.cms_hash_token(
-            self.SIGNED_v3_TOKEN_SCOPED)
-
-        self.SIGNED_TOKEN_SCOPED_PKIZ_KEY = cms.cms_hash_token(
-            self.SIGNED_TOKEN_SCOPED_PKIZ)
-        self.SIGNED_TOKEN_UNSCOPED_PKIZ_KEY = cms.cms_hash_token(
-            self.SIGNED_TOKEN_UNSCOPED_PKIZ)
-        self.SIGNED_v3_TOKEN_SCOPED_PKIZ_KEY = cms.cms_hash_token(
-            self.SIGNED_v3_TOKEN_SCOPED_PKIZ)
-
-        self.INVALID_SIGNED_TOKEN = (
-            "MIIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
-            "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
-            "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
-            "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
-            "0000000000000000000000000000000000000000000000000000000000000000"
-            "1111111111111111111111111111111111111111111111111111111111111111"
-            "2222222222222222222222222222222222222222222222222222222222222222"
-            "3333333333333333333333333333333333333333333333333333333333333333"
-            "4444444444444444444444444444444444444444444444444444444444444444"
-            "5555555555555555555555555555555555555555555555555555555555555555"
-            "6666666666666666666666666666666666666666666666666666666666666666"
-            "7777777777777777777777777777777777777777777777777777777777777777"
-            "8888888888888888888888888888888888888888888888888888888888888888"
-            "9999999999999999999999999999999999999999999999999999999999999999"
-            "0000000000000000000000000000000000000000000000000000000000000000")
-
-        self.INVALID_SIGNED_PKIZ_TOKEN = (
-            "PKIZ_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
-            "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
-            "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
-            "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
-            "0000000000000000000000000000000000000000000000000000000000000000"
-            "1111111111111111111111111111111111111111111111111111111111111111"
-            "2222222222222222222222222222222222222222222222222222222222222222"
-            "3333333333333333333333333333333333333333333333333333333333333333"
-            "4444444444444444444444444444444444444444444444444444444444444444"
-            "5555555555555555555555555555555555555555555555555555555555555555"
-            "6666666666666666666666666666666666666666666666666666666666666666"
-            "7777777777777777777777777777777777777777777777777777777777777777"
-            "8888888888888888888888888888888888888888888888888888888888888888"
-            "9999999999999999999999999999999999999999999999999999999999999999"
-            "0000000000000000000000000000000000000000000000000000000000000000")
 
         # JSON responses keyed by token ID
         self.TOKEN_RESPONSES = {}
@@ -245,20 +137,6 @@ class Examples(fixtures.Fixture):
         token.add_role(ROLE_NAME1)
         token.add_role(ROLE_NAME2)
         self.TOKEN_RESPONSES[self.UUID_TOKEN_NO_SERVICE_CATALOG] = token
-
-        token = fixture.V2Token(token_id=self.SIGNED_TOKEN_SCOPED_KEY,
-                                tenant_id=PROJECT_ID,
-                                tenant_name=PROJECT_NAME,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        token.add_role(ROLE_NAME1)
-        token.add_role(ROLE_NAME2)
-        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_KEY] = token
-
-        token = fixture.V2Token(token_id=self.SIGNED_TOKEN_UNSCOPED_KEY,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_UNSCOPED_KEY] = token
 
         token = fixture.V2Token(token_id=self.UUID_TOKEN_BIND,
                                 tenant_id=PROJECT_ID,
@@ -359,7 +237,6 @@ class Examples(fixtures.Fixture):
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
         svc.add_endpoint('public', self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.SIGNED_v3_TOKEN_SCOPED_KEY] = token
 
         token = fixture.V3Token(user_id=USER_ID,
                                 user_name=USER_NAME,
@@ -436,15 +313,6 @@ class Examples(fixtures.Fixture):
         svc = token.add_service(self.SERVICE_TYPE)
         svc.add_endpoint('public', self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_NOT_IS_ADMIN_PROJECT] = token
-
-        # PKIZ tokens generally link to above tokens
-
-        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_PKIZ_KEY] = (
-            self.TOKEN_RESPONSES[self.SIGNED_TOKEN_SCOPED_KEY])
-        self.TOKEN_RESPONSES[self.SIGNED_TOKEN_UNSCOPED_PKIZ_KEY] = (
-            self.TOKEN_RESPONSES[self.SIGNED_TOKEN_UNSCOPED_KEY])
-        self.TOKEN_RESPONSES[self.SIGNED_v3_TOKEN_SCOPED_PKIZ_KEY] = (
-            self.TOKEN_RESPONSES[self.SIGNED_v3_TOKEN_SCOPED_KEY])
 
         self.JSON_TOKEN_RESPONSES = dict([(k, jsonutils.dumps(v)) for k, v in
                                           self.TOKEN_RESPONSES.items()])

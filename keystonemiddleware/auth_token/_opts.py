@@ -99,13 +99,6 @@ _OPTS = [
     cfg.BoolOpt('insecure', default=False, help='Verify HTTPS connections.'),
     cfg.StrOpt('region_name',
                help='The region in which the identity server can be found.'),
-    cfg.StrOpt('signing_dir',
-               deprecated_for_removal=True,
-               deprecated_reason='PKI token format is no longer supported.',
-               deprecated_since='Ocata',
-               help='Directory used to cache files related to PKI tokens. This'
-               ' option has been deprecated in the Ocata release and will be'
-               ' removed in the P release.'),
     cfg.ListOpt('memcached_servers',
                 deprecated_name='memcache_servers',
                 help='Optionally specify a list of memcached server(s) to'
@@ -172,19 +165,6 @@ _OPTS = [
                ' unknown the token will be rejected. "required" any form of'
                ' token binding is needed to be allowed. Finally the name of a'
                ' binding method that must be present in tokens.'),
-    cfg.ListOpt('hash_algorithms', default=['md5'],
-                deprecated_for_removal=True,
-                deprecated_reason='PKI token format is no longer supported.',
-                deprecated_since='Ocata',
-                help='Hash algorithms to use for hashing PKI tokens. This may'
-                ' be a single algorithm or multiple. The algorithms are those'
-                ' supported by Python standard hashlib.new(). The hashes will'
-                ' be tried in the order given, so put the preferred one first'
-                ' for performance. The result of the first hash will be stored'
-                ' in the cache. This will typically be set to multiple values'
-                ' only while migrating from a less secure algorithm to a more'
-                ' secure one. Once all the old tokens are expired this option'
-                ' should be set to a single value for better performance.'),
     cfg.ListOpt('service_token_roles', default=['service'],
                 help='A choice of roles that must be present in a service'
                 ' token. Service tokens are allowed to request that an expired'
