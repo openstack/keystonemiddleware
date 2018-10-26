@@ -514,7 +514,7 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         conf = {
             'wrong_key': '123'
         }
-        log = 'The option "wrong_key" in conf is not known to auth_token'
+        log = 'The option "wrong_key" is not known to keystonemiddleware'
         auth_token.AuthProtocol(self.fake_app, conf)
         self.assertThat(self.logger.output, matchers.Contains(log))
 

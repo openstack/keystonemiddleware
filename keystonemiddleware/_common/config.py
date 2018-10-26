@@ -49,17 +49,18 @@ def _conf_values_type_convert(group_name, all_options, conf):
     for k, v in conf.items():
         dest = k
         try:
-            if v is not None:
+            # 'here' and '__file__' come from paste.deploy
+            # 'configkey' is added by panko and gnocchi
+            if v is not None and k not in ['here', '__file__', 'configkey']:
                 type_, dest = opt_types[k]
                 v = type_(v)
         except KeyError:  # nosec
-            # This option is not known to auth_token. v is not converted.
             _LOG.warning(
-                'The option "%s" in conf is not known to auth_token', k)
+                'The option "%s" is not known to keystonemiddleware', k)
         except ValueError as e:
             raise exceptions.ConfigurationError(
-                _('Unable to convert the value of %(key)s option into correct '
-                  'type: %(ex)s') % {'key': k, 'ex': e})
+                _('Unable to convert the value of option "%(key)s" into '
+                  'correct type: %(ex)s') % {'key': k, 'ex': e})
         opts[dest] = v
 
     return opts
