@@ -195,7 +195,7 @@ configuration file, e.g. in ``nova.conf``:
 
   [keystone_authtoken]
   auth_plugin = password
-  auth_url = http://keystone:35357/
+  auth_url = http://keystone:5000/
   username = nova
   user_domain_id = default
   password = whyarewestillusingpasswords
