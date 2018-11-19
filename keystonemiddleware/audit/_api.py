@@ -57,10 +57,15 @@ class PycadfAuditApiConfigError(Exception):
 
 
 class ClientResource(resource.Resource):
-    def __init__(self, project_id=None, **kwargs):
+    def __init__(self, project_id=None, request_id=None,
+                 global_request_id=None, **kwargs):
         super(ClientResource, self).__init__(**kwargs)
         if project_id is not None:
             self.project_id = project_id
+        if request_id is not None:
+            self.request_id = request_id
+        if global_request_id is not None:
+            self.global_request_id = global_request_id
 
 
 class KeystoneCredential(credential.Credential):
@@ -297,7 +302,10 @@ class OpenStackAuditApi(object):
                 token=req.environ.get('HTTP_X_AUTH_TOKEN', ''),
                 identity_status=req.environ.get('HTTP_X_IDENTITY_STATUS',
                                                 taxonomy.UNKNOWN)),
-            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN))
+            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN),
+            request_id=req.environ.get('openstack.request_id'),
+            global_request_id=req.environ.get('openstack.global_request_id'))
+
         target = self.get_target_resource(req)
 
         event = factory.EventFactory().new_event(
