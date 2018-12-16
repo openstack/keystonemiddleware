@@ -230,8 +230,8 @@ necessary to install the `pycrypto`_ library. These libs are not listed in
 the requirements.txt file.
 
 .. _`memcached`: http://memcached.org/
-.. _`python-memcached`: https://pypi.python.org/pypi/python-memcached
-.. _`pycrypto`: https://pypi.python.org/pypi/pycrypto
+.. _`python-memcached`: https://pypi.org/project/python-memcached
+.. _`pycrypto`: https://pypi.org/project/pycrypto
 
 Memcache Protection
 ===================
