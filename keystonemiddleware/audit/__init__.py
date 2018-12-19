@@ -111,7 +111,7 @@ class AuditMiddleware(object):
 
     @_log_and_ignore_error
     def _process_request(self, request):
-        self._notifier.notify(request.context,
+        self._notifier.notify(request.environ['audit.context'],
                               'audit.http.request',
                               self._create_event(request).as_dict())
 
@@ -139,7 +139,7 @@ class AuditMiddleware(object):
                 reporter=resource.Resource(id='target'),
                 reporterTime=timestamp.get_utc_now()))
 
-        self._notifier.notify(request.context,
+        self._notifier.notify(request.environ['audit.context'],
                               'audit.http.response',
                               event.as_dict())
 
@@ -151,7 +151,8 @@ class AuditMiddleware(object):
         # Cannot use a RequestClass on wsgify above because the `req` object is
         # a `WebOb.Request` when this method is called so the RequestClass is
         # ignored by the wsgify wrapper.
-        req.context = oslo_context.get_admin_context().to_dict()
+        req.environ['audit.context'] = \
+            oslo_context.get_admin_context().to_dict()
 
         self._process_request(req)
         try:
