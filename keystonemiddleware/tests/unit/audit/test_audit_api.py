@@ -201,7 +201,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         req = webob.Request.blank(url,
                                   environ=self.get_environ_header('GET'),
                                   remote_addr='192.168.0.1')
-        req.context = {}
+        req.environ['audit.context'] = {}
         middleware = self.create_simple_middleware()
         middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
