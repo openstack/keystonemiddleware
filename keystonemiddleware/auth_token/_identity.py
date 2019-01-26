@@ -21,6 +21,8 @@ from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.i18n import _
 
+ACCESS_RULES_SUPPORT = '1'
+
 
 class _RequestStrategy(object):
 
@@ -69,7 +71,8 @@ class _V3RequestStrategy(_RequestStrategy):
         auth_ref = self._client.tokens.validate(
             token,
             include_catalog=self._include_service_catalog,
-            allow_expired=allow_expired)
+            allow_expired=allow_expired,
+            access_rules_support=ACCESS_RULES_SUPPORT)
 
         if not auth_ref:
             msg = _('Failed to fetch token data from identity server')

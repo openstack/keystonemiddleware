@@ -64,6 +64,11 @@ class Examples(fixtures.Fixture):
         self.v3_UUID_SERVICE_TOKEN_BIND = 'be705e4426d0449a89e35ae21c380a05'
         self.v3_NOT_IS_ADMIN_PROJECT = uuid.uuid4().hex
 
+        self.v3_APP_CRED_TOKEN = '6f506fa9641448bbaecbd12dd30678a9'
+        self.v3_APP_CRED_ACCESS_RULES = 'c417747898c44629b08791f2579e40a5'
+        self.v3_APP_CRED_EMPTY_ACCESS_RULES = 'c75905c307f04fdd9979126582d7aae'
+        self.v3_APP_CRED_MATCHING_RULES = 'ad49decc7106489d95ca9ed874b6cb66'
+
         # JSON responses keyed by token ID
         self.TOKEN_RESPONSES = {}
 
@@ -85,6 +90,8 @@ class Examples(fixtures.Fixture):
         SERVICE_DOMAIN_NAME = 'service_domain_name1'
         SERVICE_ROLE_NAME1 = 'service'
         SERVICE_ROLE_NAME2 = 'service_role2'
+
+        APP_CRED_ID = 'app_cred_id1'
 
         self.SERVICE_TYPE = 'identity'
         self.UNVERSIONED_SERVICE_URL = 'https://keystone.example.com:1234/'
@@ -292,6 +299,123 @@ class Examples(fixtures.Fixture):
         svc = token.add_service(self.SERVICE_TYPE)
         svc.add_endpoint('public', self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_NOT_IS_ADMIN_PROJECT] = token
+
+        # Application credential token
+        token = fixture.V3Token(user_id=USER_ID,
+                                user_name=USER_NAME,
+                                user_domain_id=DOMAIN_ID,
+                                user_domain_name=DOMAIN_NAME,
+                                project_id=PROJECT_ID,
+                                project_name=PROJECT_NAME,
+                                project_domain_id=DOMAIN_ID,
+                                project_domain_name=DOMAIN_NAME,
+                                application_credential_id=APP_CRED_ID)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        svc = token.add_service('compute')
+        svc.add_endpoint('public', 'https://nova.openstack.example.org/v2.1')
+        self.TOKEN_RESPONSES[self.v3_APP_CRED_TOKEN] = token
+
+        # Application credential with access_rules token
+        access_rules = [{
+            'path': '/v2.1/servers',
+            'method': 'GET',
+            'service': 'compute'
+        }]
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+            application_credential_id=APP_CRED_ID,
+            application_credential_access_rules=access_rules)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        svc = token.add_service('compute')
+        svc.add_endpoint('public', 'https://nova.openstack.example.org')
+        svc = token.add_service('image')
+        svc.add_endpoint('public', 'https://glance.openstack.example.org')
+        self.TOKEN_RESPONSES[self.v3_APP_CRED_ACCESS_RULES] = token
+
+        # Application credential with explicitly empty access_rules
+        access_rules = []
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+            application_credential_id=APP_CRED_ID,
+            application_credential_access_rules=access_rules)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_APP_CRED_EMPTY_ACCESS_RULES] = token
+
+        # Application credential with matching rules
+        access_rules = [
+            {
+                'path': '/v2.1/servers/{server_id}',
+                'method': 'GET',
+                'service': 'compute'
+            },
+            {
+                'path': '/v2/images/*',
+                'method': 'GET',
+                'service': 'image'
+            },
+            {
+                'path': '**',
+                'method': 'GET',
+                'service': 'identity'
+            },
+            {
+                'path': '/v3/{project_id}/types/{volume_type_id}',
+                'method': 'GET',
+                'service': 'block-storage'
+            },
+            {
+                'path': '/v1/*/*/*',
+                'method': 'GET',
+                'service': 'object-store'
+            }
+        ]
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+            application_credential_id=APP_CRED_ID,
+            application_credential_access_rules=access_rules)
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint('public', self.SERVICE_URL)
+        svc = token.add_service('compute')
+        svc.add_endpoint('public', 'https://nova.openstack.example.org')
+        svc = token.add_service('image')
+        svc.add_endpoint('public', 'https://glance.openstack.example.org')
+        svc = token.add_service('block-storage')
+        svc.add_endpoint('public', 'https://cinder.openstack.example.org')
+        svc = token.add_service('object-store')
+        svc.add_endpoint('public', 'https://swift.openstack.example.org')
+        self.TOKEN_RESPONSES[self.v3_APP_CRED_MATCHING_RULES] = token
 
         self.JSON_TOKEN_RESPONSES = dict([(k, jsonutils.dumps(v)) for k, v in
                                           self.TOKEN_RESPONSES.items()])

@@ -218,6 +218,7 @@ object is stored.
 """
 
 import copy
+import re
 
 from keystoneauth1 import access
 from keystoneauth1 import adapter
@@ -277,6 +278,26 @@ def list_opts():
     return [(g, copy.deepcopy(o)) for g, o in AUTH_TOKEN_OPTS]
 
 
+def _path_matches(request_path, path_pattern):
+    # The fnmatch module doesn't provide the ability to match * versus **,
+    # so convert to regex.
+    token_regex = (r'(?P<tag>{[^}]*})|'  # {tag} # nosec
+                   '(?P<wild>\*(?=$|[^\*]))|'  # *
+                   '(?P<rec_wild>\*\*)|'  # **
+                   '(?P<literal>[^{}\*])')  # anything else
+    path_regex = ''
+    for match in re.finditer(token_regex, path_pattern):
+        token = match.groupdict()
+        if token['tag'] or token['wild']:
+            path_regex += '[^\/]+'
+        if token['rec_wild']:
+            path_regex += '.*'
+        if token['literal']:
+            path_regex += token['literal']
+    path_regex = r'^%s$' % path_regex
+    return re.match(path_regex, request_path)
+
+
 class _BIND_MODE(object):
     DISABLED = 'disabled'
     PERMISSIVE = 'permissive'
@@ -301,13 +322,15 @@ class BaseAuthProtocol(object):
                  log=_LOG,
                  enforce_token_bind=_BIND_MODE.PERMISSIVE,
                  service_token_roles=None,
-                 service_token_roles_required=False):
+                 service_token_roles_required=False,
+                 service_type=None):
         self.log = log
         self._app = app
         self._enforce_token_bind = enforce_token_bind
         self._service_token_roles = set(service_token_roles or [])
         self._service_token_roles_required = service_token_roles_required
         self._service_token_warning_emitted = False
+        self._service_type = service_type
 
     @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):
@@ -388,6 +411,8 @@ class BaseAuthProtocol(object):
                     allow_expired=allow_expired)
                 self._validate_token(user_auth_ref,
                                      allow_expired=allow_expired)
+                if user_auth_ref.version != 'v2.0':
+                    self.validate_allowed_request(request, data['token'])
                 if not request.service_token:
                     self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
@@ -515,6 +540,53 @@ class BaseAuthProtocol(object):
                     '%(identifier)s.',
                     {'bind_type': bind_type, 'identifier': identifier})
                 self._invalid_user_token()
+
+    def validate_allowed_request(self, request, token):
+        self.log.debug("Validating token access rules against request")
+        app_cred = token.get('application_credential')
+        if not app_cred:
+            return
+        access_rules = app_cred.get('access_rules')
+        if access_rules is None:
+            return
+        if hasattr(self, '_conf'):
+            my_service_type = self._conf.get('service_type')
+        else:
+            my_service_type = self._service_type
+        if not my_service_type:
+            self.log.warning('Cannot validate request with restricted'
+                             ' access rules. Set service_type in'
+                             ' [keystone_authtoken] to allow access rule'
+                             ' validation.')
+            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+        # token can always be validated regardless of access rules
+        if (my_service_type == 'identity' and
+                request.method == 'GET' and
+                request.path.endswith('/v3/auth/tokens')):
+            return
+        catalog = token['catalog']
+        # validate service type is in catalog
+        catalog_svcs = [s for s in catalog if s['type'] == my_service_type]
+        if len(catalog_svcs) == 0:
+            self.log.warning('Cannot validate request with restricted'
+                             ' access rules. service_type in'
+                             ' [keystone_authtoken] is not a valid service'
+                             ' type in the catalog.')
+            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+        if request.service_token:
+            # The request may not match an allowed request, but the presence
+            # of the service token indicates this is a chain of requests and
+            # hence this request was not user-facing
+            return
+        for access_rule in access_rules:
+            method = access_rule['method']
+            path = access_rule['path']
+            service = access_rule['service']
+            if request.method == method and \
+                    service == my_service_type and \
+                    _path_matches(request.path, path):
+                return
+        raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
 
 
 class AuthProtocol(BaseAuthProtocol):

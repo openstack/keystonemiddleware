@@ -1413,6 +1413,110 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         e = self.requests_mock.request_history[3].qs.get('allow_expired')
         self.assertIsNone(e)
 
+    def test_app_cred_token_without_access_rules(self):
+        self.set_middleware(conf={'service_type': 'compute'})
+        token = self.examples.v3_APP_CRED_TOKEN
+        token_data = self.examples.TOKEN_RESPONSES[token]
+        resp = self.call_middleware(headers={'X-Auth-Token': token})
+        self.assertEqual(FakeApp.SUCCESS, resp.body)
+        token_auth = resp.request.environ['keystone.token_auth']
+        self.assertEqual(token_data.application_credential_id,
+                         token_auth.user.application_credential_id)
+
+    def test_app_cred_access_rules_token(self):
+        self.set_middleware(conf={'service_type': 'compute'})
+        token = self.examples.v3_APP_CRED_ACCESS_RULES
+        token_data = self.examples.TOKEN_RESPONSES[token]
+        resp = self.call_middleware(headers={'X-Auth-Token': token},
+                                    expected_status=200,
+                                    method='GET', path='/v2.1/servers')
+        token_auth = resp.request.environ['keystone.token_auth']
+        self.assertEqual(token_data.application_credential_id,
+                         token_auth.user.application_credential_id)
+        self.assertEqual(token_data.application_credential_access_rules,
+                         token_auth.user.application_credential_access_rules)
+        resp = self.call_middleware(headers={'X-Auth-Token': token},
+                                    expected_status=401,
+                                    method='GET',
+                                    path='/v2.1/servers/someuuid')
+        token_auth = resp.request.environ['keystone.token_auth']
+        self.assertEqual(token_data.application_credential_id,
+                         token_auth.user.application_credential_id)
+        self.assertEqual(token_data.application_credential_access_rules,
+                         token_auth.user.application_credential_access_rules)
+
+    def test_app_cred_access_rules_service_request(self):
+        self.set_middleware(conf={'service_type': 'image'})
+        token = self.examples.v3_APP_CRED_ACCESS_RULES
+        headers = {'X-Auth-Token': token}
+        self.call_middleware(headers=headers,
+                             expected_status=401,
+                             method='GET', path='/v2/images')
+        service_token = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
+        headers['X-Service-Token'] = service_token
+        self.call_middleware(headers=headers,
+                             expected_status=200,
+                             method='GET', path='/v2/images')
+
+    def test_app_cred_no_access_rules_token(self):
+        self.set_middleware(conf={'service_type': 'compute'})
+        token = self.examples.v3_APP_CRED_EMPTY_ACCESS_RULES
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v2.1/servers')
+        service_token = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
+        headers = {
+            'X-Auth-Token': token,
+            'X-Service-Token': service_token
+        }
+        self.call_middleware(headers=headers, expected_status=401,
+                             method='GET', path='/v2.1/servers')
+
+    def test_app_cred_matching_rules(self):
+        self.set_middleware(conf={'service_type': 'compute'})
+        token = self.examples.v3_APP_CRED_MATCHING_RULES
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=200,
+                             method='GET', path='/v2.1/servers/foobar')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v2.1/servers/foobar/barfoo')
+        self.set_middleware(conf={'service_type': 'image'})
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=200,
+                             method='GET', path='/v2/images/foobar')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v2/images/foobar/barfoo')
+        self.set_middleware(conf={'service_type': 'identity'})
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=200,
+                             method='GET',
+                             path='/v3/projects/123/users/456/roles/member')
+        self.set_middleware(conf={'service_type': 'block-storage'})
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=200,
+                             method='GET', path='/v3/123/types/456')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v3/123/types')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v2/123/types/456')
+        self.set_middleware(conf={'service_type': 'object-store'})
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=200,
+                             method='GET', path='/v1/1/2/3')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v1/1/2')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/v2/1/2')
+        self.call_middleware(headers={'X-Auth-Token': token},
+                             expected_status=401,
+                             method='GET', path='/info')
+
 
 class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
