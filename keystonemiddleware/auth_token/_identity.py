@@ -239,3 +239,6 @@ class IdentityServer(object):
 
     def fetch_ca_cert(self):
         return self._request_strategy.fetch_ca_cert()
+
+    def invalidate(self):
+        return self._adapter.invalidate()

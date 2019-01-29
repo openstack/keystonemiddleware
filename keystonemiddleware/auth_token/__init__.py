@@ -760,6 +760,10 @@ class AuthProtocol(BaseAuthProtocol):
                                       _CACHE_INVALID_INDICATOR)
             self.log.warning('Authorization failed for token')
             raise
+        except ksa_exceptions.EndpointNotFound:
+            # Invalidate auth in adapter for identity endpoint update
+            self._identity_server.invalidate()
+            raise
 
         return data
 

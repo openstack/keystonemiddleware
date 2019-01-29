@@ -97,6 +97,7 @@ VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
 
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
 TIMEOUT_TOKEN = '4ed1c5e53beee59458adcf8261a8cae2'
+ENDPOINT_NOT_FOUND_TOKEN = 'edf9fa62-5afd-4d64-89ac-f99b209bd995'
 
 
 def strtime(at=None):
@@ -1534,6 +1535,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             raise ksa_exceptions.ConnectFailure(msg)
         elif token_id == TIMEOUT_TOKEN:
             request_timeout_response(request, context)
+        elif token_id == ENDPOINT_NOT_FOUND_TOKEN:
+            raise ksa_exceptions.EndpointNotFound()
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
@@ -1685,6 +1688,16 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.middleware._token_cache.set(token, (data, expires))
         new_data = self.middleware.fetch_token(token)
         self.assertEqual(data, new_data)
+
+    def test_endpoint_not_found_in_token(self):
+        token = ENDPOINT_NOT_FOUND_TOKEN
+        self.set_middleware()
+        self.middleware._token_cache.initialize({})
+        with mock.patch.object(self.middleware._identity_server, 'invalidate',
+                               new=mock.Mock()):
+            self.assertRaises(ksa_exceptions.EndpointNotFound,
+                              self.middleware.fetch_token, token)
+            self.assertTrue(self.middleware._identity_server.invalidate.called)
 
     def test_not_is_admin_project(self):
         token = self.examples.v3_NOT_IS_ADMIN_PROJECT
