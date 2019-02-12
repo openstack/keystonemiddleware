@@ -1,7 +1,7 @@
 ---
 fixes:
   - |
-    [`bug/1813739 <https://bugs.launchpad.net/keystonemiddleware/+bug/1813739>`_]
+    [`bug 1813739 <https://bugs.launchpad.net/keystonemiddleware/+bug/1813739>`_]
     When admin identity endpoint is not created yet, keystonemiddleware emit
     EndpointNotFound exception. Even after admin identity endpoint created,
     auth_token middleware could not be notified of update since it does not
