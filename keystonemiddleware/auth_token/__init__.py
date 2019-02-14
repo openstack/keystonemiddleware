@@ -374,9 +374,9 @@ class BaseAuthProtocol(object):
                 check = self._service_token_roles.intersection(role_names)
                 role_check_passed = bool(check)
 
-                # if service_token_role_required then the service token is only
-                # valid if the roles check out. Otherwise at this point it is
-                # true because keystone has already validated it.
+                # if service_token_roles_required then the service token is
+                # only valid if the roles check out. Otherwise at this point it
+                # is true because keystone has already validated it.
                 if self._service_token_roles_required:
                     request.service_token_valid = role_check_passed
                 else:
