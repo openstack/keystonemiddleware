@@ -1,11 +1,7 @@
-- job:
-    name: openstack-tox-lower-constraints-keystone-xenial
-    parent: openstack-tox-lower-constraints
-    nodeset: openstack-single-node-xenial
-
 - project:
     templates:
       - openstack-cover-jobs
+      - openstack-lower-constraints-jobs
       - openstack-python-jobs
       - openstack-python36-jobs
       - openstack-python37-jobs
@@ -14,10 +10,3 @@
       - lib-forward-testing
       - lib-forward-testing-python3
       - release-notes-jobs-python3
-    check:
-      jobs:
-        - openstack-tox-lower-constraints-keystone-xenial
-    gate:
-      jobs:
-        - openstack-tox-lower-constraints-keystone-xenial
-
