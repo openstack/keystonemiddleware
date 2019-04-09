@@ -41,7 +41,7 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
             log.warning('Configuring admin URI using auth fragments was '
                         'deprecated in the Kilo release, and will be '
                         'removed in the Newton release, '
-                        'use \'identity_uri\ instead.')
+                        "use 'identity_uri' instead.")
 
             if ':' in auth_host:
                 # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
