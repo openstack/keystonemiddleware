@@ -251,7 +251,6 @@ _LOG = logging.getLogger(__name__)
 _CACHE_INVALID_INDICATOR = 'invalid'
 oslo_cache.configure(cfg.CONF)
 
-
 AUTH_TOKEN_OPTS = [
     (_base.AUTHTOKEN_GROUP,
      _opts._OPTS + _auth.OPTS + loading.get_auth_common_conf_options())
@@ -570,6 +569,7 @@ class AuthProtocol(BaseAuthProtocol):
         self._include_service_catalog = self._conf.get(
             'include_service_catalog')
         self._hash_algorithms = self._conf.get('hash_algorithms')
+        self._interface = self._conf.get('interface')
 
         self._auth = self._create_auth_plugin()
         self._session = self._create_session()
@@ -907,7 +907,7 @@ class AuthProtocol(BaseAuthProtocol):
             self._session,
             auth=self._auth,
             service_type='identity',
-            interface='admin',
+            interface=self._interface,
             region_name=self._conf.get('region_name'),
             connect_retries=self._conf.get('http_request_max_retries'))
 
@@ -918,7 +918,8 @@ class AuthProtocol(BaseAuthProtocol):
             self.log,
             adap,
             include_service_catalog=self._include_service_catalog,
-            requested_auth_version=auth_version)
+            requested_auth_version=auth_version,
+            requested_auth_interface=self._interface)
 
     def _create_oslo_cache(self):
         # having this as a function makes test mocking easier
