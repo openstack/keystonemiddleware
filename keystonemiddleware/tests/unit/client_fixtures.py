@@ -13,6 +13,7 @@
 # under the License.
 
 import os
+import time
 import uuid
 
 import fixtures
@@ -205,7 +206,8 @@ class Examples(fixtures.Fixture):
             'access': {
                 'token': {
                     'id': self.VALID_DIABLO_TOKEN,
-                    'expires': '2020-01-01T00:00:10.000123Z',
+                    'expires': '%i-01-01T00:00:10.000123Z' %
+                    (1 + time.gmtime().tm_year),
                     'tenantId': PROJECT_ID,
                 },
                 'user': {

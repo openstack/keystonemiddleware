@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    The lower constraint for python-memcached must be raised to version 1.58
+    in order to work with Python 3.4 and above.
