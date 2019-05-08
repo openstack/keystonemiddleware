@@ -92,7 +92,8 @@ BASE_URI = '%s/testadmin' % BASE_HOST
 FAKE_ADMIN_TOKEN_ID = 'admin_token2'
 FAKE_ADMIN_TOKEN = jsonutils.dumps(
     {'access': {'token': {'id': FAKE_ADMIN_TOKEN_ID,
-                          'expires': '2022-10-03T16:58:01Z'}}})
+                          'expires': '%i-10-03T16:58:01Z' %
+                          (1 + time.gmtime().tm_year)}}})
 
 VERSION_LIST_v3 = fixture.DiscoveryList(href=BASE_URI)
 VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
