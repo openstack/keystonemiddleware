@@ -1,0 +1,11 @@
+---
+prelude: >
+    Since the removal of the Identity API v2 Keystone no longer has any
+    special functionality that requires using the admin endpoint for it. So
+    this release changes the default endpoint being used from ``admin`` to
+    ``internal``, allowing deployments to work without an admin endpoint.
+upgrade:
+  - |
+    [`bug 1830002 <https://bugs.launchpad.net/keystonemiddleware/+bug/1830002>`_]
+    The default Identity endpoint has been changed from ``admin`` to
+    ``internal``.
