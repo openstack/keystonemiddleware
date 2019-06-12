@@ -66,7 +66,11 @@ _OPTS = [
                ' favor of www_authenticate_uri and will be removed in the S'
                ' release.'),
     cfg.StrOpt('auth_version',
-               help='API version of the admin Identity API endpoint.'),
+               help='API version of the Identity API endpoint.'),
+    cfg.StrOpt('interface',
+               default='admin',
+               help='Interface to use for the Identity API endpoint. Valid'
+               ' values are "public", "internal" or "admin"(default).'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,
                 help='Do not handle authorization requests within the'

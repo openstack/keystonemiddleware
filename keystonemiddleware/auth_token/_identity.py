@@ -41,8 +41,10 @@ class _RequestStrategy(object):
 
     AUTH_VERSION = None
 
-    def __init__(self, adap, include_service_catalog=None):
+    def __init__(self, adap, include_service_catalog=None,
+                 requested_auth_interface=None):
         self._include_service_catalog = include_service_catalog
+        self._requested_auth_interface = requested_auth_interface
 
     def verify_token(self, user_token, allow_expired=False):
         pass
@@ -93,7 +95,10 @@ class _V3RequestStrategy(_RequestStrategy):
 
     def __init__(self, adap, **kwargs):
         super(_V3RequestStrategy, self).__init__(adap, **kwargs)
-        self._client = v3_client.Client(session=adap)
+        client_args = {'session': adap}
+        if self._requested_auth_interface:
+            client_args['interface'] = self._requested_auth_interface
+        self._client = v3_client.Client(**client_args)
 
     def verify_token(self, token, allow_expired=False):
         auth_ref = self._client.tokens.validate(
@@ -128,11 +133,12 @@ class IdentityServer(object):
     """
 
     def __init__(self, log, adap, include_service_catalog=None,
-                 requested_auth_version=None):
+                 requested_auth_version=None, requested_auth_interface=None):
         self._LOG = log
         self._adapter = adap
         self._include_service_catalog = include_service_catalog
         self._requested_auth_version = requested_auth_version
+        self._requested_auth_interface = requested_auth_interface
 
         # Built on-demand with self._request_strategy.
         self._request_strategy_obj = None
@@ -163,7 +169,8 @@ class IdentityServer(object):
 
             self._request_strategy_obj = strategy_class(
                 self._adapter,
-                include_service_catalog=self._include_service_catalog)
+                include_service_catalog=self._include_service_catalog,
+                requested_auth_interface=self._requested_auth_interface)
 
         return self._request_strategy_obj
 
