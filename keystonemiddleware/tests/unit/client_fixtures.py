@@ -108,7 +108,6 @@ class Examples(fixtures.Fixture):
         self.UUID_TOKEN_UNSCOPED = '731f903721c14827be7b2dc912af7776'
         self.UUID_TOKEN_BIND = '3fc54048ad64405c98225ce0897af7c5'
         self.UUID_TOKEN_UNKNOWN_BIND = '8885fdf4d42e4fb9879e6379fa1eaf48'
-        self.VALID_DIABLO_TOKEN = 'b0cf19b55dbb4f20a6ee18e6c6cf1726'
         self.v3_UUID_TOKEN_DEFAULT = '5603457654b346fdbb93437bfe76f2f1'
         self.v3_UUID_TOKEN_UNSCOPED = 'd34835fdaec447e695a0a024d84f8d79'
         self.v3_UUID_TOKEN_DOMAIN_SCOPED = 'e8a7b63aaa4449f38f0c5c05c3581792'
@@ -198,26 +197,6 @@ class Examples(fixtures.Fixture):
         self.SERVICE_TYPE = 'identity'
         self.UNVERSIONED_SERVICE_URL = 'https://keystone.example.com:1234/'
         self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v2.0'
-
-        # Old Tokens
-
-        self.TOKEN_RESPONSES[self.VALID_DIABLO_TOKEN] = {
-            'access': {
-                'token': {
-                    'id': self.VALID_DIABLO_TOKEN,
-                    'expires': '2020-01-01T00:00:10.000123Z',
-                    'tenantId': PROJECT_ID,
-                },
-                'user': {
-                    'id': USER_ID,
-                    'name': USER_NAME,
-                    'roles': [
-                        {'name': ROLE_NAME1},
-                        {'name': ROLE_NAME2},
-                    ],
-                },
-            },
-        }
 
         # Generated V2 Tokens
 

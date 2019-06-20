@@ -55,9 +55,6 @@ EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
     'HTTP_X_USER_NAME': 'user_name1',
     'HTTP_X_ROLES': 'role1,role2',
     'HTTP_X_IS_ADMIN_PROJECT': 'True',
-    'HTTP_X_USER': 'user_name1',  # deprecated (diablo-compat)
-    'HTTP_X_TENANT': 'tenant_name1',  # deprecated (diablo-compat)
-    'HTTP_X_ROLE': 'role1,role2',  # deprecated (diablo-compat)
 }
 
 EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE = {
@@ -346,44 +343,6 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
                              self.requests_mock.last_request.url)
         else:
             self.assertIsNone(self.requests_mock.last_request)
-
-
-class DiabloAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
-                                    testresources.ResourcedTestCase):
-
-    resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
-
-    """Auth Token middleware should understand Diablo keystone responses."""
-    def setUp(self):
-        # pre-diablo only had Tenant ID, which was also the Name
-        expected_env = {
-            'HTTP_X_TENANT_ID': 'tenant_id1',
-            'HTTP_X_TENANT_NAME': 'tenant_id1',
-            # now deprecated (diablo-compat)
-            'HTTP_X_TENANT': 'tenant_id1',
-        }
-
-        super(DiabloAuthTokenMiddlewareTest, self).setUp(
-            expected_env=expected_env)
-
-        self.requests_mock.get(BASE_URI,
-                               json=VERSION_LIST_v2,
-                               status_code=300)
-
-        self.requests_mock.post("%s/v2.0/tokens" % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
-
-        self.token_id = self.examples.VALID_DIABLO_TOKEN
-        token_response = self.examples.JSON_TOKEN_RESPONSES[self.token_id]
-
-        url = "%s/v2.0/tokens/%s" % (BASE_URI, self.token_id)
-        self.requests_mock.get(url, text=token_response)
-
-        self.set_middleware()
-
-    def test_valid_diablo_response(self):
-        resp = self.call_middleware(headers={'X-Auth-Token': self.token_id})
-        self.assertIn('keystone.token_info', resp.request.environ)
 
 
 class CachePoolTest(BaseAuthTokenMiddlewareTest):
