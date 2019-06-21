@@ -217,7 +217,6 @@ object is stored.
 
 """
 
-import binascii
 import copy
 
 from keystoneauth1 import access
@@ -226,8 +225,6 @@ from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
-from keystoneclient.common import cms
-from keystoneclient import exceptions as ksc_exceptions
 import oslo_cache
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -242,7 +239,6 @@ from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _identity
 from keystonemiddleware.auth_token import _opts
 from keystonemiddleware.auth_token import _request
-from keystonemiddleware.auth_token import _signing_dir
 from keystonemiddleware.auth_token import _user_plugin
 from keystonemiddleware.i18n import _
 
@@ -287,16 +283,6 @@ class _BIND_MODE(object):
     STRICT = 'strict'
     REQUIRED = 'required'
     KERBEROS = 'kerberos'
-
-
-def _uncompress_pkiz(token):
-    # TypeError If the signed_text is not zlib compressed binascii.Error if
-    # signed_text has incorrect base64 padding (py34)
-
-    try:
-        return cms.pkiz_uncompress(token)
-    except (TypeError, binascii.Error):
-        raise ksm_exceptions.InvalidToken(token)
 
 
 class BaseAuthProtocol(object):
@@ -534,9 +520,6 @@ class BaseAuthProtocol(object):
 class AuthProtocol(BaseAuthProtocol):
     """Middleware that handles authenticating client calls."""
 
-    _SIGNING_CERT_FILE_NAME = 'signing_cert.pem'
-    _SIGNING_CA_FILE_NAME = 'cacert.pem'
-
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get('log_name', __name__))
         log.info('Starting Keystone auth_token middleware')
@@ -568,9 +551,7 @@ class AuthProtocol(BaseAuthProtocol):
         self._delay_auth_decision = self._conf.get('delay_auth_decision')
         self._include_service_catalog = self._conf.get(
             'include_service_catalog')
-        self._hash_algorithms = self._conf.get('hash_algorithms')
         self._interface = self._conf.get('interface')
-
         self._auth = self._create_auth_plugin()
         self._session = self._create_session()
         self._identity_server = self._create_identity_server()
@@ -589,9 +570,6 @@ class AuthProtocol(BaseAuthProtocol):
 
             self._www_authenticate_uri = \
                 self._identity_server.www_authenticate_uri
-
-        self._signing_directory = _signing_dir.SigningDirectory(
-            directory_name=self._conf.get('signing_dir'), log=self.log)
 
         self._token_cache = self._token_cache_factory()
 
@@ -674,37 +652,6 @@ class AuthProtocol(BaseAuthProtocol):
         header_val = 'Keystone uri="%s"' % self._www_authenticate_uri
         return [('WWW-Authenticate', header_val)]
 
-    def _token_hashes(self, token):
-        """Generate a list of hashes that the current token may be cached as.
-
-        The first element of this list is the preferred algorithm and is what
-        new cache values should be saved as.
-
-        :param str token: The token being presented by a user.
-
-        :returns: list of str token hashes.
-        """
-        if cms.is_asn1_token(token) or cms.is_pkiz(token):
-            return list(cms.cms_hash_token(token, mode=algo)
-                        for algo in self._hash_algorithms)
-        else:
-            return [token]
-
-    def _cache_get_hashes(self, token_hashes):
-        """Check if the token is cached already.
-
-        Functions takes a list of hashes that might be in the cache and matches
-        the first one that is present. If nothing is found in the cache it
-        returns None.
-
-        :returns: token data if found else None.
-        """
-        for token in token_hashes:
-            cached = self._token_cache.get(token)
-
-            if cached:
-                return cached
-
     def fetch_token(self, token, allow_expired=False):
         """Retrieve a token from either a PKI bundle or the identity server.
 
@@ -713,11 +660,8 @@ class AuthProtocol(BaseAuthProtocol):
         :raises exc.InvalidToken: if token is rejected
         """
         data = None
-        token_hashes = None
-
         try:
-            token_hashes = self._token_hashes(token)
-            cached = self._cache_get_hashes(token_hashes)
+            cached = self._token_cache.get(token)
 
             if cached:
                 if cached == _CACHE_INVALID_INDICATOR:
@@ -733,13 +677,11 @@ class AuthProtocol(BaseAuthProtocol):
 
                 data = cached
             else:
-                data = self._validate_offline(token, token_hashes)
-                if not data:
-                    data = self._identity_server.verify_token(
-                        token,
-                        allow_expired=allow_expired)
+                data = self._identity_server.verify_token(
+                    token,
+                    allow_expired=allow_expired)
 
-                self._token_cache.set(token_hashes[0], data)
+                self._token_cache.set(token, data)
 
         except (ksa_exceptions.ConnectFailure,
                 ksa_exceptions.DiscoveryFailure,
@@ -755,9 +697,7 @@ class AuthProtocol(BaseAuthProtocol):
                 'The Keystone service is temporarily unavailable.')
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
-            if token_hashes:
-                self._token_cache.set(token_hashes[0],
-                                      _CACHE_INVALID_INDICATOR)
+            self._token_cache.set(token, _CACHE_INVALID_INDICATOR)
             self.log.warning('Authorization failed for token')
             raise
         except ksa_exceptions.EndpointNotFound:
@@ -767,87 +707,12 @@ class AuthProtocol(BaseAuthProtocol):
 
         return data
 
-    def _validate_offline(self, token, token_hashes):
-        if cms.is_pkiz(token):
-            token_data = _uncompress_pkiz(token)
-            inform = cms.PKIZ_CMS_FORM
-        elif cms.is_asn1_token(token):
-            token_data = cms.token_to_cms(token)
-            inform = cms.PKI_ASN1_FORM
-        else:
-            # Can't do offline validation for this type of token.
-            return
-
-        try:
-            verified = self._cms_verify(token_data, inform)
-        except ksc_exceptions.CertificateConfigError:
-            self.log.warning('Fetch certificate config failed, '
-                             'fallback to online validation.')
-        else:
-            self.log.warning('auth_token middleware received a PKI/Z token. '
-                             'This form of token is deprecated and has been '
-                             'removed from keystone server and will be '
-                             'removed from auth_token middleware in the Rocky '
-                             'release. Please contact your administrator '
-                             'about upgrading keystone and the token format.')
-
-            data = jsonutils.loads(verified)
-
-            return data
-
     def _validate_token(self, auth_ref, **kwargs):
         super(AuthProtocol, self)._validate_token(auth_ref, **kwargs)
 
         if auth_ref.version == 'v2.0' and not auth_ref.project_id:
             msg = _('Unable to determine service tenancy.')
             raise ksm_exceptions.InvalidToken(msg)
-
-    def _cms_verify(self, data, inform=cms.PKI_ASN1_FORM):
-        """Verify the signature of the provided data's IAW CMS syntax.
-
-        If either of the certificate files might be missing, fetch them and
-        retry.
-        """
-        def verify():
-            try:
-                signing_cert_path = self._signing_directory.calc_path(
-                    self._SIGNING_CERT_FILE_NAME)
-                signing_ca_path = self._signing_directory.calc_path(
-                    self._SIGNING_CA_FILE_NAME)
-                return cms.cms_verify(data, signing_cert_path,
-                                      signing_ca_path,
-                                      inform=inform).decode('utf-8')
-            except (ksc_exceptions.CMSError,
-                    cms.subprocess.CalledProcessError) as err:
-                self.log.warning('Verify error: %s', err)
-                msg = _('Token authorization failed')
-                raise ksm_exceptions.InvalidToken(msg)
-
-        try:
-            return verify()
-        except ksc_exceptions.CertificateConfigError:
-            # the certs might be missing; unconditionally fetch to avoid racing
-            self._fetch_signing_cert()
-            self._fetch_ca_cert()
-
-            try:
-                # retry with certs in place
-                return verify()
-            except ksc_exceptions.CertificateConfigError as err:
-                # if this is still occurring, something else is wrong and we
-                # need err.output to identify the problem
-                self.log.error('CMS Verify output: %s', err.output)
-                raise
-
-    def _fetch_signing_cert(self):
-        self._signing_directory.write_file(
-            self._SIGNING_CERT_FILE_NAME,
-            self._identity_server.fetch_signing_cert())
-
-    def _fetch_ca_cert(self):
-        self._signing_directory.write_file(
-            self._SIGNING_CA_FILE_NAME,
-            self._identity_server.fetch_ca_cert())
 
     def _create_auth_plugin(self):
         # NOTE(jamielennox): Ideally this would use load_from_conf_options
