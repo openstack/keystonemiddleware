@@ -13,7 +13,6 @@
 from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import plugin
-from keystoneclient.v2_0 import client as v2_client
 from keystoneclient.v3 import client as v3_client
 from six.moves import urllib
 
@@ -35,25 +34,6 @@ class _RequestStrategy(object):
 
     def verify_token(self, user_token, allow_expired=False):
         pass
-
-
-class _V2RequestStrategy(_RequestStrategy):
-
-    AUTH_VERSION = (2, 0)
-
-    def __init__(self, adap, **kwargs):
-        super(_V2RequestStrategy, self).__init__(adap, **kwargs)
-        self._client = v2_client.Client(session=adap)
-
-    def verify_token(self, token, allow_expired=False):
-        # NOTE(jamielennox): allow_expired is ignored on V2
-        auth_ref = self._client.tokens.validate_access_info(token)
-
-        if not auth_ref:
-            msg = _('Failed to fetch token data from identity server')
-            raise ksm_exceptions.InvalidToken(msg)
-
-        return {'access': auth_ref}
 
 
 class _V3RequestStrategy(_RequestStrategy):
@@ -81,7 +61,7 @@ class _V3RequestStrategy(_RequestStrategy):
         return {'token': auth_ref}
 
 
-_REQUEST_STRATEGIES = [_V3RequestStrategy, _V2RequestStrategy]
+_REQUEST_STRATEGIES = [_V3RequestStrategy]
 
 
 class IdentityServer(object):
@@ -137,13 +117,12 @@ class IdentityServer(object):
 
     def _get_strategy_class(self):
         if self._requested_auth_version:
-            # A specific version was requested.
-            if discover.version_match(_V3RequestStrategy.AUTH_VERSION,
-                                      self._requested_auth_version):
-                return _V3RequestStrategy
-
-            # The version isn't v3 so we don't know what to do. Just assume V2.
-            return _V2RequestStrategy
+            if not discover.version_match(_V3RequestStrategy.AUTH_VERSION,
+                                          self._requested_auth_interface):
+                self._LOG.info('A version other than v3 was requested: %s',
+                               self._requested_auth_interface)
+            # Return v3, even if the request is unknown
+            return _V3RequestStrategy
 
         # Specific version was not requested then we fall through to
         # discovering available versions from the server

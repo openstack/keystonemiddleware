@@ -590,7 +590,7 @@ class CommonAuthTokenMiddlewareTest(object):
         return self.middleware._token_cache.get(token)
 
     def test_memcache_set_invalid_uuid(self):
-        invalid_uri = "%s/v2.0/tokens/invalid-token" % BASE_URI
+        invalid_uri = "%s/v3/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
         token = 'invalid-token'
@@ -601,7 +601,7 @@ class CommonAuthTokenMiddlewareTest(object):
 
     def test_memcache_hit_invalid_token(self):
         token = 'invalid-token'
-        invalid_uri = '%s/v2.0/tokens/invalid-token' % BASE_URI
+        invalid_uri = '%s/v3/tokens/invalid-token' % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
         # Call once to cache token's invalid state; verify it cached as such
@@ -1016,169 +1016,6 @@ def request_timeout_response(request, context):
         "Request to https://host/token/path timed out")
 
 
-class v2AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
-                                CommonAuthTokenMiddlewareTest,
-                                testresources.ResourcedTestCase):
-    """v2 token specific tests.
-
-    There are some differences between how the auth-token middleware handles
-    v2 and v3 tokens over and above the token formats, namely:
-
-    - A v3 keystone server will auto scope a token to a user's default project
-      if no scope is specified. A v2 server assumes that the auth-token
-      middleware will do that.
-    - A v2 keystone server may issue a token without a catalog, even with a
-      tenant
-
-    The tests below were originally part of the generic AuthTokenMiddlewareTest
-    class, but now, since they really are v2 specific, they are included here.
-
-    """
-
-    resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
-
-    def setUp(self):
-        super(v2AuthTokenMiddlewareTest, self).setUp()
-
-        self.token_dict = {
-            'uuid_token_default': self.examples.UUID_TOKEN_DEFAULT,
-            'uuid_token_unscoped': self.examples.UUID_TOKEN_UNSCOPED,
-            'uuid_token_bind': self.examples.UUID_TOKEN_BIND,
-            'uuid_token_unknown_bind': self.examples.UUID_TOKEN_UNKNOWN_BIND,
-            'uuid_service_token_default':
-            self.examples.UUID_SERVICE_TOKEN_DEFAULT,
-        }
-
-        self.requests_mock.get(BASE_URI,
-                               json=VERSION_LIST_v2,
-                               status_code=300)
-
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
-
-        for token in (self.examples.UUID_TOKEN_DEFAULT,
-                      self.examples.UUID_TOKEN_UNSCOPED,
-                      self.examples.UUID_TOKEN_BIND,
-                      self.examples.UUID_TOKEN_UNKNOWN_BIND,
-                      self.examples.UUID_TOKEN_NO_SERVICE_CATALOG,
-                      self.examples.UUID_SERVICE_TOKEN_DEFAULT,):
-            url = "%s/v2.0/tokens/%s" % (BASE_URI, token)
-            text = self.examples.JSON_TOKEN_RESPONSES[token]
-            self.requests_mock.get(url, text=text)
-
-        url = '%s/v2.0/tokens/%s' % (BASE_URI, ERROR_TOKEN)
-        self.requests_mock.get(url, text=network_error_response)
-
-        url = '%s/v2.0/tokens/%s' % (BASE_URI, TIMEOUT_TOKEN)
-        self.requests_mock.get(url, text=request_timeout_response)
-
-        self.set_middleware()
-
-    def assert_unscoped_default_tenant_auto_scopes(self, token):
-        """Unscoped v2 requests with a default tenant should ``auto-scope``.
-
-        The implied scope is the user's tenant ID.
-
-        """
-        resp = self.call_middleware(headers={'X-Auth-Token': token})
-        self.assertEqual(FakeApp.SUCCESS, resp.body)
-        self.assertIn('keystone.token_info', resp.request.environ)
-
-    def assert_valid_last_url(self, token_id):
-        self.assertLastPath("/v2.0/tokens/%s" % token_id)
-
-    def test_default_tenant_uuid_token(self):
-        self.assert_unscoped_default_tenant_auto_scopes(
-            self.examples.UUID_TOKEN_DEFAULT)
-
-    def assert_unscoped_token_receives_401(self, token):
-        """Unscoped requests with no default tenant ID should be rejected."""
-        resp = self.call_middleware(headers={'X-Auth-Token': token},
-                                    expected_status=401)
-        self.assertEqual('Keystone uri="https://keystone.example.com:1234"',
-                         resp.headers['WWW-Authenticate'])
-
-    def test_request_prevent_service_catalog_injection(self):
-        token = self.examples.UUID_TOKEN_NO_SERVICE_CATALOG
-        resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
-                                             'X-Auth-Token': token})
-
-        self.assertFalse(resp.request.headers.get('X-Service-Catalog'))
-        self.assertEqual(FakeApp.SUCCESS, resp.body)
-
-    def test_user_plugin_token_properties(self):
-        token = self.examples.UUID_TOKEN_DEFAULT
-        token_data = self.examples.TOKEN_RESPONSES[token]
-        service = self.examples.UUID_SERVICE_TOKEN_DEFAULT
-
-        resp = self.call_middleware(headers={'X-Service-Catalog': '[]',
-                                             'X-Auth-Token': token,
-                                             'X-Service-Token': service})
-
-        self.assertEqual(FakeApp.SUCCESS, resp.body)
-
-        token_auth = resp.request.environ['keystone.token_auth']
-
-        self.assertTrue(token_auth.has_user_token)
-        self.assertTrue(token_auth.has_service_token)
-
-        self.assertEqual(token_data.user_id, token_auth.user.user_id)
-        self.assertEqual(token_data.tenant_id, token_auth.user.project_id)
-
-        self.assertThat(token_auth.user.role_names, matchers.HasLength(2))
-        self.assertIn('role1', token_auth.user.role_names)
-        self.assertIn('role2', token_auth.user.role_names)
-
-        self.assertIsNone(token_auth.user.trust_id)
-        self.assertIsNone(token_auth.user.user_domain_id)
-        self.assertIsNone(token_auth.user.project_domain_id)
-
-        self.assertThat(token_auth.service.role_names, matchers.HasLength(2))
-        self.assertIn('service', token_auth.service.role_names)
-        self.assertIn('service_role2', token_auth.service.role_names)
-
-        self.assertIsNone(token_auth.service.trust_id)
-
-
-class CrossVersionAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
-                                          testresources.ResourcedTestCase):
-
-    resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
-
-    def test_valid_uuid_request_forced_to_2_0(self):
-        """Test forcing auth_token to use lower api version.
-
-        By installing the v3 http hander, auth_token will be get
-        a version list that looks like a v3 server - from which it
-        would normally chose v3.0 as the auth version.  However, here
-        we specify v2.0 in the configuration - which should force
-        auth_token to use that version instead.
-
-        """
-        conf = {
-            'auth_version': 'v2.0'
-        }
-
-        self.requests_mock.get(BASE_URI,
-                               json=VERSION_LIST_v3,
-                               status_code=300)
-
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
-
-        token = self.examples.UUID_TOKEN_DEFAULT
-        url = "%s/v2.0/tokens/%s" % (BASE_URI, token)
-        text = self.examples.JSON_TOKEN_RESPONSES[token]
-        self.requests_mock.get(url, text=text)
-
-        self.set_middleware(conf=conf)
-
-        # This tests will only work is auth_token has chosen to use the
-        # lower, v2, api version
-        self.call_middleware(headers={'X-Auth-Token': token})
-        self.assertEqual(url, self.requests_mock.last_request.url)
-
-
 class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                 CommonAuthTokenMiddlewareTest,
                                 testresources.ResourcedTestCase):
@@ -1190,19 +1027,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     This is done by configuring the AuthTokenMiddlewareTest class via
     its Setup(), passing in v3 style data that will then be used by
-    the tests themselves.  This approach has been used to ensure we
-    really are running the same tests for both v2 and v3 tokens.
-
-    There a few additional specific test for v3 only:
-
-    - We allow an unscoped token to be validated (as unscoped), where
-      as for v2 tokens, the auth_token middleware is expected to try and
-      auto-scope it (and fail if there is no default tenant)
-    - Domain scoped tokens
-
-    Since we don't specify an auth version for auth_token to use, by
-    definition we are thefore implicitely testing that it will use
-    the highest available auth version, i.e. v3.0
+    the tests themselves.
 
     """
 
@@ -1537,7 +1362,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         body = uuid.uuid4().hex
         www_authenticate_uri = 'http://local.test'
         conf = {'delay_auth_decision': 'True',
-                'auth_version': 'v3.0',
+                'auth_version': 'v3',
                 'www_authenticate_uri': www_authenticate_uri}
 
         middleware = self.create_simple_middleware(status='401 Unauthorized',
@@ -1841,59 +1666,6 @@ class CommonCompositeAuthTests(object):
                                             bind_level='required')
 
 
-class v2CompositeAuthTests(BaseAuthTokenMiddlewareTest,
-                           CommonCompositeAuthTests,
-                           testresources.ResourcedTestCase):
-    """Test auth_token middleware with v2 token based composite auth.
-
-    Execute the Composite auth class tests, but with the
-    auth_token middleware configured to expect v2 tokens back from
-    a keystone server.
-    """
-
-    resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
-
-    def setUp(self):
-        super(v2CompositeAuthTests, self).setUp(
-            expected_env=EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE,
-            fake_app=CompositeFakeApp)
-
-        uuid_token_default = self.examples.UUID_TOKEN_DEFAULT
-        uuid_service_token_default = self.examples.UUID_SERVICE_TOKEN_DEFAULT
-        uuid_token_bind = self.examples.UUID_TOKEN_BIND
-        uuid_service_token_bind = self.examples.UUID_SERVICE_TOKEN_BIND
-        self.token_dict = {
-            'uuid_token_default': uuid_token_default,
-            'uuid_service_token_default': uuid_service_token_default,
-            'uuid_token_bind': uuid_token_bind,
-            'uuid_service_token_bind': uuid_service_token_bind,
-        }
-
-        self.requests_mock.get(BASE_URI,
-                               json=VERSION_LIST_v2,
-                               status_code=300)
-
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
-
-        for token in (self.examples.UUID_TOKEN_DEFAULT,
-                      self.examples.UUID_SERVICE_TOKEN_DEFAULT,
-                      self.examples.UUID_TOKEN_BIND,
-                      self.examples.UUID_SERVICE_TOKEN_BIND):
-            text = self.examples.JSON_TOKEN_RESPONSES[token]
-            self.requests_mock.get('%s/v2.0/tokens/%s' % (BASE_URI, token),
-                                   text=text)
-
-        for invalid_uri in ("%s/v2.0/tokens/invalid-token" % BASE_URI,
-                            "%s/v2.0/tokens/invalid-service-token" % BASE_URI):
-            self.requests_mock.get(invalid_uri, text='', status_code=404)
-
-        self.token_expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
-        self.service_token_expected_env = dict(
-            EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
-        self.set_middleware()
-
-
 class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
                            CommonCompositeAuthTests,
                            testresources.ResourcedTestCase):
@@ -1908,7 +1680,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
     def setUp(self):
         super(v3CompositeAuthTests, self).setUp(
-            auth_version='v3.0',
+            auth_version='v3',
             fake_app=v3CompositeFakeApp)
 
         uuid_token_default = self.examples.v3_UUID_TOKEN_DEFAULT
@@ -1979,7 +1751,7 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
         self.call_middleware(headers={'X-Auth-Token': uuid.uuid4().hex},
                              expected_status=503)
 
-        self.assertIn('versions [v3.0, v2.0]', self.logger.output)
+        self.assertIn('versions [v3.0]', self.logger.output)
 
     def _assert_auth_version(self, conf_version, identity_server_version):
         self.set_middleware(conf={'auth_version': conf_version})
@@ -1988,8 +1760,6 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
                          identity_server.auth_version)
 
     def test_micro_version(self):
-        self._assert_auth_version('v2', (2, 0))
-        self._assert_auth_version('v2.0', (2, 0))
         self._assert_auth_version('v3', (3, 0))
         self._assert_auth_version('v3.0', (3, 0))
         self._assert_auth_version('v3.1', (3, 0))
@@ -2003,14 +1773,10 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
         self._assert_auth_version(None, (3, 0))
 
-        # VERSION_LIST_v2 contains only v2 version elements
-        self.requests_mock.get(BASE_URI, json=VERSION_LIST_v2, status_code=300)
-        self._assert_auth_version(None, (2, 0))
-
     def test_unsupported_auth_version(self):
-        # If the requested version isn't supported we will use v2
-        self._assert_auth_version('v1', (2, 0))
-        self._assert_auth_version('v10', (2, 0))
+        # If the requested version isn't supported we will use v3
+        self._assert_auth_version('v1', (3, 0))
+        self._assert_auth_version('v10', (3, 0))
 
 
 class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
@@ -2020,9 +1786,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
     KEYSTONE_BASE_URL = 'http://keystone.url/prefix'
     CRUD_URL = 'http://crud.url/prefix'
 
-    # NOTE(jamielennox): use the /v2.0 prefix here because this is what's most
-    # likely to be in the service catalog and we should be able to ignore it.
-    KEYSTONE_URL = KEYSTONE_BASE_URL + '/v2.0'
+    KEYSTONE_URL = KEYSTONE_BASE_URL + '/v3'
 
     def setUp(self):
         super(AuthProtocolLoadingTests, self).setUp()

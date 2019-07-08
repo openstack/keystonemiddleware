@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    [`bug 1845539 <https://bugs.launchpad.net/keystone/+bug/1845539>`_]
+    [`bug 1777177 <https://bugs.launchpad.net/keystone/+bug/1777177>`_]
+    keystonemiddleware no longer supports the keystone v2.0 api, all
+    associated functionality has been removed.
