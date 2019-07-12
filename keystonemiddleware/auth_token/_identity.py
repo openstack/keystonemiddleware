@@ -147,7 +147,7 @@ class IdentityServer(object):
         for klass in _REQUEST_STRATEGIES:
             if self._adapter.get_endpoint(version=klass.AUTH_VERSION):
                 self._LOG.debug('Auth Token confirmed use of %s apis',
-                                self._requested_auth_version)
+                                klass.AUTH_VERSION)
                 return klass
 
         versions = ['v%d.%d' % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
