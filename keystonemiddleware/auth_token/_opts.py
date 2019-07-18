@@ -178,6 +178,10 @@ _OPTS = [
                 ' service tokens pass that don\'t pass the service_token_roles'
                 ' check as valid. Setting this true will become the default'
                 ' in a future release and should be enabled if possible.'),
+    cfg.StrOpt('service_type',
+               help='The name or type of the service as it appears in the'
+               ' service catalog. This is used to validate tokens that have'
+               ' restricted access rules.'),
 ]
 
 
