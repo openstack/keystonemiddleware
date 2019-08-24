@@ -224,7 +224,7 @@ class CatalogConversionTests(utils.TestCase):
 
         auth_ref = access.create(body=token)
         catalog_data = auth_ref.service_catalog.catalog
-        catalog = _request._v3_to_v2_catalog(catalog_data)
+        catalog = _request._normalize_catalog(catalog_data)
 
         self.assertEqual(1, len(catalog))
         service = catalog[0]
@@ -248,7 +248,7 @@ class CatalogConversionTests(utils.TestCase):
 
         auth_ref = access.create(body=token)
         catalog_data = auth_ref.service_catalog.catalog
-        catalog = _request._v3_to_v2_catalog(catalog_data)
+        catalog = _request._normalize_catalog(catalog_data)
 
         self.assertEqual(1, len(catalog))
         service = catalog[0]

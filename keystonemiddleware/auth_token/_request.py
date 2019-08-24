@@ -16,20 +16,16 @@ from oslo_serialization import jsonutils
 import webob
 
 
-def _v3_to_v2_catalog(catalog):
-    """Convert a catalog to v2 format.
-
-    X_SERVICE_CATALOG must be specified in v2 format. If you get a token
-    that is in v3 convert it.
-    """
-    v2_services = []
+def _normalize_catalog(catalog):
+    """Convert a catalog to a compatible format."""
+    services = []
     for v3_service in catalog:
         # first copy over the entries we allow for the service
-        v2_service = {'type': v3_service['type']}
+        service = {'type': v3_service['type']}
         try:
-            v2_service['name'] = v3_service['name']
+            service['name'] = v3_service['name']
         except KeyError:  # nosec
-            # v3 service doesn't have a name, so v2_service doesn't either.
+            # v3 service doesn't have a name, move on.
             pass
 
         # now convert the endpoints. Because in v3 we specify region per
@@ -47,10 +43,10 @@ def _v3_to_v2_catalog(catalog):
             interface_name = v3_endpoint['interface'].lower() + 'URL'
             region[interface_name] = v3_endpoint['url']
 
-        v2_service['endpoints'] = list(regions.values())
-        v2_services.append(v2_service)
+        service['endpoints'] = list(regions.values())
+        services.append(service)
 
-    return v2_services
+    return services
 
 
 def _is_admin_project(auth_ref):
@@ -194,7 +190,7 @@ class _AuthTokenRequest(webob.Request):
 
         catalog = auth_ref.service_catalog.catalog
         if auth_ref.version == 'v3':
-            catalog = _v3_to_v2_catalog(catalog)
+            catalog = _normalize_catalog(catalog)
 
         c = jsonutils.dumps(catalog)
         self.headers[self._SERVICE_CATALOG_HEADER] = c
