@@ -23,13 +23,12 @@ from keystonemiddleware.tests.unit import utils
 
 
 TOKEN_ID = 'fake-token-id'
-GOOD_RESPONSE = {'access': {'token': {'id': TOKEN_ID,
-                                      'tenant': {'id': 'TENANT_ID'}}}}
 EMPTY_RESPONSE = {}
 
 
 class FakeResponse(object):
     reason = "Test Reason"
+    headers = {'x-subject-token': TOKEN_ID}
 
     def __init__(self, json, status_code=400):
         self._json = json
@@ -53,9 +52,9 @@ class EC2TokenMiddlewareTestBase(utils.TestCase):
     TEST_PROTOCOL = 'https'
     TEST_HOST = 'fakehost'
     TEST_PORT = 35357
-    TEST_URL = '%s://%s:%d/v2.0/ec2tokens' % (TEST_PROTOCOL,
-                                              TEST_HOST,
-                                              TEST_PORT)
+    TEST_URL = '%s://%s:%d/v3/ec2tokens' % (TEST_PROTOCOL,
+                                            TEST_HOST,
+                                            TEST_PORT)
 
     def setUp(self):
         super(EC2TokenMiddlewareTestBase, self).setUp()
@@ -74,7 +73,7 @@ class EC2TokenMiddlewareTestBase(utils.TestCase):
 class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
     @mock.patch.object(
         requests, 'request',
-        return_value=FakeResponse(GOOD_RESPONSE, status_code=200))
+        return_value=FakeResponse(EMPTY_RESPONSE, status_code=200))
     def test_protocol_old_versions(self, mock_request):
         req = webob.Request.blank('/test')
         req.GET['Signature'] = 'test-signature'
@@ -85,7 +84,7 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
         self.assertEqual(TOKEN_ID, req.headers['X-Auth-Token'])
 
         mock_request.assert_called_with(
-            'POST', 'http://localhost:5000/v2.0/ec2tokens',
+            'POST', 'http://localhost:5000/v3/ec2tokens',
             data=mock.ANY, headers={'Content-Type': 'application/json'},
             verify=True, cert=None)
 
@@ -105,7 +104,7 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
 
     @mock.patch.object(
         requests, 'request',
-        return_value=FakeResponse(GOOD_RESPONSE, status_code=200))
+        return_value=FakeResponse(EMPTY_RESPONSE, status_code=200))
     def test_protocol_v4(self, mock_request):
         req = webob.Request.blank('/test')
         auth_str = (
@@ -120,7 +119,7 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
         self.assertEqual(TOKEN_ID, req.headers['X-Auth-Token'])
 
         mock_request.assert_called_with(
-            'POST', 'http://localhost:5000/v2.0/ec2tokens',
+            'POST', 'http://localhost:5000/v3/ec2tokens',
             data=mock.ANY, headers={'Content-Type': 'application/json'},
             verify=True, cert=None)
 
