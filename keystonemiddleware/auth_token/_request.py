@@ -97,8 +97,8 @@ class _AuthTokenRequest(webob.Request):
     _ADMIN_PROJECT_HEADER = 'X-Is-Admin-Project'
 
     _SERVICE_CATALOG_HEADER = 'X-Service-Catalog'
-    _TOKEN_AUTH = 'keystone.token_auth'
-    _TOKEN_INFO = 'keystone.token_info'
+    _TOKEN_AUTH = 'keystone.token_auth'  # nosec
+    _TOKEN_INFO = 'keystone.token_info'  # nosec
 
     _CONFIRMED = 'Confirmed'
     _INVALID = 'Invalid'
