@@ -86,7 +86,7 @@ class Config(object):
         # local oslo.config object or the caller which instantiates
         # AuthProtocol can pass in an existing oslo.config as the
         # value of the "oslo_config_config" key in conf. If both are
-        # set "olso_config_config" is used.
+        # set "oslo_config_config" is used.
         if local_config_project and not local_oslo_config:
             config_files = [local_config_file] if local_config_file else None
 
