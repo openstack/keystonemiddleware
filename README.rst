@@ -28,7 +28,7 @@ For information on contributing, see ``CONTRIBUTING.rst``.
 
 * License: Apache License, Version 2.0
 * Documentation: https://docs.openstack.org/keystonemiddleware/latest/
-* Source: https://git.openstack.org/cgit/openstack/keystonemiddleware
+* Source: https://opendev.org/openstack/keystonemiddleware
 * Bugs: https://bugs.launchpad.net/keystonemiddleware
 * Release notes: https://docs.openstack.org/releasenotes/keystonemiddleware/
 
