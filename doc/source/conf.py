@@ -42,6 +42,7 @@ extensions = ['sphinx.ext.todo',
               'openstackdocstheme',
               'oslo_config.sphinxconfiggen',
               'sphinxcontrib.apidoc',
+              'sphinxcontrib.rsvgconverter',
              ]
 
 # sphinxcontrib.apidoc options
@@ -200,12 +201,24 @@ htmlhelp_basename = 'keystonemiddlewaredoc'
 # (source start file, target name, title, author, documentclass [howto/manual])
 # .
 latex_documents = [
-    ('index', 'keystonmiddleware.tex',
-     'keystonemiddleware Documentation',
-     'Nebula Inc, based on work by Rackspace and Jacob Kaplan-Moss',
+    ('index', 'doc-keystonemiddleware.tex',
+     u'keystonemiddleware Documentation',
+     u'Openstack Developers',
      'manual'),
 ]
 
+# Disable usage of xindy https://bugzilla.redhat.com/show_bug.cgi?id=1643664
+latex_use_xindy = False
+
+latex_domain_indices = False
+
+latex_elements = {
+    'extraclassoptions': 'openany',
+    'makeindex': '',
+    'printindex': '',
+    'preamble': r'\setcounter{tocdepth}{3}',
+    'maxlistdepth': 10,
+}
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #latex_logo = None
