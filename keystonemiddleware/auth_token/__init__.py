@@ -282,14 +282,14 @@ def _path_matches(request_path, path_pattern):
     # The fnmatch module doesn't provide the ability to match * versus **,
     # so convert to regex.
     token_regex = (r'(?P<tag>{[^}]*})|'  # {tag} # nosec
-                   '(?P<wild>\*(?=$|[^\*]))|'  # *
-                   '(?P<rec_wild>\*\*)|'  # **
-                   '(?P<literal>[^{}\*])')  # anything else
+                   r'(?P<wild>\*(?=$|[^\*]))|'  # *
+                   r'(?P<rec_wild>\*\*)|'  # **
+                   r'(?P<literal>[^{}\*])')  # anything else
     path_regex = ''
     for match in re.finditer(token_regex, path_pattern):
         token = match.groupdict()
         if token['tag'] or token['wild']:
-            path_regex += '[^\/]+'
+            path_regex += r'[^\/]+'
         if token['rec_wild']:
             path_regex += '.*'
         if token['literal']:
