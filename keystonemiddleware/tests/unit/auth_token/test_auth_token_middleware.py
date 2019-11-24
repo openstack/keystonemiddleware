@@ -22,7 +22,6 @@ from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import fixture
 from keystoneauth1 import loading
 from keystoneauth1 import session
-from keystoneclient import exceptions as ksc_exceptions
 import mock
 import oslo_cache
 from oslo_log import log as logging
@@ -1527,7 +1526,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         if request.headers.get('X-Subject-Token') == ERROR_TOKEN:
             msg = 'Network connection refused.'
-            raise ksc_exceptions.ConnectionRefused(msg)
+            raise ksa_exceptions.ConnectFailure(msg)
 
         # All others just fail
         context.status_code = 404
@@ -1951,7 +1950,7 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         if token_id == ERROR_TOKEN:
             msg = "Network connection refused."
-            raise ksc_exceptions.ConnectionRefused(msg)
+            raise ksa_exceptions.ConnectFailure(msg)
         elif token_id == TIMEOUT_TOKEN:
             request_timeout_response(request, context)
 
