@@ -31,7 +31,7 @@ from keystonemiddleware.i18n import _
 
 keystone_ec2_opts = [
     cfg.StrOpt('url',
-               default='http://localhost:5000/v2.0/ec2tokens',
+               default='http://localhost:5000/v3/ec2tokens',
                help='URL to get token from ec2 request.'),
     cfg.StrOpt('keyfile',
                help='Required if EC2 server requires client certificate.'),
@@ -185,13 +185,8 @@ class EC2Token(object):
             msg = _('Error response from keystone: %s') % response.reason
             self._logger.debug(msg)
             return self._ec2_error_response("AuthFailure", msg)
-        result = response.json()
         try:
-            if 'token' in result:
-                # NOTE(andrey-mp): response from keystone v3
-                token_id = response.headers['x-subject-token']
-            else:
-                token_id = result['access']['token']['id']
+            token_id = response.headers['x-subject-token']
         except (AttributeError, KeyError):
             msg = _("Failure parsing response from keystone")
             self._logger.exception(msg)

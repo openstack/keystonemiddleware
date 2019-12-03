@@ -1,0 +1,7 @@
+---
+other:
+  - |
+    [`bug 1845539 <https://bugs.launchpad.net/keystone/+bug/1845539>`_]
+    The ec2 'url' config option now defaults to
+    https://localhost:5000/v3/ec2tokens with the removal of ec2 v2.0 support.
+    Keystonemiddleware no longer supports ec2tokens using the v2.0 API.
