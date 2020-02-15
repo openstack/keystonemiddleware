@@ -84,7 +84,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
     def test_process_request_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        req.context = {}
+        req.environ['audit.context'] = {}
 
         self.create_simple_middleware()._process_request(req)
         self.assertTrue(self.notifier.notify.called)
@@ -92,7 +92,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
     def test_process_response_fail(self):
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        req.context = {}
+        req.environ['audit.context'] = {}
 
         middleware = self.create_simple_middleware()
         middleware._process_response(req, webob.response.Response())
@@ -147,7 +147,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
 
         req = webob.Request.blank('/foo/bar',
                                   environ=self.get_environ_header('GET'))
-        req.context = {}
+        req.environ['audit.context'] = {}
         self.notifier.notify.side_effect = Exception('error')
 
         middleware(req)
@@ -155,7 +155,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
 
         req2 = webob.Request.blank('/foo/bar',
                                    environ=self.get_environ_header('GET'))
-        req2.context = {}
+        req2.environ['audit.context'] = {}
         self.notifier.reset_mock()
 
         middleware._process_response(req2, webob.response.Response())
@@ -179,7 +179,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         req = webob.Request.blank(url,
                                   environ=self.get_environ_header('GET'),
                                   remote_addr='192.168.0.1')
-        req.context = {}
+        req.environ['audit.context'] = {}
         middleware._process_request(req)
         payload = req.environ['cadf_event'].as_dict()
         middleware._process_response(req, None)
@@ -197,7 +197,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         req = webob.Request.blank('http://admin_host:8774/v2/'
                                   + str(uuid.uuid4()) + '/servers',
                                   environ=self.get_environ_header('GET'))
-        req.context = {}
+        req.environ['audit.context'] = {}
         self.assertNotIn('cadf_event', req.environ)
 
         self.create_simple_middleware()._process_response(req,
