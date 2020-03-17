@@ -129,7 +129,7 @@ a WSGI component. Example for the auth_token middleware:
 
 .. literalinclude:: _static/keystonemiddleware.conf.sample
 
-If the ``auth_plugin`` configuration option is set, you may need to refer to
+If the ``auth_type`` configuration option is set, you may need to refer to
 the `Authentication Plugins <https://docs.openstack.org/keystoneauth/latest/
 authentication-plugins.html>`_ document for how to configure the auth_token
 middleware.
@@ -163,12 +163,12 @@ and set in ``nova.conf``:
     to use options in the [keystone_authtoken] section.
 
 The following is an example of a service's auth_token middleware configuration
-when ``auth_plugin`` is set to ``password``.
+when ``auth_type`` is set to ``password``.
 
 .. code-block:: ini
 
     [keystone_authtoken]
-    auth_plugin = password
+    auth_type = password
     project_domain_name = Default
     project_name = service
     user_domain_name = Default
@@ -178,9 +178,9 @@ when ``auth_plugin`` is set to ``password``.
     auth_url = http://127.0.0.1:5000
     # Any of the options that could be set in api-paste.ini can be set here.
 
-If using an ``auth_plugin``, connection to the Identity service will be
+If using an ``auth_type``, connection to the Identity service will be
 established on the ``interface`` as registered in the service catalog.
-In the case where you are using an ``auth_plugin`` and have multiple regions,
+In the case where you are using an ``auth_type`` and have multiple regions,
 also specify the ``region_name`` option to fetch the correct endpoint.
 
 If the service doesn't use the global oslo.config object (CONF), then the
