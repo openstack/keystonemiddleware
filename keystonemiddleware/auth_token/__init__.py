@@ -822,7 +822,7 @@ class AuthProtocol(BaseAuthProtocol):
         plugin_opts = loading.get_auth_plugin_conf_options(plugin_loader)
 
         self._conf.oslo_conf_obj.register_opts(plugin_opts, group=group)
-        getter = lambda opt: self._conf.get(opt.dest, group=group)
+        getter = lambda opt: self._conf.get(opt.dest, group=group)  # noqa
         return plugin_loader.load_from_options_getter(getter)
 
     def _create_session(self, **kwargs):
