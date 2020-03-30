@@ -82,7 +82,7 @@ if tuple(sys.version_info)[0:2] < (2, 7):
 class MiddlewareTestCase(BaseTestCase):
 
     def create_middleware(self, cb, **kwargs):
-        raise NotImplemented("implement this in your tests")
+        raise NotImplementedError("implement this in your tests")
 
     def create_simple_middleware(self,
                                  status='200 OK',
