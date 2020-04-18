@@ -11,10 +11,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
 import uuid
 
 import fixtures
-import mock
 import webob
 
 from keystonemiddleware.tests.unit.audit import base

@@ -11,8 +11,8 @@
 # under the License.
 
 import time
+from unittest import mock
 
-import mock
 from oslo_cache import _memcache_pool
 from six.moves import queue
 import testtools

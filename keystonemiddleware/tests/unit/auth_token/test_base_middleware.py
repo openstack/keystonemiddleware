@@ -11,10 +11,10 @@
 # under the License.
 
 import datetime
+from unittest import mock
 import uuid
 
 from keystoneauth1 import fixture
-import mock
 import testtools
 import webob
 

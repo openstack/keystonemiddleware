@@ -12,11 +12,11 @@
 
 import sys
 import time
+from unittest import mock
 import uuid
 import warnings
 
 import fixtures
-import mock
 from oslo_log import log as logging
 import oslotest.base as oslotest
 import requests
