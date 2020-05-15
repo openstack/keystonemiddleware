@@ -93,7 +93,7 @@ exclude_patterns = []
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -258,6 +258,6 @@ texinfo_documents = [
 locale_dirs = ['locale/']
 
 # -- Options for openstackdocstheme -------------------------------------------
-repository_name = 'openstack/keystonemiddleware'
-bug_project = 'keystonemiddleware'
-bug_tag = ''
+openstackdocs_repo_name = 'openstack/keystonemiddleware'
+openstackdocs_bug_project = 'keystonemiddleware'
+openstackdocs_bug_tag = ''
