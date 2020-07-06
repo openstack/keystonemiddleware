@@ -455,8 +455,8 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         west_versions = fixture.DiscoveryList(href=west_url)
 
         s = token.add_service('identity')
-        s.add_endpoint(interface='admin', url=east_url, region='east')
-        s.add_endpoint(interface='admin', url=west_url, region='west')
+        s.add_endpoint(interface='internal', url=east_url, region='east')
+        s.add_endpoint(interface='internal', url=west_url, region='west')
 
         self.requests_mock.get(auth_url, json=auth_versions)
         self.requests_mock.get(east_url, json=east_versions)
@@ -1808,7 +1808,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         admin_token_id = uuid.uuid4().hex
         admin_token = fixture.V3Token(project_id=self.project_id)
         s = admin_token.add_service('identity', name='keystone')
-        s.add_standard_endpoints(admin=self.KEYSTONE_URL)
+        s.add_standard_endpoints(internal=self.KEYSTONE_URL)
 
         self.requests_mock.post('%s/v3/auth/tokens' % self.AUTH_URL,
                                 json=admin_token,
