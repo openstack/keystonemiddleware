@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Add the feature to support SASL for keystonemiddleware to improve
+    the security of authority.
+    memcache_sasl_enabled: enable the SASL option or not.
+    memcache_username: the user name for the SASL
+    memcache_password: the user password for SASL

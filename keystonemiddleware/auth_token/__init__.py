@@ -878,6 +878,9 @@ class AuthProtocol(BaseAuthProtocol):
             unused_timeout=self._conf.get('memcache_pool_unused_timeout'),
             conn_get_timeout=self._conf.get('memcache_pool_conn_get_timeout'),
             socket_timeout=self._conf.get('memcache_pool_socket_timeout'),
+            sasl_enabled=self._conf.get('memcache_sasl_enabled'),
+            username=self._conf.get('memcache_username'),
+            password=self._conf.get('memcache_password'),
         )
 
         if security_strategy.lower() != 'none':

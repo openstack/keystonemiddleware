@@ -53,8 +53,11 @@ class _EnvCachePool(object):
 class _CachePool(list):
     """A lazy pool of cache references."""
 
-    def __init__(self, memcached_servers, log):
+    def __init__(self, memcached_servers, log, arguments):
         self._memcached_servers = memcached_servers
+        self._sasl_enabled = arguments.get("sasl_enabled", False)
+        self._username = arguments.get("username", None)
+        self._password = arguments.get("password", None)
         if not self._memcached_servers:
             log.warning(
                 "Using the in-process token cache is deprecated as of the "
@@ -74,8 +77,13 @@ class _CachePool(list):
         except IndexError:
             # the pool is empty, so we need to create a new client
             if self._memcached_servers:
-                import memcache
-                c = memcache.Client(self._memcached_servers, debug=0)
+                if self._sasl_enabled:
+                    import bmemcached
+                    c = bmemcached.Client(self._memcached_servers,
+                                          self._username, self._password)
+                else:
+                    import memcache
+                    c = memcache.Client(self._memcached_servers, debug=0)
             else:
                 c = _FakeClient()
 
@@ -89,12 +97,22 @@ class _MemcacheClientPool(object):
     """An advanced memcached client pool that is eventlet safe."""
 
     def __init__(self, memcache_servers, arguments, **kwargs):
-        # NOTE(sileht): This will import python-memcached, we don't want
-        # it as hard dependency, so lazy load it.
-        from oslo_cache import _memcache_pool
-        self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
-                                                       arguments,
-                                                       **kwargs)
+        # NOTE(sileht): This will import python-memcached and
+        # python-binary-memcached , we don't want it as hard
+        # dependency, so lazy load it.
+        self._sasl_enabled = arguments.pop("sasl_enabled", False)
+        if self._sasl_enabled:
+            from oslo_cache import _bmemcache_pool
+            self._pool = _bmemcache_pool.BMemcacheClientPool(memcache_servers,
+                                                             arguments,
+                                                             **kwargs)
+        else:
+            from oslo_cache import _memcache_pool
+            arguments.pop("username", None)
+            arguments.pop("password", None)
+            self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
+                                                           arguments,
+                                                           **kwargs)
 
     @contextlib.contextmanager
     def reserve(self):
@@ -133,7 +151,10 @@ class TokenCache(object):
         self._use_advanced_pool = use_advanced_pool
         self._arguments = {
             'dead_retry': dead_retry,
-            'socket_timeout': socket_timeout
+            'socket_timeout': socket_timeout,
+            'sasl_enabled': kwargs.pop("sasl_enabled", False),
+            'username': kwargs.pop("username", None),
+            'password': kwargs.pop("password", None)
         }
         self._memcache_pool_options = kwargs
 
@@ -157,7 +178,8 @@ class TokenCache(object):
                     "implementation from oslo.cache. This can be enabled"
                     "through config option memcache_use_advanced_pool = True")
 
-            return _CachePool(self._memcached_servers, self._LOG)
+            return _CachePool(self._memcached_servers, self._LOG,
+                              self._arguments)
 
     def initialize(self, env):
         if self._initialized:
