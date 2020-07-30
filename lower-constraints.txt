@@ -4,12 +4,12 @@ Babel==2.5.3
 bandit==1.1.0
 beautifulsoup4==4.6.0
 certifi==2018.1.18
-cffi==1.11.5
+cffi==1.14.0
 chardet==3.0.4
 cliff==2.11.0
 cmd2==0.8.1
 coverage==4.0
-cryptography==2.1
+cryptography==3.0
 debtcollector==1.19.0
 dogpile.cache==0.6.5
 dulwich==0.19.0
@@ -62,7 +62,7 @@ python-memcached==1.59
 python-mimeparse==1.6.0
 python-subunit==1.2.0
 pytz==2018.3
-PyYAML==3.12
+PyYAML==3.13
 requests-mock==1.2.0
 requests==2.14.2
 requestsexceptions==1.4.0
