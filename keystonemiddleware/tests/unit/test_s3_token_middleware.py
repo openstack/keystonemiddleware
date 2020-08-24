@@ -12,8 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+
 import fixtures
-import mock
 from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture

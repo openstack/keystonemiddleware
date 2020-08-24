@@ -15,6 +15,7 @@
 import datetime
 import os
 import time
+from unittest import mock
 import uuid
 
 import fixtures
@@ -22,7 +23,6 @@ from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import fixture
 from keystoneauth1 import loading
 from keystoneauth1 import session
-import mock
 import oslo_cache
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
