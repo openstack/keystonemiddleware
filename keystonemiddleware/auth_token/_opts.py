@@ -145,10 +145,9 @@ _OPTS = [
                help='(Optional) Number of seconds that an operation will wait '
                     'to get a memcached client connection from the pool.'),
     cfg.BoolOpt('memcache_use_advanced_pool',
-                default=False,
+                default=True,
                 help='(Optional) Use the advanced (eventlet safe) memcached '
-                     'client pool. The advanced pool will only work under '
-                     'python 2.x.'),
+                     'client pool.'),
     cfg.BoolOpt('include_service_catalog',
                 default=True,
                 help='(Optional) Indicate whether to set the X-Service-Catalog'

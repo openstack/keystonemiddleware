@@ -124,7 +124,7 @@ class TokenCache(object):
 
     def __init__(self, log, cache_time=None,
                  env_cache_name=None, memcached_servers=None,
-                 use_advanced_pool=False, dead_retry=None, socket_timeout=None,
+                 use_advanced_pool=True, dead_retry=None, socket_timeout=None,
                  **kwargs):
         self._LOG = log
         self._cache_time = cache_time
@@ -150,6 +150,13 @@ class TokenCache(object):
                                        **self._memcache_pool_options)
 
         else:
+            if not self._use_advanced_pool:
+                self._LOG.warning(
+                    "Using the eventlet-unsafe cache pool is deprecated."
+                    "It is recommended to use eventlet-safe cache pool"
+                    "implementation from oslo.cache. This can be enabled"
+                    "through config option memcache_use_advanced_pool = True")
+
             return _CachePool(self._memcached_servers, self._LOG)
 
     def initialize(self, env):

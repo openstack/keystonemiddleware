@@ -1,0 +1,22 @@
+---
+deprecations:
+  - |
+    We no longer recommend using the eventlet unsafe keystonemiddleware's
+    memcacheclientpool. This implementation may result in growing connections
+    to memcached.
+
+    It is recommended that the ``memcache_use_advanced_pool`` option
+    is set to ``True`` in the ``keystone_authtoken`` configuration section of
+    the various services (e.g. nova, glance, ...) when memcached is used for
+    token cache.
+upgrade:
+  - |
+    [`bug 1892852 <https://bugs.launchpad.net/keystonemiddleware/+bug/1892852>`_]
+    [`bug 1888394 <https://bugs.launchpad.net/oslo.cache/+bug/1888394>`_]
+    [`bug 1883659 <https://bugs.launchpad.net/keystonemiddleware/+bug/1883659>`_]
+    Keystonemiddleware now using eventlet-safe implementation of
+    ``MemcacheClientPool`` from oslo.cache's library by default.
+    The ``keystonemiddleware`` implementation is now deprecated. For backwards
+    compatibility, the ``[keystone_authtoken] memcache_use_advanced_pool``
+    option can be set to ``False`` config files of the various services (e.g.
+    nova, glance, ...) when memcached is used for token cache.
