@@ -92,7 +92,7 @@ class AuditMiddleware(object):
         self._application = app
         self._conf = config.Config('audit',
                                    AUDIT_MIDDLEWARE_GROUP,
-                                   _list_opts(),
+                                   list_opts(),
                                    conf)
         global _LOG
         _LOG = logging.getLogger(conf.get('log_name', __name__))
@@ -165,7 +165,7 @@ class AuditMiddleware(object):
         return response
 
 
-def _list_opts():
+def list_opts():
     """Return a list of oslo_config options available in audit middleware.
 
     The returned list includes all oslo_config options which may be registered
