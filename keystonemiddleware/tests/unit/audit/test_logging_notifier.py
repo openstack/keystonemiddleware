@@ -27,6 +27,8 @@ class TestLoggingNotifier(base.BaseAuditMiddlewareTest):
         super(TestLoggingNotifier, self).setUp()
 
     def test_api_request_no_messaging(self):
+        self.cfg.config(use_oslo_messaging=False,
+                        group='audit_middleware_notifications')
         app = self.create_simple_app()
 
         with mock.patch('keystonemiddleware.audit._LOG.info') as log:
