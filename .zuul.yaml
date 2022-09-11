@@ -6,7 +6,3 @@
       - check-requirements
       - lib-forward-testing-python3
       - release-notes-jobs-python3
-    check:
-      jobs:
-        - openstack-tox-lower-constraints:
-            voting: false
