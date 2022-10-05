@@ -595,25 +595,6 @@ class CommonAuthTokenMiddlewareTest(object):
         token = 'invalid-token'
         self.call_middleware(headers={'X-Auth-Token': token},
                              expected_status=401)
-        self.assertEqual(auth_token._CACHE_INVALID_INDICATOR,
-                         self._get_cached_token(token))
-
-    def test_memcache_hit_invalid_token(self):
-        token = 'invalid-token'
-        invalid_uri = '%s/v3/tokens/invalid-token' % BASE_URI
-        self.requests_mock.get(invalid_uri, status_code=404)
-
-        # Call once to cache token's invalid state; verify it cached as such
-        self.call_middleware(headers={'X-Auth-Token': token},
-                             expected_status=401)
-        self.assertEqual(auth_token._CACHE_INVALID_INDICATOR,
-                         self._get_cached_token(token))
-
-        # Call again for a cache hit; verify it detected as cached and invalid
-        self.call_middleware(headers={'X-Auth-Token': token},
-                             expected_status=401)
-        self.assertIn('Cached token is marked unauthorized',
-                      self.logger.output)
 
     def test_memcache_set_expired(self, extra_conf={}, extra_environ={}):
         token_cache_time = 10
