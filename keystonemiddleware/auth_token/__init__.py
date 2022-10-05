@@ -245,7 +245,6 @@ from keystonemiddleware.i18n import _
 
 
 _LOG = logging.getLogger(__name__)
-_CACHE_INVALID_INDICATOR = 'invalid'
 oslo_cache.configure(cfg.CONF)
 
 AUTH_TOKEN_OPTS = [
@@ -736,10 +735,6 @@ class AuthProtocol(BaseAuthProtocol):
             cached = self._token_cache.get(token)
 
             if cached:
-                if cached == _CACHE_INVALID_INDICATOR:
-                    self.log.debug('Cached token is marked unauthorized')
-                    raise ksm_exceptions.InvalidToken()
-
                 # NOTE(jamielennox): Cached values used to be stored as a tuple
                 # of data and expiry time. They no longer are but we have to
                 # allow some time to transition the old format so if it's a
@@ -769,7 +764,6 @@ class AuthProtocol(BaseAuthProtocol):
                 'The Keystone service is temporarily unavailable.')
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
-            self._token_cache.set(token, _CACHE_INVALID_INDICATOR)
             self.log.warning('Authorization failed for token')
             raise
         except ksa_exceptions.EndpointNotFound:
