@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    [`blueprint support-oauth2-mtls <https://blueprints.launchpad.net/keystone/+spec/support-oauth2-mtls>`_]
+    The oauth2_mtls_token filter has been added for accepting or denying
+    incoming requests containing OAuth 2.0 certificate-bound access tokens
+    that are obtained from keystone identity server by users through their
+    OAuth 2.0 credentials and Mutual-TLS certificates.
