@@ -3,14 +3,16 @@
 # process, which may cause wedges in the gate later.
 
 hacking>=3.0,<4.0.0 # Apache-2.0
-flake8-docstrings==0.2.1.post1 # MIT
+flake8-docstrings==1.6.0 # MIT
+pep8==1.7.1 # MIT
+
 
 coverage!=4.4,>=4.0 # Apache-2.0
 cryptography>=3.0 # BSD/Apache-2.0
 fixtures>=3.0.0 # Apache-2.0/BSD
 oslotest>=3.2.0 # Apache-2.0
-requests-mock>=1.2.0 # Apache-2.0
 stevedore>=1.20.0 # Apache-2.0
+requests-mock>=1.2.0 # Apache-2.0
 stestr>=2.0.0  # Apache-2.0
 testresources>=2.0.0 # Apache-2.0/BSD
 testtools>=2.2.0 # MIT

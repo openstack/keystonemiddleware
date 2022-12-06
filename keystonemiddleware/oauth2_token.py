@@ -35,12 +35,11 @@ class OAuth2Protocol(AuthProtocol):
         super(OAuth2Protocol, self).__init__(app, conf)
 
     def _is_valid_access_token(self, request):
-        """Check if the request contains an OAuth2.0 access token
+        """Check if the request contains an OAuth2.0 access token.
 
         :param request: Incoming request
         :type request: _request.AuthTokenRequest
         """
-
         access_token = None
         if (request.authorization and
                 request.authorization.authtype == 'Bearer'):
@@ -69,7 +68,6 @@ class OAuth2Protocol(AuthProtocol):
         :param request: Incoming request
         :type request: _request.AuthTokenRequest
         """
-
         request.remove_auth_headers()
         self._token_cache.initialize(request.environ)
         if (not self._is_valid_access_token(request)
@@ -96,7 +94,6 @@ class OAuth2Protocol(AuthProtocol):
 
 def filter_factory(global_conf, **local_conf):
     """Return a WSGI filter app for use with paste.deploy."""
-
     conf = global_conf.copy()
     conf.update(local_conf)
 
