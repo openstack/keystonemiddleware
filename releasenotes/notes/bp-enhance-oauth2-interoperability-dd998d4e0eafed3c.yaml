@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    [`blueprint enhance-oauth2-interoperability <https://blueprints.launchpad.net/keystone/+spec/enhance-oauth2-interoperability>`_]
+    The external_oauth2_token filter has been added for accepting or denying
+    incoming requests containing OAuth 2.0 access tokens that are obtained
+    from an external authorization server by users through their OAuth 2.0
+    credentials.
