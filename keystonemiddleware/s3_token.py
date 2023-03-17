@@ -33,11 +33,20 @@ This WSGI component:
 
 import webob
 
+from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import strutils
 import requests
 import six
+
+s3_opts = [
+    cfg.IntOpt('timeout', default=60,
+               help='Timeout to obtain token.'),
+]
+
+CONF = cfg.CONF
+CONF.register_opts(s3_opts, group='s3_token')
 
 PROTOCOL_NAME = 'S3 Token Authentication'
 
@@ -113,7 +122,8 @@ class S3Token(object):
         try:
             response = requests.post('%s/v2.0/s3tokens' % self._request_uri,
                                      headers=headers, data=creds_json,
-                                     verify=self._verify)
+                                     verify=self._verify,
+                                     timeout=CONF.s3_token.timeout)
         except requests.exceptions.RequestException as e:
             self._logger.info('HTTP connection exception: %s', e)
             resp = self._deny_request('InvalidURI')
