@@ -44,6 +44,8 @@ keystone_ec2_opts = [
                     'CAs.'),
     cfg.BoolOpt('insecure', default=False,
                 help='Disable SSL certificate verification.'),
+    cfg.IntOpt('timeout', default=60,
+               help='Timeout to obtain token.'),
 ]
 
 CONF = cfg.CONF
@@ -172,9 +174,10 @@ class EC2Token(object):
         elif CONF.keystone_ec2_token.certfile:
             cert = CONF.keystone_ec2_token.certfile
 
-        response = requests.request('POST', CONF.keystone_ec2_token.url,
-                                    data=creds_json, headers=headers,
-                                    verify=verify, cert=cert)
+        response = requests.post(CONF.keystone_ec2_token.url,
+                                 data=creds_json, headers=headers,
+                                 verify=verify, cert=cert,
+                                 timeout=CONF.keystone_ec2_token.timeout)
 
         # NOTE(vish): We could save a call to keystone by
         #             having keystone return token, tenant,
