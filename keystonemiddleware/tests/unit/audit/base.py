@@ -77,8 +77,8 @@ class BaseAuditMiddlewareTest(utils.MiddlewareTestCase):
                                            "publicURL":
                                            "http://public_host:8774",
                                            "internalURL":
-                                           "http://internal_host:8774",
-                                           "id": "resource_id"}],
+                                           "http://internal_host:8774"}],
+                            "id": "resource_id",
                             "type": "compute",
                             "name": "nova"}]""",
             "HTTP_X_USER_ID": "user_id",
