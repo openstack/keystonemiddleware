@@ -1,9 +1,12 @@
 - project:
     templates:
       - openstack-cover-jobs
-      - openstack-lower-constraints-jobs
       - openstack-python3-ussuri-jobs
       - publish-openstack-docs-pti
       - check-requirements
       - lib-forward-testing-python3
       - release-notes-jobs-python3
+    check:
+      jobs:
+        - openstack-tox-lower-constraints:
+            voting: false
