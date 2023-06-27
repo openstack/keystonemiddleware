@@ -1,11 +1,5 @@
-# The order of packages is significant, because pip processes them in the order
-# of appearance. Changing the order has an impact on the overall integration
-# process, which may cause wedges in the gate later.
-
-hacking>=3.0,<4.0.0 # Apache-2.0
-flake8-docstrings==1.6.0 # MIT
-pep8==1.7.1 # MIT
-
+hacking~=6.0.1 # Apache-2.0
+flake8-docstrings~=1.7.0 # MIT
 
 coverage!=4.4,>=4.0 # Apache-2.0
 cryptography>=3.0 # BSD/Apache-2.0

@@ -87,7 +87,8 @@ class OpenStackAuditApi(object):
         if cfg_file:
             try:
                 map_conf = _ConfigParser()
-                map_conf.read_file(open(cfg_file))
+                with open(cfg_file) as fh:
+                    map_conf.read_file(fh)
 
                 try:
                     default_target_endpoint_type = map_conf.get(

@@ -88,6 +88,5 @@ class AuditNotifierConfigTest(base.BaseAuditMiddlewareTest):
         audit_middleware = self.create_simple_middleware()
 
         # make sure it is using a local notifier instead of oslo_messaging
-        self.assertTrue(
-            isinstance(audit_middleware._notifier,
-                       audit._notifier._LogNotifier))
+        self.assertIsInstance(audit_middleware._notifier,
+                              audit._notifier._LogNotifier)
