@@ -73,7 +73,7 @@ class EC2TokenMiddlewareTestBase(utils.TestCase):
 
 class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
     @mock.patch.object(
-        requests, 'request',
+        requests, 'post',
         return_value=FakeResponse(EMPTY_RESPONSE, status_code=200))
     def test_protocol_old_versions(self, mock_request):
         req = webob.Request.blank('/test')
@@ -85,9 +85,9 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
         self.assertEqual(TOKEN_ID, req.headers['X-Auth-Token'])
 
         mock_request.assert_called_with(
-            'POST', 'http://localhost:5000/v3/ec2tokens',
+            'http://localhost:5000/v3/ec2tokens',
             data=mock.ANY, headers={'Content-Type': 'application/json'},
-            verify=True, cert=None)
+            verify=True, cert=None, timeout=mock.ANY)
 
         data = jsonutils.loads(mock_request.call_args[1]['data'])
         expected_data = {
@@ -104,7 +104,7 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
         self.assertDictEqual(expected_data, data)
 
     @mock.patch.object(
-        requests, 'request',
+        requests, 'post',
         return_value=FakeResponse(EMPTY_RESPONSE, status_code=200))
     def test_protocol_v4(self, mock_request):
         req = webob.Request.blank('/test')
@@ -120,9 +120,9 @@ class EC2TokenMiddlewareTestGood(EC2TokenMiddlewareTestBase):
         self.assertEqual(TOKEN_ID, req.headers['X-Auth-Token'])
 
         mock_request.assert_called_with(
-            'POST', 'http://localhost:5000/v3/ec2tokens',
+            'http://localhost:5000/v3/ec2tokens',
             data=mock.ANY, headers={'Content-Type': 'application/json'},
-            verify=True, cert=None)
+            verify=True, cert=None, timeout=mock.ANY)
 
         data = jsonutils.loads(mock_request.call_args[1]['data'])
         expected_data = {
@@ -154,28 +154,30 @@ class EC2TokenMiddlewareTestBad(EC2TokenMiddlewareTestBase):
         resp = req.get_response(self.middleware)
         self._validate_ec2_error(resp, 400, 'AuthFailure')
 
-    @mock.patch.object(requests,
-                       'request',
-                       return_value=FakeResponse(EMPTY_RESPONSE))
+    @mock.patch.object(
+        requests, 'post',
+        return_value=FakeResponse(EMPTY_RESPONSE))
     def test_communication_failure(self, mock_request):
         req = webob.Request.blank('/test')
         req.GET['Signature'] = 'test-signature'
         req.GET['AWSAccessKeyId'] = 'test-key-id'
         resp = req.get_response(self.middleware)
         self._validate_ec2_error(resp, 400, 'AuthFailure')
-        mock_request.assert_called_with('POST', mock.ANY,
-                                        data=mock.ANY, headers=mock.ANY,
-                                        verify=mock.ANY, cert=mock.ANY)
+        mock_request.assert_called_with(
+            'http://localhost:5000/v3/ec2tokens',
+            data=mock.ANY, headers=mock.ANY,
+            verify=mock.ANY, cert=mock.ANY, timeout=mock.ANY)
 
-    @mock.patch.object(requests,
-                       'request',
-                       return_value=FakeResponse(EMPTY_RESPONSE))
+    @mock.patch.object(
+        requests, 'post',
+        return_value=FakeResponse(EMPTY_RESPONSE))
     def test_no_result_data(self, mock_request):
         req = webob.Request.blank('/test')
         req.GET['Signature'] = 'test-signature'
         req.GET['AWSAccessKeyId'] = 'test-key-id'
         resp = req.get_response(self.middleware)
         self._validate_ec2_error(resp, 400, 'AuthFailure')
-        mock_request.assert_called_with('POST', mock.ANY,
-                                        data=mock.ANY, headers=mock.ANY,
-                                        verify=mock.ANY, cert=mock.ANY)
+        mock_request.assert_called_with(
+            'http://localhost:5000/v3/ec2tokens',
+            data=mock.ANY, headers=mock.ANY,
+            verify=mock.ANY, cert=mock.ANY, timeout=mock.ANY)
