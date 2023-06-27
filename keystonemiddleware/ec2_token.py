@@ -23,7 +23,6 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import requests
-import six
 import webob.dec
 
 from keystonemiddleware.i18n import _
@@ -75,8 +74,7 @@ class EC2Token(object):
                         '<Response><Errors><Error><Code>%s</Code>'
                         '<Message>%s</Message></Error></Errors></Response>' %
                         (code, message))
-        if six.PY3:
-            error_msg = error_msg.encode()
+        error_msg = error_msg.encode()
         resp.body = error_msg
         return resp
 
@@ -141,10 +139,9 @@ class EC2Token(object):
             auth_params.pop('Signature', None)
 
         headers = req.headers
-        if six.PY3:
-            # NOTE(andrey-mp): jsonutils dumps it as list of keys without
-            # conversion instead real dict
-            headers = {k: headers[k] for k in headers}
+        # NOTE(andrey-mp): jsonutils dumps it as list of keys without
+        # conversion instead real dict
+        headers = {k: headers[k] for k in headers}
         cred_dict = {
             'access': access,
             'signature': signature,

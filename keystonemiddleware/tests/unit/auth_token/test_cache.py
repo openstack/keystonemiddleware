@@ -13,7 +13,6 @@
 import uuid
 
 import fixtures
-import six
 
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as exc
@@ -114,7 +113,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'memcache_secret_key': 'mysecret'
         }
 
-        token = six.b(uuid.uuid4().hex)
+        token = uuid.uuid4().hex.encode()
         data = uuid.uuid4().hex
 
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
@@ -130,7 +129,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'memcache_secret_key': 'mysecret'
         }
 
-        token = six.b(uuid.uuid4().hex)
+        token = uuid.uuid4().hex.encode()
         data = uuid.uuid4().hex
 
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
@@ -145,7 +144,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'memcache_secret_key': 'mysecret'
         }
 
-        token = six.b(uuid.uuid4().hex)
+        token = uuid.uuid4().hex.encode()
         data = uuid.uuid4().hex
 
         token_cache = self.create_simple_middleware(conf=conf)._token_cache
@@ -159,7 +158,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'memcache_use_advanced_pool': True
         }
 
-        token = six.b(uuid.uuid4().hex)
+        token = uuid.uuid4().hex.encode()
         data = uuid.uuid4().hex
 
         token_cache = self.create_simple_middleware(conf=conf)._token_cache

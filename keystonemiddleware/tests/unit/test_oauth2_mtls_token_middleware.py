@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import http.client as http_client
 import json
 import logging
 import ssl
@@ -21,8 +22,6 @@ import webob.dec
 
 import fixtures
 from oslo_config import cfg
-import six
-from six.moves import http_client
 import testresources
 
 from keystoneauth1 import access
@@ -132,7 +131,7 @@ class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         resp = req.get_response(middleware)
         self.assertEqual(expected_status, resp.status_int)
         if expected_body_string:
-            self.assertIn(expected_body_string, six.text_type(resp.body))
+            self.assertIn(expected_body_string, str(resp.body))
         resp.request = req
         return resp
 

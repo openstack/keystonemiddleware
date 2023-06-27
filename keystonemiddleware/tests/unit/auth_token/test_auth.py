@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import io
 import uuid
 
 from keystoneauth1 import fixture
@@ -17,7 +18,6 @@ from keystoneauth1 import plugin as ksa_plugin
 from keystoneauth1 import session
 from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
-import six
 
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.tests.unit import utils
@@ -47,7 +47,7 @@ class DefaultAuthPluginTests(utils.BaseTestCase):
     def setUp(self):
         super(DefaultAuthPluginTests, self).setUp()
 
-        self.stream = six.StringIO()
+        self.stream = io.StringIO()
         self.logger = logging.getLogger(__name__)
         self.session = session.Session()
         self.requests_mock = self.useFixture(rm_fixture.Fixture())

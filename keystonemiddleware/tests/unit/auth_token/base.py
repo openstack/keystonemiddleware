@@ -10,13 +10,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import http.client as http_client
+
 import fixtures
 from oslo_config import cfg
 from oslo_config import fixture as cfg_fixture
 from oslo_log import log as logging
 from requests_mock.contrib import fixture as rm_fixture
-import six
-from six.moves import http_client
 import webob.dec
 
 from keystonemiddleware import auth_token
@@ -60,6 +60,6 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
         resp = req.get_response(middleware)
         self.assertEqual(expected_status, resp.status_int)
         if expected_body_string:
-            self.assertIn(expected_body_string, six.text_type(resp.body))
+            self.assertIn(expected_body_string, str(resp.body))
         resp.request = req
         return resp

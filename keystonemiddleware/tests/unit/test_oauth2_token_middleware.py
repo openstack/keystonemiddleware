@@ -13,14 +13,13 @@
 # under the License.
 
 import fixtures
+import http.client as http_client
 import logging
-import six
 import testresources
 import uuid
 import webob.dec
 
 from oslo_config import cfg
-from six.moves import http_client
 
 from keystoneauth1 import exceptions as ksa_exceptions
 
@@ -118,7 +117,7 @@ class BaseOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase):
         resp = req.get_response(middleware)
         self.assertEqual(expected_status, resp.status_int)
         if expected_body_string:
-            self.assertIn(expected_body_string, six.text_type(resp.body))
+            self.assertIn(expected_body_string, str(resp.body))
         resp.request = req
         return resp
 

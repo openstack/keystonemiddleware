@@ -15,7 +15,6 @@ import hashlib
 
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
-import six
 
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
@@ -28,7 +27,7 @@ def _hash_key(key):
     Using a known-length cache key is important to ensure that memcache
     maximum key length is not exceeded causing failures to validate.
     """
-    if isinstance(key, six.text_type):
+    if isinstance(key, str):
         # NOTE(morganfainberg): Ensure we are always working with a bytes
         # type required for the hasher. In python 2.7 it is possible to
         # get a text_type (unicode). In python 3.4 all strings are
@@ -236,11 +235,11 @@ class TokenCache(object):
         if serialized is None:
             return None
 
-        if isinstance(serialized, six.text_type):
+        if isinstance(serialized, str):
             serialized = serialized.encode('utf8')
         data = self._deserialize(serialized, context)
 
-        if not isinstance(data, six.string_types):
+        if not isinstance(data, str):
             data = data.decode('utf-8')
 
         return jsonutils.loads(data)
@@ -248,7 +247,7 @@ class TokenCache(object):
     def set(self, token_id, data):
         """Store value into memcache."""
         data = jsonutils.dumps(data)
-        if isinstance(data, six.text_type):
+        if isinstance(data, str):
             data = data.encode('utf-8')
 
         cache_key, context = self._get_cache_key(token_id)
@@ -273,9 +272,9 @@ class SecureTokenCache(TokenCache):
                     'memcache_security_strategy is defined')
             raise exc.ConfigurationError(msg)
 
-        if isinstance(security_strategy, six.string_types):
+        if isinstance(security_strategy, str):
             security_strategy = security_strategy.encode('utf-8')
-        if isinstance(secret_key, six.string_types):
+        if isinstance(secret_key, str):
             secret_key = secret_key.encode('utf-8')
 
         self._security_strategy = security_strategy

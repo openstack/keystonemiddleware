@@ -28,7 +28,6 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import pbr.version
-import six
 import testresources
 from testtools import matchers
 import webob
@@ -129,7 +128,7 @@ class TimeFixture(fixtures.Fixture):
 
     def __init__(self, new_time, normalize=True):
         super(TimeFixture, self).__init__()
-        if isinstance(new_time, six.string_types):
+        if isinstance(new_time, str):
             new_time = timeutils.parse_isotime(new_time)
         if normalize:
             new_time = timeutils.normalize_time(new_time)
@@ -313,11 +312,11 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         self.middleware._app.expected_env.update(expected_env)
 
     def purge_token_expected_env(self):
-        for key in six.iterkeys(self.token_expected_env):
+        for key in self.token_expected_env.keys():
             del self.middleware._app.expected_env[key]
 
     def purge_service_token_expected_env(self):
-        for key in six.iterkeys(self.service_token_expected_env):
+        for key in self.service_token_expected_env.keys():
             del self.middleware._app.expected_env[key]
 
     def assertLastPath(self, path):
@@ -1349,7 +1348,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
                                                    body=body,
                                                    conf=conf)
         resp = self.call(middleware, expected_status=401)
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         self.assertEqual('Keystone uri="%s"' % www_authenticate_uri,
                          resp.headers['WWW-Authenticate'])
@@ -1387,7 +1386,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         middleware = self.create_simple_middleware(body=body, conf=conf)
         resp = self.call(middleware)
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         token_auth = resp.request.environ['keystone.token_auth']
 
@@ -1414,7 +1413,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         middleware = self.create_simple_middleware(body=body, conf=conf)
         resp = self.call(middleware, headers={
             'X-Auth-Token': 'non-keystone-token'})
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         token_auth = resp.request.environ['keystone.token_auth']
 
@@ -1441,7 +1440,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
         middleware = self.create_simple_middleware(body=body, conf=conf)
         resp = self.call(middleware, headers={'X-Auth-Token': ERROR_TOKEN})
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         token_auth = resp.request.environ['keystone.token_auth']
 
@@ -1504,7 +1503,7 @@ class CommonCompositeAuthTests(object):
         # Check arbitrary headers not removed
         req.headers['X-Foo'] = 'Bar'
         resp = req.get_response(self.middleware)
-        for key in six.iterkeys(self.service_token_expected_env):
+        for key in self.service_token_expected_env.keys():
             header_key = key[len('HTTP_'):].replace('_', '-')
             self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
@@ -1581,7 +1580,7 @@ class CommonCompositeAuthTests(object):
         # Check arbitrary headers not removed
         req.headers['X-Foo'] = 'Bar'
         resp = req.get_response(self.middleware)
-        for key in six.iterkeys(self.service_token_expected_env):
+        for key in self.service_token_expected_env.keys():
             header_key = key[len('HTTP_'):].replace('_', '-')
             self.assertFalse(req.headers.get(header_key))
         self.assertEqual('Bar', req.headers.get('X-Foo'))
@@ -1836,7 +1835,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         app = self.create_simple_middleware(body=body)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
     @staticmethod
     def get_plugin(app):
@@ -1878,7 +1877,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         app = self.create_simple_middleware(body=body, conf=conf)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         plugin = self.get_plugin(app)
 
@@ -1916,7 +1915,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         app = self.create_simple_middleware(body=body, conf=conf)
 
         resp = self.good_request(app)
-        self.assertEqual(six.b(body), resp.body)
+        self.assertEqual(body.encode(), resp.body)
 
         plugin = self.get_plugin(app)
 

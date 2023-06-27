@@ -33,7 +33,6 @@ import hashlib
 import hmac
 import math
 import os
-import six
 
 from keystonemiddleware.i18n import _
 from oslo_utils import secretutils
@@ -99,13 +98,13 @@ def derive_keys(token, secret, strategy):
     This approach is faster than computing a separate hmac as the KDF
     for each desired key.
     """
-    if not isinstance(secret, six.binary_type):
+    if not isinstance(secret, bytes):
         secret = secret.encode()
 
-    if not isinstance(token, six.binary_type):
+    if not isinstance(token, bytes):
         token = token.encode()
 
-    if not isinstance(strategy, six.binary_type):
+    if not isinstance(strategy, bytes):
         strategy = strategy.encode()
 
     digest = hmac.new(secret, token + strategy, HASH_FUNCTION).digest()
@@ -117,10 +116,10 @@ def derive_keys(token, secret, strategy):
 
 def sign_data(key, data):
     """Sign the data using the defined function and the derived key."""
-    if not isinstance(key, six.binary_type):
+    if not isinstance(key, bytes):
         key = key.encode()
 
-    if not isinstance(data, six.binary_type):
+    if not isinstance(data, bytes):
         data = data.encode()
 
     mac = hmac.new(key, data, HASH_FUNCTION).digest()

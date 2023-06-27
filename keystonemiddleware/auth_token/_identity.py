@@ -10,11 +10,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import urllib.parse
+
 from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import plugin
 from keystoneclient.v3 import client as v3_client
-from six.moves import urllib
 
 from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions

@@ -16,7 +16,6 @@ from unittest import mock
 
 from oslo_serialization import jsonutils
 import requests
-import six
 import webob
 
 from keystonemiddleware import ec2_token
@@ -65,9 +64,7 @@ class EC2TokenMiddlewareTestBase(utils.TestCase):
         self.assertEqual(http_status, response.status_code,
                          'Expected HTTP status %s' % http_status)
         error_msg = '<Code>%s</Code>' % ec2_code
-        if six.PY3:
-            # encode error message like main code
-            error_msg = error_msg.encode()
+        error_msg = error_msg.encode()
         self.assertIn(error_msg, response.body)
 
 

@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
+import struct
 
 from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.tests.unit import utils
@@ -41,10 +41,11 @@ class MemcacheCryptPositiveTests(utils.BaseTestCase):
         self.assertEqual(len(sig), memcache_crypt.DIGEST_LENGTH_B64)
 
     def test_encryption(self):
+        int2byte = struct.Struct(">B").pack
         keys = self._setup_keys(b'ENCRYPT')
         # what you put in is what you get out
         for data in [b'data', b'1234567890123456', b'\x00\xFF' * 13
-                     ] + [six.int2byte(x % 256) * x for x in range(768)]:
+                     ] + [int2byte(x % 256) * x for x in range(768)]:
             crypt = memcache_crypt.encrypt_data(keys['ENCRYPTION'], data)
             decrypt = memcache_crypt.decrypt_data(keys['ENCRYPTION'], crypt)
             self.assertEqual(data, decrypt)

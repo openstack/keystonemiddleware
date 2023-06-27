@@ -10,11 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import queue
 import time
 from unittest import mock
 
 from oslo_cache import _memcache_pool
-from six.moves import queue
 import testtools
 from testtools import matchers
 

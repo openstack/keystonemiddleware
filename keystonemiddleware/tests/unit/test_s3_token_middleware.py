@@ -13,13 +13,12 @@
 # under the License.
 
 from unittest import mock
+import urllib.parse
 
 import fixtures
 from oslo_serialization import jsonutils
 import requests
 from requests_mock.contrib import fixture as rm_fixture
-import six
-from six.moves import urllib
 from testtools import matchers
 import webob
 
@@ -129,9 +128,7 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         self.middleware = (
             s3_token.filter_factory({'insecure': 'True'})(FakeApp()))
 
-        text_return_value = jsonutils.dumps(GOOD_RESPONSE)
-        if six.PY3:
-            text_return_value = text_return_value.encode()
+        text_return_value = jsonutils.dumps(GOOD_RESPONSE).encode()
         MOCK_REQUEST.return_value = utils.TestResponse({
             'status_code': 201,
             'text': text_return_value})

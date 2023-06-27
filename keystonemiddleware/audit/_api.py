@@ -11,6 +11,7 @@
 # under the License.
 
 import collections
+import configparser
 import re
 
 from oslo_log import log as logging
@@ -24,18 +25,7 @@ from pycadf import host
 from pycadf import identifier
 from pycadf import resource
 from pycadf import tag
-import six
-from six.moves import configparser
-from six.moves.urllib import parse as urlparse
-
-# NOTE(blk-u): Compatibility for Python 2. SafeConfigParser and
-# SafeConfigParser.readfp are deprecated in Python 3. Remove this when we drop
-# support for Python 2.
-if six.PY2:
-    class _ConfigParser(configparser.SafeConfigParser):
-        read_file = configparser.SafeConfigParser.readfp
-else:
-    _ConfigParser = configparser.ConfigParser
+from urllib import parse as urlparse
 
 
 Service = collections.namedtuple('Service',
@@ -86,7 +76,7 @@ class OpenStackAuditApi(object):
 
         if cfg_file:
             try:
-                map_conf = _ConfigParser()
+                map_conf = configparser.ConfigParser()
                 with open(cfg_file) as fh:
                     map_conf.read_file(fh)
 
