@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    [`blueprint enhance-oauth2-interoperability <https://blueprints.launchpad.net/keystone/+spec/enhance-oauth2-interoperability>`_]
+    Added the ability to authenticate using a system-scoped token and the
+    ability to authenticate using a cached token to the external_oauth2_token
+    filter.
