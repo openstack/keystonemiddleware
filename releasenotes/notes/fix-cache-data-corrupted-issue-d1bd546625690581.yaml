@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    In situation of encryption using memcached. Its possible that data
+    in memcached becomes un-decryptable. The previous implementation
+    of token cache was not correctly handling the case.

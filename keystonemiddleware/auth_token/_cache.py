@@ -239,6 +239,10 @@ class TokenCache(object):
             serialized = serialized.encode('utf8')
         data = self._deserialize(serialized, context)
 
+        if data is None:
+            # In case decryption fails, e.g. data corrupted in memcached.
+            return None
+
         if not isinstance(data, str):
             data = data.decode('utf-8')
 
