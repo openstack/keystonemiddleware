@@ -295,6 +295,8 @@ class SecureTokenCache(TokenCache):
         try:
             # unprotect_data will return None if raw_cached is None
             return memcache_crypt.unprotect_data(context, data)
+        except memcache_crypt.InvalidMacError as e:
+            self._LOG.info("Unable to deserialize, %s", e)
         except Exception:
             msg = 'Failed to decrypt/verify cache data'
             self._LOG.exception(msg)

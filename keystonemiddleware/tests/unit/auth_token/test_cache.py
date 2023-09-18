@@ -17,6 +17,7 @@ from unittest import mock
 
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as exc
+from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import utils
 
@@ -125,7 +126,8 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
     @mock.patch("keystonemiddleware.auth_token._memcache_crypt.unprotect_data")
     def test_corrupted_cache_data(self, mocked_decrypt_data):
-        mocked_decrypt_data.side_effect = Exception("corrupted")
+        mocked_decrypt_data.side_effect = memcache_crypt.InvalidMacError(
+            "corrupted")
 
         conf = {
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
