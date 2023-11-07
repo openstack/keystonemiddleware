@@ -32,6 +32,7 @@ from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
 
 from keystonemiddleware._common import config
+from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.exceptions import ConfigurationError
 from keystonemiddleware.exceptions import KeystoneMiddlewareException
 from keystonemiddleware.i18n import _
@@ -124,6 +125,62 @@ _EXTERNAL_AUTH2_OPTS = [
     cfg.StrOpt('mapping_roles',
                help='Specifies the method for obtaining the list of roles in '
                     'a project or domain owned by the user.'),
+    cfg.StrOpt('mapping_system_scope',
+               help='Specifies the method for obtaining the scope information '
+                    'indicating whether a token is system-scoped.'),
+    cfg.StrOpt('mapping_expires_at',
+               help='Specifies the method for obtaining the token expiration '
+                    'time.'),
+    cfg.ListOpt('memcached_servers',
+                deprecated_name='memcache_servers',
+                help='Optionally specify a list of memcached server(s) to '
+                     'use for caching. If left undefined, tokens will '
+                     'instead be cached in-process.'),
+    cfg.IntOpt('token_cache_time',
+               default=300,
+               help='In order to prevent excessive effort spent validating '
+                    'tokens, the middleware caches previously-seen tokens '
+                    'for a configurable duration (in seconds). Set to -1 to '
+                    'disable caching completely.'),
+    cfg.StrOpt('memcache_security_strategy',
+               default='None',
+               choices=('None', 'MAC', 'ENCRYPT'),
+               ignore_case=True,
+               help='(Optional) If defined, indicate whether token data '
+                    'should be authenticated or authenticated and encrypted. '
+                    'If MAC, token data is authenticated (with HMAC) in the '
+                    'cache. If ENCRYPT, token data is encrypted and '
+                    'authenticated in the cache. If the value is not one of '
+                    'these options or empty, auth_token will raise an '
+                    'exception on initialization.'),
+    cfg.StrOpt('memcache_secret_key',
+               secret=True,
+               help='(Optional, mandatory if memcache_security_strategy is '
+                    'defined) This string is used for key derivation.'),
+    cfg.IntOpt('memcache_pool_dead_retry',
+               default=5 * 60,
+               help='(Optional) Number of seconds memcached server is '
+                    'considered dead before it is tried again.'),
+    cfg.IntOpt('memcache_pool_maxsize',
+               default=10,
+               help='(Optional) Maximum total number of open connections to '
+                    'every memcached server.'),
+    cfg.IntOpt('memcache_pool_socket_timeout',
+               default=3,
+               help='(Optional) Socket timeout in seconds for communicating '
+                    'with a memcached server.'),
+    cfg.IntOpt('memcache_pool_unused_timeout',
+               default=60,
+               help='(Optional) Number of seconds a connection to memcached '
+                    'is held unused in the pool before it is closed.'),
+    cfg.IntOpt('memcache_pool_conn_get_timeout',
+               default=10,
+               help='(Optional) Number of seconds that an operation will wait '
+                    'to get a memcached client connection from the pool.'),
+    cfg.BoolOpt('memcache_use_advanced_pool',
+                default=True,
+                help='(Optional) Use the advanced (eventlet safe) memcached '
+                     'client pool.')
 ]
 
 cfg.CONF.register_opts(_EXTERNAL_AUTH2_OPTS,
@@ -296,13 +353,13 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
             raise ConfigurationError(_('Configuration error. The JWT key file '
                                        'content is empty.'))
 
-        ita = round(time.time())
+        iat = round(time.time())
         try:
             client_assertion = jwt.encode(
                 payload={
                     'jti': str(uuid.uuid4()),
-                    'iat': str(ita),
-                    'exp': str(ita + self.jwt_bearer_time_out),
+                    'iat': str(iat),
+                    'exp': str(iat + self.jwt_bearer_time_out),
                     'iss': self.client_id,
                     'sub': self.client_id,
                     'aud': self.audience},
@@ -438,6 +495,7 @@ class ExternalAuth2Protocol(object):
                                    _EXT_AUTH_CONFIG_GROUP_NAME,
                                    all_opts,
                                    conf)
+        self._token_cache = self._token_cache_factory()
 
         self._session = self._create_session()
         self._audience = self._get_config_option('audience', is_required=True)
@@ -451,6 +509,30 @@ class ExternalAuth2Protocol(object):
             self._auth_method, self._session, self._introspect_endpoint,
             self._audience, self._client_id,
             self._get_config_option, self._log)
+
+    def _token_cache_factory(self):
+        security_strategy = self._conf.get('memcache_security_strategy')
+        cache_kwargs = dict(
+            cache_time=int(self._conf.get('token_cache_time')),
+            memcached_servers=self._conf.get('memcached_servers'),
+            use_advanced_pool=self._conf.get(
+                'memcache_use_advanced_pool'),
+            dead_retry=self._conf.get('memcache_pool_dead_retry'),
+            maxsize=self._conf.get('memcache_pool_maxsize'),
+            unused_timeout=self._conf.get(
+                'memcache_pool_unused_timeout'),
+            conn_get_timeout=self._conf.get(
+                'memcache_pool_conn_get_timeout'),
+            socket_timeout=self._conf.get(
+                'memcache_pool_socket_timeout'),
+        )
+        if security_strategy.lower() != 'none':
+            secret_key = self._conf.get('memcache_secret_key')
+            return _cache.SecureTokenCache(self._log,
+                                           security_strategy,
+                                           secret_key,
+                                           **cache_kwargs)
+        return _cache.TokenCache(self._log, **cache_kwargs)
 
     @webob.dec.wsgify()
     def __call__(self, req):
@@ -475,6 +557,7 @@ class ExternalAuth2Protocol(object):
                 self._log.info('Unable to obtain the access token.')
                 raise InvalidToken(_('Unable to obtain the access token.'))
 
+            self._token_cache.initialize(request.environ)
             token_data = self._fetch_token(access_token)
 
             if (self._get_config_option('thumbprint_verify',
@@ -610,6 +693,30 @@ class ExternalAuth2Protocol(object):
         authorization server.
         """
         try:
+            cached = self._token_cache.get(access_token)
+            if cached:
+                self._log.debug('The cached token: %s' % cached)
+                if (not isinstance(cached, dict)
+                        or 'origin_token_metadata' not in cached):
+                    self._log.warning('The cached data is invalid. %s' %
+                                      cached)
+                    raise InvalidToken(_('The token is invalid.'))
+                origin_token_metadata = cached.get('origin_token_metadata')
+                if not origin_token_metadata.get('active'):
+                    self._log.warning('The cached data is invalid. %s' %
+                                      cached)
+                    raise InvalidToken(_('The token is invalid.'))
+                expire_at = self._read_data_from_token(
+                    origin_token_metadata, 'mapping_expires_at',
+                    is_required=False, value_type=int)
+                if expire_at:
+                    if int(expire_at) < int(time.time()):
+                        cached['origin_token_metadata']['active'] = False
+                        self._token_cache.set(access_token, cached)
+                        self._log.warning(
+                            'The cached data is invalid. %s' % cached)
+                        raise InvalidToken(_('The token is invalid.'))
+                return cached
             http_response = self._http_client.introspect(access_token)
             if http_response.status_code != 200:
                 self._log.critical('The introspect API returns an '
@@ -624,11 +731,16 @@ class ExternalAuth2Protocol(object):
             self._log.debug('The introspect API response: %s' %
                             origin_token_metadata)
             if not origin_token_metadata.get('active'):
+                self._token_cache.set(
+                    access_token,
+                    {'origin_token_metadata': origin_token_metadata})
                 self._log.info('The token is invalid. response: %s' %
                                origin_token_metadata)
                 raise InvalidToken(_('The token is invalid.'))
+            token_data = self._parse_necessary_info(origin_token_metadata)
+            self._token_cache.set(access_token, token_data)
+            return token_data
 
-            return self._parse_necessary_info(origin_token_metadata)
         except (ConfigurationError, ForbiddenToken,
                 ServiceError, InvalidToken):
             raise
@@ -644,12 +756,14 @@ class ExternalAuth2Protocol(object):
                                  'verification process.'))
 
     def _read_data_from_token(self, token_metadata, config_key,
-                              is_required=False, value_type=str):
+                              is_required=False, value_type=None):
         """Read value from token metadata.
 
         Read the necessary information from the token metadata with the
         config key.
         """
+        if not value_type:
+            value_type = str
         meta_key = self._get_config_option(config_key, is_required=is_required)
         if not meta_key:
             return None
@@ -718,23 +832,31 @@ class ExternalAuth2Protocol(object):
         token_data['roles'] = roles
         token_data['is_admin'] = is_admin
 
-        project_id = self._read_data_from_token(
-            token_metadata, 'mapping_project_id', is_required=False)
-        if project_id:
-            token_data['project_id'] = project_id
-            token_data['project_name'] = self._read_data_from_token(
-                token_metadata, 'mapping_project_name', is_required=True)
-            token_data['project_domain_id'] = self._read_data_from_token(
-                token_metadata, 'mapping_project_domain_id', is_required=True)
-            token_data['project_domain_name'] = self._read_data_from_token(
-                token_metadata, 'mapping_project_domain_name',
-                is_required=True)
+        system_scope = self._read_data_from_token(
+            token_metadata, 'mapping_system_scope',
+            is_required=False, value_type=bool)
+        if system_scope:
+            token_data['system_scope'] = 'all'
         else:
-            token_data['domain_id'] = self._read_data_from_token(
-                token_metadata, 'mapping_project_domain_id', is_required=True)
-            token_data['domain_name'] = self._read_data_from_token(
-                token_metadata, 'mapping_project_domain_name',
-                is_required=True)
+            project_id = self._read_data_from_token(
+                token_metadata, 'mapping_project_id', is_required=False)
+            if project_id:
+                token_data['project_id'] = project_id
+                token_data['project_name'] = self._read_data_from_token(
+                    token_metadata, 'mapping_project_name', is_required=True)
+                token_data['project_domain_id'] = self._read_data_from_token(
+                    token_metadata, 'mapping_project_domain_id',
+                    is_required=True)
+                token_data['project_domain_name'] = self._read_data_from_token(
+                    token_metadata, 'mapping_project_domain_name',
+                    is_required=True)
+            else:
+                token_data['domain_id'] = self._read_data_from_token(
+                    token_metadata, 'mapping_project_domain_id',
+                    is_required=True)
+                token_data['domain_name'] = self._read_data_from_token(
+                    token_metadata, 'mapping_project_domain_name',
+                    is_required=True)
 
         token_data['user_id'] = self._read_data_from_token(
             token_metadata, 'mapping_user_id', is_required=True)
@@ -815,7 +937,11 @@ class ExternalAuth2Protocol(object):
                 'is_admin')
         request.environ['HTTP_X_USER'] = token_data.get('user_name')
 
-        if token_data.get('project_id'):
+        if token_data.get('system_scope'):
+            request.environ['HTTP_OPENSTACK_SYSTEM_SCOPE'] = token_data.get(
+                'system_scope'
+            )
+        elif token_data.get('project_id'):
             request.environ['HTTP_X_PROJECT_ID'] = token_data.get('project_id')
             request.environ['HTTP_X_PROJECT_NAME'] = token_data.get(
                 'project_name')
