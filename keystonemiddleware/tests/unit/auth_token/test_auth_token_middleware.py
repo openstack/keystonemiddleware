@@ -610,7 +610,7 @@ class CommonAuthTokenMiddlewareTest(object):
         req.headers['X-Auth-Token'] = token
         req.environ.update(extra_environ)
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         self.useFixture(TimeFixture(now))
         req.get_response(self.middleware)
         self.assertIsNotNone(self._get_cached_token(token))
@@ -1166,7 +1166,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         data = 'this_data'
         self.set_middleware()
         self.middleware._token_cache.initialize({})
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         delta = datetime.timedelta(hours=1)
         expires = strtime(at=(now + delta))
         self.middleware._token_cache.set(token, (data, expires))

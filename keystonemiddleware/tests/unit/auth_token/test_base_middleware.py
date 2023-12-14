@@ -127,7 +127,9 @@ class BaseAuthProtocolTests(testtools.TestCase):
     def test_expired_user_token(self):
         t = fixture.V3Token()
         t.set_project_scope()
-        t.expires = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+        t.expires = (
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(minutes=10))
 
         token_id = uuid.uuid4().hex
         token_dict = {token_id: t}
@@ -193,7 +195,9 @@ class BaseAuthProtocolTests(testtools.TestCase):
     def test_expired_service_token(self):
         t = fixture.V3Token()
         t.set_project_scope()
-        t.expires = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+        t.expires = (
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(minutes=10))
 
         token_id = uuid.uuid4().hex
         token_dict = {token_id: t}
