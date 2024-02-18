@@ -15,6 +15,7 @@
 import base64
 import copy
 import hashlib
+from http import HTTPStatus
 import jwt.utils
 import logging
 import ssl
@@ -26,8 +27,6 @@ import webob.dec
 
 import fixtures
 from oslo_config import cfg
-import six
-from six.moves import http_client
 import testresources
 
 from keystoneauth1 import exceptions as ksa_exceptions
@@ -282,7 +281,7 @@ class BaseExternalOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase,
             self.fake_app(expected_env=self.expected_env), self.conf)
 
     def call(self, middleware, method='GET', path='/', headers=None,
-             expected_status=http_client.OK,
+             expected_status=HTTPStatus.OK,
              expected_body_string=None, **kwargs):
         req = webob.Request.blank(path, **kwargs)
         req.method = method
@@ -293,7 +292,7 @@ class BaseExternalOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase,
         resp = req.get_response(middleware)
         self.assertEqual(expected_status, resp.status_int)
         if expected_body_string:
-            self.assertIn(expected_body_string, six.text_type(resp.body))
+            self.assertIn(expected_body_string, str(resp.body))
         resp.request = req
         return resp
 
