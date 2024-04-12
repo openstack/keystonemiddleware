@@ -219,6 +219,12 @@ def list_opts():
 
     :returns: a list of (group_name, opts) tuples
     """
-    auth_token_opts = (_OPTS + loading.get_auth_common_conf_options())
+    auth_token_opts = (
+        _OPTS +
+        loading.get_auth_common_conf_options() +
+        loading.get_auth_plugin_conf_options('password') +
+        loading.get_auth_plugin_conf_options('v2password') +
+        loading.get_auth_plugin_conf_options('v3password')
+    )
 
     return [(_base.AUTHTOKEN_GROUP, copy.deepcopy(auth_token_opts))]
