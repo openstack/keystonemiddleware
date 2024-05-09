@@ -140,7 +140,7 @@ def encrypt_data(key, data):
 
     # AES algorithm uses block size of 16 bytes = 128 bits, defined in
     # algorithms.AES.block_size. Previously, we manually padded this using
-    # six.int2byte(padding) * padding.  Using ``cryptography``, we will
+    # bytes((padding,)) * padding.  Using ``cryptography``, we will
     # analogously use hazmat.primitives.padding to pad it to
     # the 128-bit block size.
     padder = padding.PKCS7(algorithms.AES.block_size).padder()
