@@ -1,12 +1,8 @@
-# The order of packages is significant, because pip processes them in the order
-# of appearance. Changing the order has an impact on the overall integration
-# process, which may cause wedges in the gate later.
-
 # For generating sphinx documentation
 doc8>=0.6.0 # Apache-2.0
 openstackdocstheme>=2.2.1 # Apache-2.0
 reno>=3.1.0 # Apache-2.0
-sphinx>=2.0.0,!=2.1.0 # BSD
+sphinx>=2.0.0 # BSD
 sphinxcontrib-apidoc>=0.2.0  # BSD
 
 # PDF Docs
@@ -19,7 +15,7 @@ testresources>=2.0.0 # Apache-2.0/BSD
 python-memcached>=1.56 # PSF
 WebTest>=2.0.27 # MIT
 oslo.messaging>=5.29.0 # Apache-2.0
-pycadf!=2.0.0,>=1.1.0 # Apache-2.0
+pycadf>=1.1.0 # Apache-2.0
 PyJWT>=2.4.0 # MIT
 keystoneauth1>=3.12.0 # Apache-2.0
 oslo.cache>=1.26.0 # Apache-2.0
