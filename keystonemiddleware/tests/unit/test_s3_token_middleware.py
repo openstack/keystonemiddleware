@@ -42,7 +42,7 @@ class FakeApp(object):
 class S3TokenMiddlewareTestBase(utils.TestCase):
 
     TEST_WWW_AUTHENTICATE_URI = 'https://fakehost/identity'
-    TEST_URL = '%s/v2.0/s3tokens' % (TEST_WWW_AUTHENTICATE_URI, )
+    TEST_URL = '%s/v3/s3tokens' % (TEST_WWW_AUTHENTICATE_URI, )
 
     def setUp(self):
         super(S3TokenMiddlewareTestBase, self).setUp()
@@ -101,7 +101,7 @@ class S3TokenMiddlewareTestGood(S3TokenMiddlewareTestBase):
         host = 'fakehost'
         port = 35357
         self.requests_mock.post(
-            '%s://%s:%s/v2.0/s3tokens' % (protocol, host, port),
+            '%s://%s:%s/v3/s3tokens' % (protocol, host, port),
             status_code=201, json=GOOD_RESPONSE)
 
         self.middleware = (
