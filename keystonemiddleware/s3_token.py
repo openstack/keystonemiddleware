@@ -118,7 +118,7 @@ class S3Token(object):
     def _json_request(self, creds_json):
         headers = {'Content-Type': 'application/json'}
         try:
-            response = requests.post('%s/v2.0/s3tokens' % self._request_uri,
+            response = requests.post('%s/v3/s3tokens' % self._request_uri,
                                      headers=headers, data=creds_json,
                                      verify=self._verify,
                                      timeout=CONF.s3_token.timeout)
