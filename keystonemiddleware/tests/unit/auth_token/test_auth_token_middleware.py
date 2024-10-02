@@ -1997,8 +1997,8 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         self._assert_user_agent(app, project, ksm_version)
 
     def _create_app(self, conf, project_version, ksm_version):
-        fake_pkg_resources = mock.Mock()
-        fake_pkg_resources.get_distribution().version = project_version
+        fake_im = mock.Mock()
+        fake_im.return_value = project_version
 
         fake_version_info = mock.Mock()
         fake_version_info.version_string.return_value = ksm_version
@@ -2007,10 +2007,10 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
 
         body = uuid.uuid4().hex
 
+        at_im = 'keystonemiddleware._common.config.importlib.metadata.version'
         at_pbr = 'keystonemiddleware._common.config.pbr.version'
 
-        with mock.patch('keystonemiddleware._common.config.pkg_resources',
-                        new=fake_pkg_resources):
+        with mock.patch(at_im, new=fake_im):
             with mock.patch(at_pbr, new=fake_pbr_version):
                 return self.create_simple_middleware(body=body, conf=conf)
 
