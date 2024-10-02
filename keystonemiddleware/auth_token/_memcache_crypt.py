@@ -35,7 +35,6 @@ import math
 import os
 
 from keystonemiddleware.i18n import _
-from oslo_utils import secretutils
 
 try:
     from cryptography.hazmat import backends as crypto_backends
@@ -203,7 +202,7 @@ def unprotect_data(keys, signed_data):
         signed_data[DIGEST_LENGTH_B64:])
 
     # Then verify that it matches the provided value
-    if not secretutils.constant_time_compare(provided_mac, calculated_mac):
+    if not hmac.compare_digest(provided_mac, calculated_mac):
         raise InvalidMacError(_('Invalid MAC; data appears to be corrupted.'))
 
     data = base64.b64decode(signed_data[DIGEST_LENGTH_B64:])
