@@ -10,7 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pkg_resources
+import importlib.metadata
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -145,8 +145,8 @@ class Config(object):
 
             if project:
                 try:
-                    version = pkg_resources.get_distribution(project).version
-                except pkg_resources.DistributionNotFound:
+                    version = importlib.metadata.version(project)
+                except importlib.metadata.PackageNotFoundError:
                     version = "unknown"
 
                 project = "%s/%s " % (project, version)
