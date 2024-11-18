@@ -15,6 +15,7 @@ from keystoneauth1.identity import v2
 from keystoneauth1 import plugin
 from keystoneauth1 import token_endpoint
 from oslo_config import cfg
+from oslo_utils import netutils
 
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.i18n import _
@@ -43,14 +44,8 @@ class AuthTokenPlugin(plugin.BaseAuthPlugin):
                         'removed in the Newton release, '
                         "use 'identity_uri' instead.")
 
-            if ':' in auth_host:
-                # Note(dzyu) it is an IPv6 address, so it needs to be wrapped
-                # with '[]' to generate a valid IPv6 URL, based on
-                # http://www.ietf.org/rfc/rfc2732.txt
-                auth_host = '[%s]' % auth_host
-
             identity_uri = '%s://%s:%s' % (auth_protocol,
-                                           auth_host,
+                                           netutils.escape_ipv6(auth_host),
                                            auth_port)
 
             if auth_admin_prefix:
