@@ -402,12 +402,12 @@ Memcached dependencies
 
 In order to use `memcached`_ it is necessary to install the `python-memcached`_
 library. If data stored in `memcached`_ will need to be encrypted it is also
-necessary to install the `pycrypto`_ library. These libs are not listed in
+necessary to install the `cryptography`_ library. These libs are not listed in
 the requirements.txt file.
 
 .. _`memcached`: http://memcached.org/
 .. _`python-memcached`: https://pypi.org/project/python-memcached
-.. _`pycrypto`: https://pypi.org/project/pycrypto
+.. _`cryptography`: https://pypi.org/project/cryptography
 
 Memcache Protection
 ===================
