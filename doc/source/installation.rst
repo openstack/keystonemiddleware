@@ -23,3 +23,7 @@ are available. These libraries can be installed using pip as well.
 To install support for audit notifications::
 
     $ pip install keystonemiddleware[audit_notifications]
+
+To install support for memcache encryption::
+
+    $ pip install keystonemiddleware[memcache_encryption]
