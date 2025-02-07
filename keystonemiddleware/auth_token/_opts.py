@@ -181,6 +181,16 @@ _OPTS = [
                help='The name or type of the service as it appears in the'
                ' service catalog. This is used to validate tokens that have'
                ' restricted access rules.'),
+    cfg.BoolOpt('memcache_sasl_enabled',
+                default=False,
+                help='Enable the SASL(Simple Authentication and Security'
+                     ' Layer) if the SASL_enable is true, else disable.'),
+    cfg.StrOpt('memcache_username',
+               default='',
+               help='the user name for the SASL'),
+    cfg.StrOpt('memcache_password',
+               default='',
+               help='the username password for SASL'),
 ]
 
 
