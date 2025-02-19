@@ -1,0 +1,4 @@
+---
+other:
+  - |
+    python-memcached has been replaced by pymemcache to support TLS and MTLS.

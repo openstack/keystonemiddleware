@@ -52,11 +52,12 @@ class _EnvCachePool(object):
 class _CachePool(list):
     """A lazy pool of cache references."""
 
-    def __init__(self, memcached_servers, log, arguments):
+    def __init__(self, memcached_servers, log, arguments, tls_context=None):
         self._memcached_servers = memcached_servers
         self._sasl_enabled = arguments.get("sasl_enabled", False)
         self._username = arguments.get("username", None)
         self._password = arguments.get("password", None)
+        self._tls_context = tls_context
         if not self._memcached_servers:
             log.warning(
                 "Using the in-process token cache is deprecated as of the "
@@ -81,8 +82,9 @@ class _CachePool(list):
                     c = bmemcached.Client(self._memcached_servers,
                                           self._username, self._password)
                 else:
-                    import memcache
-                    c = memcache.Client(self._memcached_servers, debug=0)
+                    import pymemcache
+                    c = pymemcache.HashClient(self._memcached_servers,
+                                              tls_context=self._tls_context)
             else:
                 c = _FakeClient()
 
@@ -140,13 +142,14 @@ class TokenCache(object):
     _CACHE_KEY_TEMPLATE = 'tokens/%s'
 
     def __init__(self, log, cache_time=None,
-                 env_cache_name=None, memcached_servers=None,
+                 env_cache_name=None, memcached_servers=None, tls_context=None,
                  use_advanced_pool=True, dead_retry=None, socket_timeout=None,
                  **kwargs):
         self._LOG = log
         self._cache_time = cache_time
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
+        self._tls_context = tls_context
         self._use_advanced_pool = use_advanced_pool
         self._arguments = {
             'dead_retry': dead_retry,
@@ -178,7 +181,7 @@ class TokenCache(object):
                     "through config option memcache_use_advanced_pool = True")
 
             return _CachePool(self._memcached_servers, self._LOG,
-                              self._arguments)
+                              self._arguments, tls_context=self._tls_context)
 
     def initialize(self, env):
         if self._initialized:
