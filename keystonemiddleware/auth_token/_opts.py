@@ -124,6 +124,32 @@ _OPTS = [
                secret=True,
                help='(Optional, mandatory if memcache_security_strategy is'
                ' defined) This string is used for key derivation.'),
+    cfg.BoolOpt('memcache_tls_enabled',
+                default=False,
+                help='(Optional) Global toggle for TLS usage when comunicating'
+                ' with the caching servers.'),
+    cfg.StrOpt('memcache_tls_cafile',
+               help='(Optional) Path to a file of concatenated CA certificates'
+               ' in PEM format necessary to establish the caching server\'s'
+               ' authenticity. If tls_enabled is False, this option is'
+               ' ignored.'),
+    cfg.StrOpt('memcache_tls_certfile',
+               help='(Optional) Path to a single file in PEM format containing'
+               ' the client\'s certificate as well as any number of CA'
+               ' certificates needed to establish the certificate\'s'
+               ' authenticity. This file is only required when client side'
+               ' authentication is necessary. If tls_enabled is False, this'
+               ' option is ignored.'),
+    cfg.StrOpt('memcache_tls_keyfile',
+               help='(Optional) Path to a single file containing the client\'s'
+               ' private key in. Otherwhise the private key will be taken from'
+               ' the file specified in tls_certfile. If tls_enabled is False,'
+               ' this option is ignored.'),
+    cfg.StrOpt('memcache_tls_allowed_ciphers',
+               help='(Optional) Set the available ciphers for sockets created'
+               ' with the TLS context. It should be a string in the OpenSSL'
+               ' cipher list format. If not specified, all OpenSSL enabled'
+               ' ciphers will be available.'),
     cfg.IntOpt('memcache_pool_dead_retry',
                default=5 * 60,
                help='(Optional) Number of seconds memcached server is'
