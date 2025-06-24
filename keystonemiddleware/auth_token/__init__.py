@@ -219,6 +219,7 @@ object is stored.
 
 import copy
 import re
+import ssl
 
 from keystoneauth1 import access
 from keystoneauth1 import adapter
@@ -875,7 +876,25 @@ class AuthProtocol(BaseAuthProtocol):
             sasl_enabled=self._conf.get('memcache_sasl_enabled'),
             username=self._conf.get('memcache_username'),
             password=self._conf.get('memcache_password'),
+            tls_enabled=self._conf.get('memcache_tls_enabled'),
         )
+
+        if self._conf.get('memcache_tls_enabled'):
+            tls_cafile = self._conf.get('memcache_tls_cafile')
+            tls_certfile = self._conf.get('memcache_tls_certfile')
+            tls_keyfile = self._conf.get('memcache_tls_keyfile')
+            tls_allowed_ciphers = self._conf.get(
+                'memcache_tls_allowed_ciphers')
+
+            tls_context = ssl.create_default_context(cafile=tls_cafile)
+
+            if tls_certfile:
+                tls_context.load_cert_chain(tls_certfile, tls_keyfile)
+
+            if tls_allowed_ciphers:
+                tls_context.set_ciphers(tls_allowed_ciphers)
+
+            cache_kwargs['tls_context'] = tls_context
 
         if security_strategy.lower() != 'none':
             secret_key = self._conf.get('memcache_secret_key')

@@ -100,7 +100,8 @@ class _MemcacheClientPool(object):
         # python-binary-memcached , we don't want it as hard
         # dependency, so lazy load it.
         self._sasl_enabled = arguments.pop("sasl_enabled", False)
-        if self._sasl_enabled:
+        self._tls_enabled = arguments.pop("tls_enabled", False)
+        if self._tls_enabled or self._sasl_enabled:
             from oslo_cache import _bmemcache_pool
             self._pool = _bmemcache_pool.BMemcacheClientPool(memcache_servers,
                                                              arguments,
@@ -140,20 +141,23 @@ class TokenCache(object):
     _CACHE_KEY_TEMPLATE = 'tokens/%s'
 
     def __init__(self, log, cache_time=None,
-                 env_cache_name=None, memcached_servers=None,
+                 env_cache_name=None, memcached_servers=None, tls_context=None,
                  use_advanced_pool=True, dead_retry=None, socket_timeout=None,
                  **kwargs):
         self._LOG = log
         self._cache_time = cache_time
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
+        self._tls_context = tls_context
         self._use_advanced_pool = use_advanced_pool
         self._arguments = {
             'dead_retry': dead_retry,
             'socket_timeout': socket_timeout,
             'sasl_enabled': kwargs.pop("sasl_enabled", False),
             'username': kwargs.pop("username", None),
-            'password': kwargs.pop("password", None)
+            'password': kwargs.pop("password", None),
+            'tls_enabled': kwargs.pop("tls_enabled", False),
+            'tls_context': tls_context
         }
         self._memcache_pool_options = kwargs
 
