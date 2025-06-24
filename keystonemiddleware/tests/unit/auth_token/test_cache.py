@@ -29,7 +29,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
     def test_assert_valid_memcache_protection_config(self):
         # test missing memcache_secret_key
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt'
         }
         self.assertRaises(exc.ConfigurationError,
@@ -37,7 +37,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
                           conf=conf)
         # test invalue memcache_security_strategy
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'whatever'
         }
         self.assertRaises(exc.ConfigurationError,
@@ -45,14 +45,14 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
                           conf=conf)
         # test missing memcache_secret_key
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mac'
         }
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
                           conf=conf)
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'Encrypt',
             'memcache_secret_key': ''
         }
@@ -60,7 +60,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
                           self.create_simple_middleware,
                           conf=conf)
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mAc',
             'memcache_secret_key': ''
         }
@@ -81,7 +81,7 @@ class NoMemcacheAuthToken(base.BaseAuthTokenTestCase):
             'admin_token': 'admin_token1',
             'auth_host': 'keystone.example.com',
             'auth_port': '1234',
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'www_authenticate_uri': 'https://keystone.example.com:1234',
         }
 
@@ -109,7 +109,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
     def test_encrypt_cache_data(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'encrypt',
             'memcache_secret_key': 'mysecret'
         }
@@ -128,7 +128,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
         mocked_decrypt_data.side_effect = Exception("corrupted")
 
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'encrypt',
             'memcache_secret_key': 'mysecret'
         }
@@ -144,7 +144,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
     def test_sign_cache_data(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_security_strategy': 'mac',
             'memcache_secret_key': 'mysecret'
         }
@@ -160,7 +160,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
     def test_no_memcache_protection(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_secret_key': 'mysecret'
         }
 
@@ -174,7 +174,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
     def test_memcache_pool(self):
         conf = {
-            'memcached_servers': MEMCACHED_SERVERS,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_use_advanced_pool': True
         }
 
