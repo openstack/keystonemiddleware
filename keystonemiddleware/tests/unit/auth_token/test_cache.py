@@ -97,8 +97,8 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
         if MEMCACHED_AVAILABLE is None:
             try:
-                import pymemcache
-                c = pymemcache.HashClient(MEMCACHED_SERVERS)
+                import memcache
+                c = memcache.Client(MEMCACHED_SERVERS)
                 c.set('ping', 'pong', time=1)
                 MEMCACHED_AVAILABLE = c.get('ping') == 'pong'
             except ImportError:
