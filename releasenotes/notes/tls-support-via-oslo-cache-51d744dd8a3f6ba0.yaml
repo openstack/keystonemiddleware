@@ -1,0 +1,4 @@
+---
+other:
+  - |
+    Added tls support to the MemcacheClientPool driver via oslo.cache

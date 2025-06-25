@@ -876,6 +876,7 @@ class AuthProtocol(BaseAuthProtocol):
             sasl_enabled=self._conf.get('memcache_sasl_enabled'),
             username=self._conf.get('memcache_username'),
             password=self._conf.get('memcache_password'),
+            tls_enabled=self._conf.get('memcache_tls_enabled'),
         )
 
         if self._conf.get('memcache_tls_enabled'):

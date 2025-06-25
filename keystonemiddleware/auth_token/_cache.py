@@ -113,7 +113,8 @@ class _MemcacheClientPool(object):
         # python-binary-memcached , we don't want it as hard
         # dependency, so lazy load it.
         self._sasl_enabled = arguments.pop("sasl_enabled", False)
-        if self._sasl_enabled:
+        self._tls_enabled = arguments.pop("tls_enabled", False)
+        if self._tls_enabled or self._sasl_enabled:
             from oslo_cache import _bmemcache_pool
             self._pool = _bmemcache_pool.BMemcacheClientPool(memcache_servers,
                                                              arguments,
@@ -167,7 +168,9 @@ class TokenCache(object):
             'socket_timeout': socket_timeout,
             'sasl_enabled': kwargs.pop("sasl_enabled", False),
             'username': kwargs.pop("username", None),
-            'password': kwargs.pop("password", None)
+            'password': kwargs.pop("password", None),
+            'tls_enabled': kwargs.pop("tls_enabled", False),
+            'tls_context': tls_context
         }
         self._memcache_pool_options = kwargs
 
