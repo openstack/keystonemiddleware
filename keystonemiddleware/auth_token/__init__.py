@@ -229,6 +229,7 @@ from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
 import oslo_cache
 from oslo_config import cfg
+from oslo_context import context as oslo_context
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import webob.dec
@@ -714,6 +715,13 @@ class AuthProtocol(BaseAuthProtocol):
         ``401 Unauthenticated`` so users know where to authenticate for future
         requests.
         """
+        self.log.debug('Overwriting thread local with empty context')
+        oslo_context.RequestContext(
+            None,
+            project_id=None,
+            is_admin=False,
+            overwrite=True,
+        )
         if response.status_int == 401:
             response.headers.extend(self._reject_auth_headers)
 
