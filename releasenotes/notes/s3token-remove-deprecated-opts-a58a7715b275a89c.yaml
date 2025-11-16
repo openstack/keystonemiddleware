@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    The s3token middleware now requires the ``www_authenticate_uri`` option and
+    no longer loads the following deprecated options.
+
+    - ``auth_uri``
+    - ``auth_host``
+    - ``auth_port``
+    - ``auth_protocol``
