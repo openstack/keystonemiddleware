@@ -31,22 +31,12 @@ class OptsTestCase(utils.TestCase):
 
         # This is the original list that includes deprecated options
         expected_opt_names = [
-            'auth_admin_prefix',
-            'auth_host',
             'interface',
-            'auth_port',
-            'auth_protocol',
             'www_authenticate_uri',
-            'auth_uri',
-            'identity_uri',
             'auth_version',
             'delay_auth_decision',
             'http_connect_timeout',
             'http_request_max_retries',
-            'admin_token',
-            'admin_user',
-            'admin_password',
-            'admin_tenant_name',
             'cache',
             'certfile',
             'keyfile',
@@ -95,7 +85,6 @@ class OptsTestCase(utils.TestCase):
         expected_opt_names = [
             'www_authenticate_uri',
             'interface',
-            'auth_uri',
             'auth_version',
             'delay_auth_decision',
             'http_connect_timeout',

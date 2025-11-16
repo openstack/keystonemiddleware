@@ -235,7 +235,6 @@ from oslo_serialization import jsonutils
 import webob.dec
 
 from keystonemiddleware._common import config
-from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _base
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
@@ -251,7 +250,7 @@ oslo_cache.configure(cfg.CONF)
 
 AUTH_TOKEN_OPTS = [
     (_base.AUTHTOKEN_GROUP,
-     _opts._OPTS + _auth.OPTS + loading.get_auth_common_conf_options())
+     _opts._OPTS + loading.get_auth_common_conf_options())
 ]
 
 
@@ -631,20 +630,19 @@ class AuthProtocol(BaseAuthProtocol):
 
         self._www_authenticate_uri = self._conf.get('www_authenticate_uri')
         if not self._www_authenticate_uri:
-            self._www_authenticate_uri = self._conf.get('auth_uri')
-        if not self._www_authenticate_uri:
             self.log.warning(
                 'Configuring www_authenticate_uri to point to the public '
                 'identity endpoint is required; clients may not be able to '
                 'authenticate against an admin endpoint')
 
-            # FIXME(dolph): drop support for this fallback behavior as
-            # documented in bug 1207517.
+        self._token_cache = self._token_cache_factory()
 
+    @property
+    def www_authenticate_uri(self):
+        if not self._www_authenticate_uri:
             self._www_authenticate_uri = \
                 self._identity_server.www_authenticate_uri
-
-        self._token_cache = self._token_cache_factory()
+        return self._www_authenticate_uri
 
     def process_request(self, request):
         """Process request.
@@ -729,7 +727,7 @@ class AuthProtocol(BaseAuthProtocol):
 
     @property
     def _reject_auth_headers(self):
-        header_val = 'Keystone uri="%s"' % self._www_authenticate_uri
+        header_val = 'Keystone uri="%s"' % self.www_authenticate_uri
         return [('WWW-Authenticate', header_val)]
 
     def fetch_token(self, token, allow_expired=False):
@@ -797,30 +795,14 @@ class AuthProtocol(BaseAuthProtocol):
 
         group = self._conf.get('auth_section') or _base.AUTHTOKEN_GROUP
 
-        # NOTE(jamielennox): auth_plugin was deprecated to auth_type. _conf.get
-        # doesn't handle that deprecation in the case of conf dict options so
-        # we have to manually check the value
-        plugin_name = (self._conf.get('auth_type', group=group)
-                       or self._conf.paste_overrides.get('auth_plugin'))
+        plugin_name = self._conf.get('auth_type', group=group)
 
         if not plugin_name:
-            return _auth.AuthTokenPlugin(
-                log=self.log,
-                auth_admin_prefix=self._conf.get('auth_admin_prefix',
-                                                 group=group),
-                auth_host=self._conf.get('auth_host', group=group),
-                auth_port=self._conf.get('auth_port', group=group),
-                auth_protocol=self._conf.get('auth_protocol', group=group),
-                identity_uri=self._conf.get('identity_uri', group=group),
-                admin_token=self._conf.get('admin_token', group=group),
-                admin_user=self._conf.get('admin_user', group=group),
-                admin_password=self._conf.get('admin_password', group=group),
-                admin_tenant_name=self._conf.get('admin_tenant_name',
-                                                 group=group)
-            )
+            return None
 
-        # Plugin option registration is normally done as part of the load_from
-        # function rather than the register function so copy here.
+        # Plugin option registration is normally done as part of
+        # the load_from function rather than the register function so copy
+        # here.
         plugin_loader = loading.get_plugin_loader(plugin_name)
         plugin_opts = loading.get_auth_plugin_conf_options(plugin_loader)
 
