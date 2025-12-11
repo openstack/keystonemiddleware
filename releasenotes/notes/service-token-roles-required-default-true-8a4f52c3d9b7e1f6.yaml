@@ -1,0 +1,28 @@
+---
+security:
+  - |
+    The ``service_token_roles_required`` option in ``[keystone_authtoken]``
+    now defaults to ``True`` instead of ``False``. This fixes a security
+    issue where any valid token could be used as a service token when the
+    default was ``False``. With the previous default, a user token placed in
+    ``X-Service-Token`` would be accepted as a valid service token, which
+    could bypass application credential access-rules checks and weaken
+    composite-auth protections intended to distinguish service-to-service
+    requests from end-user requests.
+upgrade:
+  - |
+    The ``service_token_roles_required`` option now defaults to ``True``.
+    This means that service tokens must contain a role from the
+    ``service_token_roles`` list (default: ``['service']``) to be considered
+    valid. Operators should verify that:
+
+    * Service users have one of the roles listed in ``service_token_roles``
+      (by default, the ``service`` role).
+    * If your deployment intentionally relied on the previous permissive
+      behavior (accepting any valid token as a service token), you can
+      restore it by explicitly setting ``service_token_roles_required=False``
+      in the ``[keystone_authtoken]`` section, though this is strongly
+      discouraged for security reasons.
+
+    If service tokens are rejected after upgrading, ensure the service users
+    have the appropriate role assigned in Keystone.
