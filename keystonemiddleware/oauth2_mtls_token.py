@@ -61,19 +61,19 @@ class OAuth2mTlsProtocol(AuthProtocol):
         try:
             wsgi_input = request.environ.get("wsgi.input")
             if not wsgi_input:
-                self.log.warn('Unable to obtain the client certificate.')
+                self.log.warning('Unable to obtain the client certificate.')
                 return False
             sock = wsgi_input.get_socket()
             if not sock:
-                self.log.warn('Unable to obtain the client certificate.')
+                self.log.warning('Unable to obtain the client certificate.')
                 return False
             peer_cert = sock.getpeercert(binary_form=True)
             if not peer_cert:
-                self.log.warn('Unable to obtain the client certificate.')
+                self.log.warning('Unable to obtain the client certificate.')
                 return False
         except Exception as error:
-            self.log.warn('Unable to obtain the client certificate. %s' %
-                          str(error))
+            self.log.warning('Unable to obtain the client certificate. %s' %
+                             str(error))
             return False
 
         access_token = None
@@ -110,8 +110,8 @@ class OAuth2mTlsProtocol(AuthProtocol):
                     'the access token dose not match the client certificate.')
                 return False
         except exceptions.KeystoneMiddlewareException as err:
-            self.log.info('Invalid OAuth2.0 certificate-bound access token: %s'
-                          % str(err))
+            self.log.info(
+                'Invalid OAuth2.0 certificate-bound access token: %s', err)
             return False
 
     def process_request(self, request):
