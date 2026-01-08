@@ -33,6 +33,7 @@ from keystoneauth1.loading import session as session_loading
 
 from keystonemiddleware._common import config
 from keystonemiddleware.auth_token import _cache
+from keystonemiddleware.auth_token import _request
 from keystonemiddleware.exceptions import ConfigurationError
 from keystonemiddleware.exceptions import KeystoneMiddlewareException
 from keystonemiddleware.i18n import _
@@ -534,7 +535,7 @@ class ExternalAuth2Protocol(object):
                                            **cache_kwargs)
         return _cache.TokenCache(self._log, **cache_kwargs)
 
-    @webob.dec.wsgify()
+    @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):
         """Handle incoming request."""
         self.process_request(req)
@@ -545,8 +546,10 @@ class ExternalAuth2Protocol(object):
         """Process request.
 
         :param request: Incoming request
-        :type request: _request.AuthTokenRequest
+        :type request: _request._AuthTokenRequest
         """
+        request.remove_auth_headers()
+
         access_token = None
         if (request.authorization and
                 request.authorization.authtype == 'Bearer'):
