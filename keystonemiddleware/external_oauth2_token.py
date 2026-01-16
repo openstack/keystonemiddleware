@@ -67,10 +67,7 @@ _EXTERNAL_AUTH2_OPTS = [
                         'tls_client_auth', 'private_key_jwt',
                         'client_secret_jwt'),
                help='The auth_method must use the authentication method '
-                    'specified by the Authorization Server. The system '
-                    'supports 5 authentication methods such as '
-                    'tls_client_auth, client_secret_basic, '
-                    'client_secret_post, client_secret_jwt, private_key_jwt.'),
+                    'specified by the Authorization Server.'),
     cfg.StrOpt('client_id',
                help='The OAuth 2.0 Client Identifier valid at the '
                     'Authorization Server.'),
@@ -145,15 +142,15 @@ _EXTERNAL_AUTH2_OPTS = [
                     'disable caching completely.'),
     cfg.StrOpt('memcache_security_strategy',
                default='None',
-               choices=('None', 'MAC', 'ENCRYPT'),
+               choices=(('None',
+                         'Token data is not authenticated or encrypted.'),
+                        ('MAC',
+                         'Token data is authenticated (with HMAC).'),
+                        ('ENCRYPT',
+                         'Token data is encrypted and authenticated.')),
                ignore_case=True,
                help='(Optional) If defined, indicate whether token data '
-                    'should be authenticated or authenticated and encrypted. '
-                    'If MAC, token data is authenticated (with HMAC) in the '
-                    'cache. If ENCRYPT, token data is encrypted and '
-                    'authenticated in the cache. If the value is not one of '
-                    'these options or empty, auth_token will raise an '
-                    'exception on initialization.'),
+                    'should be authenticated or authenticated and encrypted.'),
     cfg.StrOpt('memcache_secret_key',
                secret=True,
                help='(Optional, mandatory if memcache_security_strategy is '
