@@ -1,14 +1,8 @@
-========================
-Team and repository tags
-========================
-
-.. image:: https://governance.openstack.org/tc/badges/keystonemiddleware.svg
-    :target: https://governance.openstack.org/tc/reference/tags/index.html
-
-.. Change things from this point on
-
+====================================================
 Middleware for the OpenStack Identity API (Keystone)
 ====================================================
+
+.. image:: https://governance.openstack.org/tc/badges/keystonemiddleware.svg
 
 .. image:: https://img.shields.io/pypi/v/keystonemiddleware.svg
     :target: https://pypi.org/project/keystonemiddleware/
@@ -20,7 +14,7 @@ Middleware for the OpenStack Identity API (Keystone)
 
 This package contains middleware modules designed to provide authentication and
 authorization features to web services other than `Keystone
-<https://github.com/openstack/keystone>`. The most prominent module is
+<https://opendev.org/openstack/keystone>`. The most prominent module is
 ``keystonemiddleware.auth_token``. This package does not expose any CLI or
 Python API features.
 
@@ -34,4 +28,4 @@ For information on contributing, see ``CONTRIBUTING.rst``.
 
 For any other information, refer to the parent project, Keystone:
 
-    https://github.com/openstack/keystone
+    https://opendev.org/openstack/keystone
