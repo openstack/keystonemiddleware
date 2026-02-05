@@ -43,7 +43,7 @@ class EchoService(object):
 
     def __init__(self):
         # hardcode any non-default configuration here
-        conf = {'auth_protocol': 'http', 'admin_token': 'ADMIN'}
+        conf = {'auth_protocol': 'http', 'admin_token': 'ADMIN'}  # nosec: B105
         app = auth_token.AuthProtocol(echo_app, conf)
         server = simple_server.make_server('', 8000, app)
         print('Serving on port 8000 (Ctrl+C to end)...')

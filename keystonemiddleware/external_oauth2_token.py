@@ -247,7 +247,7 @@ class ClientSecretBasicAuthClient(AbstractAuthClient):
         the auth method 'client_secret_basic'.
         """
         req_data = {'token': access_token,
-                    'token_type_hint': 'access_token'}
+                    'token_type_hint': 'access_token'}  # nosec: B105
         auth = requests.auth.HTTPBasicAuth(self.client_id,
                                            self.client_secret)
         http_response = self.session.request(
@@ -280,7 +280,7 @@ class ClientSecretPostAuthClient(AbstractAuthClient):
             'client_id': self.client_id,
             'client_secret': self.client_secret,
             'token': access_token,
-            'token_type_hint': 'access_token'
+            'token_type_hint': 'access_token'  # nosec: B105
         }
         http_response = self.session.request(
             self.introspect_endpoint,
@@ -302,7 +302,7 @@ class TlsClientAuthClient(AbstractAuthClient):
         req_data = {
             'client_id': self.client_id,
             'token': access_token,
-            'token_type_hint': 'access_token'
+            'token_type_hint': 'access_token'  # nosec: B105
         }
         http_response = self.session.request(
             self.introspect_endpoint,
@@ -383,7 +383,7 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
                 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
             'client_assertion': client_assertion,
             'token': access_token,
-            'token_type_hint': 'access_token'
+            'token_type_hint': 'access_token'  # nosec: B105
         }
         http_response = self.session.request(
             self.introspect_endpoint,
@@ -443,7 +443,7 @@ class ClientSecretJwtAuthClient(AbstractAuthClient):
                 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
             'client_assertion': client_assertion,
             'token': access_token,
-            'token_type_hint': 'access_token'
+            'token_type_hint': 'access_token'  # nosec: B105
         }
         http_response = self.session.request(
             self.introspect_endpoint,
