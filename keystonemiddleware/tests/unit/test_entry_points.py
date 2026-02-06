@@ -22,8 +22,6 @@ class TestPasteDeploymentEntryPoints(utils.BaseTestCase):
         expected_factory_names = [
             'audit',
             'auth_token',
-            'ec2_token',
-            's3_token',
         ]
         em = stevedore.ExtensionManager('paste.filter_factory')
 

@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    The ``ec2_token`` and ``s3_token`` middleware have been removed.
+    These middlewares were designed for use with Nova's EC2 API (removed in
+    Mitaka) and Swift's swift3 middleware (superseded by swift.common.middleware.s3api).
+    Neither middleware has active consumers in current OpenStack deployments.
+    For EC2 API compatibility, use the standalone ec2-api project. For S3 API
+    compatibility with Swift, use Swift's built-in s3api and s3token middleware.
