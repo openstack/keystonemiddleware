@@ -5,15 +5,16 @@
 # Andi Chandler <andi@gowling.com>, 2022. #zanata
 # Andi Chandler <andi@gowling.com>, 2023. #zanata
 # Andi Chandler <andi@gowling.com>, 2024. #zanata
+# Andi Chandler <andi@gowling.com>, 2026. #zanata
 msgid ""
 msgstr ""
 "Project-Id-Version: keystonemiddleware\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-26 20:05+0000\n"
+"POT-Creation-Date: 2026-02-06 18:14+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2024-12-17 09:57+0000\n"
+"PO-Revision-Date: 2026-02-21 04:49+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
@@ -26,11 +27,29 @@ msgstr "10.0.0"
 msgid "10.1.0"
 msgstr "10.1.0"
 
+msgid "10.11.0"
+msgstr "10.11.0"
+
+msgid "10.12.0"
+msgstr "10.12.0"
+
 msgid "10.3.0"
 msgstr "10.3.0"
 
 msgid "10.5.0"
 msgstr "10.5.0"
+
+msgid "10.8.0"
+msgstr "10.8.0"
+
+msgid "10.9.0"
+msgstr "10.9.0"
+
+msgid "11.0.0"
+msgstr "11.0.0"
+
+msgid "11.0.0-3"
+msgstr "11.0.0-3"
 
 msgid "2023.1 Series Release Notes"
 msgstr "2023.1 Series Release Notes"
@@ -43,6 +62,12 @@ msgstr "2024.1 Series Release Notes"
 
 msgid "2024.2 Series Release Notes"
 msgstr "2024.2 Series Release Notes"
+
+msgid "2025.1 Series Release Notes"
+msgstr "2025.1 Series Release Notes"
+
+msgid "2025.2 Series Release Notes"
+msgstr "2025.2 Series Release Notes"
 
 msgid "4.1.0"
 msgstr "4.1.0"
@@ -138,6 +163,17 @@ msgid "Add the `X_IS_ADMIN_PROJECT` header."
 msgstr "Add the `X_IS_ADMIN_PROJECT` header."
 
 msgid ""
+"Add the feature to support SASL for keystonemiddleware to improve the "
+"security of authority. memcache_sasl_enabled: enable the SASL option or not. "
+"memcache_username: the user name for the SASL memcache_password: the user "
+"password for SASL"
+msgstr ""
+"Add the feature to support SASL for keystonemiddleware to improve the "
+"security of the authority. memcache_sasl_enabled: enable the SASL option or "
+"not. memcache_username: the user name for the SASL memcache_password: the "
+"user password for SASL"
+
+msgid ""
 "Added the `X_IS_ADMIN_PROJECT` header to authenticated headers. This has the "
 "string value of 'True' or 'False' and can be used to enforce admin project "
 "policies."
@@ -145,6 +181,9 @@ msgstr ""
 "Added the `X_IS_ADMIN_PROJECT` header to authenticated headers. This has the "
 "string value of 'True' or 'False' and can be used to enforce admin project "
 "policies."
+
+msgid "Added tls support to the MemcacheClientPool driver via oslo.cache"
+msgstr "Added TLS support to the MemcacheClientPool driver via oslo.cache"
 
 msgid ""
 "AuthToken middleware will now allow fetching an expired token when a valid "
@@ -306,6 +345,28 @@ msgid "Stein Series Release Notes"
 msgstr "Stein Series Release Notes"
 
 msgid ""
+"Support for Python 3.9 has been removed. Now Python 3.10 is the minimum "
+"version supported."
+msgstr ""
+"Support for Python 3.9 has been removed. Now Python 3.10 is the minimum "
+"version supported."
+
+msgid ""
+"The ``ec2_token`` and ``s3_token`` middleware have been removed. These "
+"middlewares were designed for use with Nova's EC2 API (removed in Mitaka) "
+"and Swift's swift3 middleware (superseded by swift.common.middleware.s3api). "
+"Neither middleware has active consumers in current OpenStack deployments. "
+"For EC2 API compatibility, use the standalone ec2-api project. For S3 API "
+"compatibility with Swift, use Swift's built-in s3api and s3token middleware."
+msgstr ""
+"The ``ec2_token`` and ``s3_token`` middleware have been removed. These "
+"middlewares were designed for use with Nova's EC2 API (removed in Mitaka) "
+"and Swift's swift3 middleware (superseded by swift.common.middleware.s3api). "
+"Neither middleware has active consumers in current OpenStack deployments. "
+"For EC2 API compatibility, use the standalone ec2-api project. For S3 API "
+"compatibility with Swift, use Swift's built-in s3api and s3token middleware."
+
+msgid ""
 "The ``kwargs_to_fetch_token`` setting was removed from the "
 "``BaseAuthProtocol`` class. Implementations of auth_token now assume kwargs "
 "will be passed to the ``fetch_token`` method."
@@ -342,6 +403,13 @@ msgid ""
 msgstr ""
 "The lower constraint for python-memcached must be raised to version 1.58 in "
 "order to work with Python 3.4 and above."
+
+msgid ""
+"The s3token middleware now requires the ``www_authenticate_uri`` option and "
+"no longer loads the following deprecated options."
+msgstr ""
+"The s3token middleware now requires the ``www_authenticate_uri`` option and "
+"no longer loads the following deprecated options."
 
 msgid "Train Series Release Notes"
 msgstr "Train Series Release Notes"
@@ -927,6 +995,18 @@ msgstr ""
 "train/capabilities-app-creds.html>`_] The auth_token middleware now has "
 "support for accepting or denying incoming requests based on access rules "
 "provided by users in their Keystone application credentials."
+
+msgid "``auth_host``"
+msgstr "``auth_host``"
+
+msgid "``auth_port``"
+msgstr "``auth_port``"
+
+msgid "``auth_protocol``"
+msgstr "``auth_protocol``"
+
+msgid "``auth_uri``"
+msgstr "``auth_uri``"
 
 msgid "keystonemiddleware Release Notes"
 msgstr "keystonemiddleware Release Notes"
