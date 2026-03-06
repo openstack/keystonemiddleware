@@ -99,6 +99,9 @@ class AuditMiddleware(object):
         self._service_name = conf.get('service_name')
         self._ignore_req_list = [x.upper().strip() for x in
                                  conf.get('ignore_req_list', '').split(',')]
+        self._ignore_path_list = [x for x in
+                                  conf.get('ignore_path_list', '').split(',')
+                                  if x]
         self._cadf_audit = _api.OpenStackAuditApi(conf.get('audit_map_file'),
                                                   _LOG)
         self._notifier = _notifier.create_notifier(self._conf, _LOG)
@@ -145,7 +148,10 @@ class AuditMiddleware(object):
 
     @webob.dec.wsgify
     def __call__(self, req):
-        if req.method in self._ignore_req_list:
+        if (
+            req.method in self._ignore_req_list or
+            req.path_info in self._ignore_path_list
+        ):
             return req.get_response(self._application)
 
         # Cannot use a RequestClass on wsgify above because the `req` object is
