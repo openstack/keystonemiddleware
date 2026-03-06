@@ -10,14 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import urllib.parse
-
 from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import plugin
 from keystoneclient.v3 import client as v3_client
 
-from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.i18n import _
 
@@ -87,17 +84,7 @@ class IdentityServer(object):
 
     @property
     def www_authenticate_uri(self):
-        www_authenticate_uri = self._adapter.get_endpoint(
-            interface=plugin.AUTH_INTERFACE)
-
-        # NOTE(jamielennox): This weird stripping of the prefix hack is
-        # only relevant to the legacy case. We urljoin '/' to get just the
-        # base URI as this is the original behaviour.
-        if isinstance(self._adapter.auth, _auth.AuthTokenPlugin):
-            www_authenticate_uri = urllib.parse.urljoin(
-                www_authenticate_uri, '/').rstrip('/')
-
-        return www_authenticate_uri
+        return self._adapter.get_endpoint(interface=plugin.AUTH_INTERFACE)
 
     @property
     def auth_version(self):
@@ -119,7 +106,7 @@ class IdentityServer(object):
     def _get_strategy_class(self):
         if self._requested_auth_version:
             if not discover.version_match(_V3RequestStrategy.AUTH_VERSION,
-                                          self._requested_auth_interface):
+                                          self._requested_auth_version):
                 self._LOG.info('A version other than v3 was requested: %s',
                                self._requested_auth_interface)
             # Return v3, even if the request is unknown

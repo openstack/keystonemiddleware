@@ -16,7 +16,6 @@ import uuid
 from oslo_config import cfg
 from oslotest import createfile
 
-from keystonemiddleware.auth_token import _auth
 from keystonemiddleware.auth_token import _opts
 from keystonemiddleware.tests.unit.auth_token import base
 
@@ -37,7 +36,6 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
         # plugins, are registered dynamically so must not be used here.
         self.oslo_options = {
             'www_authenticate_uri': uuid.uuid4().hex,
-            'identity_uri': uuid.uuid4().hex,
         }
 
         self.local_oslo_config = cfg.ConfigOpts()
@@ -45,8 +43,6 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
             cfg.OptGroup(name='keystone_authtoken'))
 
         self.local_oslo_config.register_opts(_opts._OPTS,
-                                             group='keystone_authtoken')
-        self.local_oslo_config.register_opts(_auth.OPTS,
                                              group='keystone_authtoken')
 
         for option, value in self.oslo_options.items():

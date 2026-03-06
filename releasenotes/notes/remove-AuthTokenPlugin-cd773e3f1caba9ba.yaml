@@ -1,0 +1,19 @@
+---
+upgrade:
+  - |
+    The deprecated AuthTokenPlugin has been removed. Due to this removal,
+    the following configuration options, used by this plugin, have been
+    also removed.
+
+    - ``auth_host``
+    - ``auth_port``
+    - ``auth_admin_prefix``
+    - ``auth_protocol``
+    - ``identity_uri``
+    - ``admin_token``
+    - ``admin_user``
+    - ``admin_password``
+    - ``admin_tenant_name``
+
+  - |
+    The deprecated ``[keystone_authtoken] auth_uri`` option was removed.

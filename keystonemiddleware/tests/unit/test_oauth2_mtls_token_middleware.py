@@ -93,10 +93,11 @@ class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         self.middleware = None
 
         self.conf = {
-            'identity_uri': 'https://keystone.example.com:1234/testadmin/',
             'auth_version': auth_version,
             'www_authenticate_uri': 'https://keystone.example.com:1234',
-            'admin_user': uuid.uuid4().hex,
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
         }
         self.auth_version = auth_version
 
@@ -366,7 +367,11 @@ class Oauth2mTlsTokenMiddlewareTest(BaseOauth2mTlsTokenMiddlewareTest,
 class FilterFactoryTest(utils.BaseTestCase):
 
     def test_filter_factory(self):
-        conf = {}
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+        }
         auth_filter = oauth2_mtls_token.filter_factory(conf)
         m = auth_filter(FakeOauth2TokenV3App())
         self.assertIsInstance(m, oauth2_mtls_token.OAuth2mTlsProtocol)
