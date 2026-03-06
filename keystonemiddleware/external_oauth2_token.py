@@ -336,7 +336,7 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
         """
         if not os.path.isfile(self.jwt_key_file):
             self.logger.critical('Configuration error. JWT key file is '
-                                 'not a file. path: %s' % self.jwt_key_file)
+                                 'not a file. path: %s', self.jwt_key_file)
             raise ConfigurationError(_('Configuration error. '
                                        'JWT key file is not a file.'))
         try:
@@ -349,8 +349,8 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
                                        'Failed to read the JWT key file.'))
         if not jwt_key:
             self.logger.critical('Configuration error. The JWT key file '
-                                 'content is empty. path: %s'
-                                 % self.jwt_key_file)
+                                 'content is empty. path: %s',
+                                 self.jwt_key_file)
             raise ConfigurationError(_('Configuration error. The JWT key file '
                                        'content is empty.'))
 
@@ -372,8 +372,8 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
         except Exception as e:
             self.logger.critical('Configuration error. JWT encoding with '
                                  'the specified JWT key file and algorithm '
-                                 'failed. path: %s, algorithm: %s, error: %s' %
-                                 (self.jwt_key_file, self.jwt_algorithm, e))
+                                 'failed. path: %s, algorithm: %s, error: %s',
+                                 self.jwt_key_file, self.jwt_algorithm, e)
             raise ConfigurationError(_('Configuration error. JWT encoding '
                                        'with the specified JWT key file '
                                        'and algorithm failed.'))
@@ -432,8 +432,8 @@ class ClientSecretJwtAuthClient(AbstractAuthClient):
         except Exception as e:
             self.logger.critical('Configuration error. JWT encoding with '
                                  'the specified client_secret and algorithm '
-                                 'failed. algorithm: %s, error: %s'
-                                 % (self.jwt_algorithm, e))
+                                 'failed. algorithm: %s, error: %s',
+                                 self.jwt_algorithm, e)
             raise ConfigurationError(_('Configuration error. JWT encoding '
                                        'with the specified client_secret '
                                        'and algorithm failed.'))
@@ -470,7 +470,7 @@ def _get_http_client(auth_method, session, introspect_endpoint, audience,
             session, introspect_endpoint, audience,
             client_id, func_get_config_option, logger)
     logger.critical('The value is incorrect for option '
-                    'auth_method in group [%s]' %
+                    'auth_method in group [%s]',
                     _EXT_AUTH_CONFIG_GROUP_NAME)
     raise ConfigurationError(_('The configuration parameter for '
                                'key "auth_method" in group [%s] '
@@ -881,28 +881,30 @@ class ExternalAuth2Protocol(object):
             else:
                 wsgi_input = request.environ.get('wsgi.input')
                 if not wsgi_input:
-                    self._log.warn('Unable to obtain the client certificate. '
-                                   'The object for wsgi_input is none.')
+                    self._log.warning(
+                        'Unable to obtain the client certificate. '
+                        'The object for wsgi_input is none.')
                     raise InvalidToken(_('Unable to obtain the client '
                                          'certificate.'))
                 socket = wsgi_input.get_socket()
                 if not socket:
-                    self._log.warn('Unable to obtain the client certificate. '
-                                   'The object for socket is none.')
+                    self._log.warning(
+                        'Unable to obtain the client certificate. '
+                        'The object for socket is none.')
                     raise InvalidToken(_('Unable to obtain the client '
                                          'certificate.'))
                 peer_cert = socket.getpeercert(binary_form=True)
             if not peer_cert:
-                self._log.warn('Unable to obtain the client certificate. '
-                               'The object for peer_cert is none.')
+                self._log.warning('Unable to obtain the client certificate. '
+                                  'The object for peer_cert is none.')
                 raise InvalidToken(_('Unable to obtain the client '
                                      'certificate.'))
             return peer_cert
         except InvalidToken:
             raise
         except Exception as error:
-            self._log.warn('Unable to obtain the client certificate. %s' %
-                           error)
+            self._log.warning('Unable to obtain the client certificate. %s',
+                              error)
             raise InvalidToken(_('Unable to obtain the client certificate.'))
 
     def _confirm_certificate_thumbprint(self, request, origin_token_metadata):
@@ -913,14 +915,15 @@ class ExternalAuth2Protocol(object):
             cert_thumb = jwt.utils.base64url_encode(thumb_sha256).decode(
                 'ascii')
         except Exception as error:
-            self._log.warn('An Exception occurred. %s' % error)
+            self._log.warning('An Exception occurred. %s', error)
             raise InvalidToken(_('Can not generate the thumbprint.'))
 
         token_thumb = origin_token_metadata.get('cnf', {}).get('x5t#S256')
         if cert_thumb != token_thumb:
-            self._log.warn('The two thumbprints do not match. '
-                           'token_thumbprint: %s, certificate_thumbprint %s' %
-                           (token_thumb, cert_thumb))
+            self._log.warning(
+                'The two thumbprints do not match. '
+                'token_thumbprint: %s, certificate_thumbprint %s',
+                token_thumb, cert_thumb)
             raise InvalidToken(_('The two thumbprints do not match.'))
 
     def _set_request_env(self, request, token_data):
@@ -960,7 +963,7 @@ class ExternalAuth2Protocol(object):
             request.environ['HTTP_X_DOMAIN_ID'] = token_data.get('domain_id')
             request.environ['HTTP_X_DOMAIN_NAME'] = token_data.get(
                 'domain_name')
-        self._log.debug('The access token data is %s.' % jsonutils.dumps(
+        self._log.debug('The access token data is %s.', jsonutils.dumps(
             token_data))
 
 
