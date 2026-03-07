@@ -36,8 +36,6 @@ from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import ERROR_TOKEN
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
-    import FAKE_ADMIN_TOKEN
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import FAKE_ADMIN_TOKEN_ID
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import FakeApp
@@ -51,7 +49,7 @@ from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import VERSION_LIST_v3
 from keystonemiddleware.tests.unit import client_fixtures
 from keystonemiddleware.tests.unit.test_oauth2_token_middleware \
-    import FakeOauth2TokenV3App
+    import FakeOauth2TokenApp
 from keystonemiddleware.tests.unit.test_oauth2_token_middleware \
     import get_authorization_header
 from keystonemiddleware.tests.unit import utils
@@ -159,9 +157,7 @@ class Oauth2mTlsTokenMiddlewareTest(BaseOauth2mTlsTokenMiddlewareTest,
     def setUp(self):
         super(Oauth2mTlsTokenMiddlewareTest, self).setUp(
             auth_version='v3.0',
-            fake_app=FakeOauth2TokenV3App)
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
+            fake_app=FakeOauth2TokenApp)
         self.requests_mock.get(BASE_URI,
                                json=VERSION_LIST_v3,
                                status_code=300)
@@ -373,5 +369,5 @@ class FilterFactoryTest(utils.BaseTestCase):
             'token': FAKE_ADMIN_TOKEN_ID,
         }
         auth_filter = oauth2_mtls_token.filter_factory(conf)
-        m = auth_filter(FakeOauth2TokenV3App())
+        m = auth_filter(FakeOauth2TokenApp())
         self.assertIsInstance(m, oauth2_mtls_token.OAuth2mTlsProtocol)

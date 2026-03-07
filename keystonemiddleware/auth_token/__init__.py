@@ -410,8 +410,7 @@ class BaseAuthProtocol(object):
                     allow_expired=allow_expired)
                 self._validate_token(user_auth_ref,
                                      allow_expired=allow_expired)
-                if user_auth_ref.version != 'v2.0':
-                    self.validate_allowed_request(request, data['token'])
+                self.validate_allowed_request(request, data['token'])
                 if not request.service_token:
                     self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
@@ -771,13 +770,6 @@ class AuthProtocol(BaseAuthProtocol):
             raise
 
         return data
-
-    def _validate_token(self, auth_ref, **kwargs):
-        super(AuthProtocol, self)._validate_token(auth_ref, **kwargs)
-
-        if auth_ref.version == 'v2.0' and not auth_ref.project_id:
-            msg = _('Unable to determine service tenancy.')
-            raise ksm_exceptions.InvalidToken(msg)
 
     def _create_auth_plugin(self):
         # NOTE(jamielennox): Ideally this would use load_from_conf_options

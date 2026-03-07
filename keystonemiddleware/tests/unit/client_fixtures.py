@@ -125,76 +125,7 @@ class Examples(fixtures.Fixture):
 
         self.SERVICE_TYPE = 'identity'
         self.UNVERSIONED_SERVICE_URL = 'https://keystone.example.com:1234/'
-        self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v2.0'
-
-        # Generated V2 Tokens
-
-        token = fixture.V2Token(token_id=self.UUID_TOKEN_DEFAULT,
-                                tenant_id=PROJECT_ID,
-                                tenant_name=PROJECT_NAME,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        token.add_role(name=ROLE_NAME1)
-        token.add_role(name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint(public=self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.UUID_TOKEN_DEFAULT] = token
-
-        token = fixture.V2Token(token_id=self.UUID_TOKEN_UNSCOPED,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNSCOPED] = token
-
-        token = fixture.V2Token(token_id='valid-token',
-                                tenant_id=PROJECT_ID,
-                                tenant_name=PROJECT_NAME,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        token.add_role(ROLE_NAME1)
-        token.add_role(ROLE_NAME2)
-        self.TOKEN_RESPONSES[self.UUID_TOKEN_NO_SERVICE_CATALOG] = token
-
-        token = fixture.V2Token(token_id=self.UUID_TOKEN_BIND,
-                                tenant_id=PROJECT_ID,
-                                tenant_name=PROJECT_NAME,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        token.add_role(ROLE_NAME1)
-        token.add_role(ROLE_NAME2)
-        token['access']['token']['bind'] = {'kerberos': self.KERBEROS_BIND}
-        self.TOKEN_RESPONSES[self.UUID_TOKEN_BIND] = token
-
-        token = fixture.V2Token(token_id=self.UUID_SERVICE_TOKEN_BIND,
-                                tenant_id=SERVICE_PROJECT_ID,
-                                tenant_name=SERVICE_PROJECT_NAME,
-                                user_id=SERVICE_USER_ID,
-                                user_name=SERVICE_USER_NAME)
-        token.add_role(SERVICE_ROLE_NAME1)
-        token.add_role(SERVICE_ROLE_NAME2)
-        token['access']['token']['bind'] = {
-            'kerberos': self.SERVICE_KERBEROS_BIND}
-        self.TOKEN_RESPONSES[self.UUID_SERVICE_TOKEN_BIND] = token
-
-        token = fixture.V2Token(token_id=self.UUID_TOKEN_UNKNOWN_BIND,
-                                tenant_id=PROJECT_ID,
-                                tenant_name=PROJECT_NAME,
-                                user_id=USER_ID,
-                                user_name=USER_NAME)
-        token.add_role(ROLE_NAME1)
-        token.add_role(ROLE_NAME2)
-        token['access']['token']['bind'] = {'FOO': 'BAR'}
-        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNKNOWN_BIND] = token
-
-        token = fixture.V2Token(token_id=self.UUID_SERVICE_TOKEN_DEFAULT,
-                                tenant_id=SERVICE_PROJECT_ID,
-                                tenant_name=SERVICE_PROJECT_NAME,
-                                user_id=SERVICE_USER_ID,
-                                user_name=SERVICE_USER_NAME)
-        token.add_role(name=SERVICE_ROLE_NAME1)
-        token.add_role(name=SERVICE_ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint(public=self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.UUID_SERVICE_TOKEN_DEFAULT] = token
+        self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v3'
 
         # Generated V3 Tokens
 
