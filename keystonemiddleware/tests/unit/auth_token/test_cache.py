@@ -14,6 +14,7 @@ import random
 import uuid
 
 import fixtures
+import oslo_cache
 from unittest import mock
 
 from keystonemiddleware.auth_token import _cache
@@ -168,6 +169,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
                           conf=conf)
+        # test empty cache_secret_key
         conf = {
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
@@ -179,6 +181,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
                           conf=conf)
+        # test empty cache_secret_key
         conf = {
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
@@ -338,6 +341,79 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
             'memcache_use_advanced_pool': True
         }
+
+        token = uuid.uuid4().hex.encode()
+        data = uuid.uuid4().hex
+
+        token_cache = self.create_simple_middleware(conf=conf)._token_cache
+        token_cache.initialize({})
+
+        token_cache.set(token, data)
+        self.assertEqual(token_cache.get(token), data)
+
+    def test_oslo_cache(self):
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'use_oslo_cache': True,
+        }
+
+        # Register oslo.cache options
+        oslo_cache.configure(self.cfg.conf)
+        self.cfg.conf.set_override('enabled', True, 'cache')
+        self.cfg.conf.set_override('backend', 'dogpile.cache.memcached',
+                                   'cache')
+
+        token = uuid.uuid4().hex.encode()
+        data = uuid.uuid4().hex
+
+        token_cache = self.create_simple_middleware(conf=conf)._token_cache
+        token_cache.initialize({})
+
+        token_cache.set(token, data)
+        self.assertEqual(token_cache.get(token), data)
+
+    def test_oslo_cache_encrypt_cache_data(self):
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'cache_security_strategy': 'encrypt',
+            'cache_secret_key': 'mysecret',
+            'use_oslo_cache': True,
+        }
+
+        # Register oslo.cache options
+        oslo_cache.configure(self.cfg.conf)
+        self.cfg.conf.set_override('enabled', True, 'cache')
+        self.cfg.conf.set_override('backend', 'dogpile.cache.memcached',
+                                   'cache')
+
+        token = uuid.uuid4().hex.encode()
+        data = uuid.uuid4().hex
+
+        token_cache = self.create_simple_middleware(conf=conf)._token_cache
+        token_cache.initialize({})
+
+        token_cache.set(token, data)
+        self.assertEqual(token_cache.get(token), data)
+
+    def test_oslo_cache_sign_cache_data(self):
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'cache_security_strategy': 'encrypt',
+            'cache_secret_key': 'hmac',
+            'use_oslo_cache': True,
+        }
+
+        # Register oslo.cache options
+        oslo_cache.configure(self.cfg.conf)
+        self.cfg.conf.set_override('enabled', True, 'cache')
+        self.cfg.conf.set_override('backend', 'dogpile.cache.memcached',
+                                   'cache')
 
         token = uuid.uuid4().hex.encode()
         data = uuid.uuid4().hex

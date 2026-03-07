@@ -2004,6 +2004,32 @@ class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
         self.assertIsInstance(self.middleware._token_cache._serializer,
                               _cache.SecureTokenSerializer)
 
+    def test_token_cache_factory_oslo_insecure(self):
+        conf = copy.deepcopy(self._test_conf)
+        conf["use_oslo_cache"] = True
+        self.set_middleware(conf=conf)
+        self.assertIsInstance(self.middleware._token_cache,
+                              _cache.OsloTokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.TokenSerializer)
+
+    def test_token_cache_factory_oslo_secure(self):
+        conf = copy.deepcopy(self._test_conf)
+        conf["use_oslo_cache"] = True
+        conf["cache_secret_key"] = "test_key"
+        conf["cache_security_strategy"] = "MAC"
+        self.set_middleware(conf=conf)
+        self.assertIsInstance(self.middleware._token_cache,
+                              _cache.OsloTokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.SecureTokenSerializer)
+        conf["cache_security_strategy"] = "ENCRYPT"
+        self.set_middleware(conf=conf)
+        self.assertIsInstance(self.middleware._token_cache,
+                              _cache.OsloTokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.SecureTokenSerializer)
+
     def test_caching_token_on_verify(self):
         conf = copy.deepcopy(self._test_conf)
         self.set_middleware(conf=conf)

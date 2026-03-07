@@ -146,6 +146,10 @@ _OPTS = [
                 default=True,
                 help='(Optional) Use the advanced (eventlet safe) memcached '
                      'client pool.'),
+    cfg.BoolOpt('use_oslo_cache',
+                default=False,
+                help='(Optional) Use oslo.cache backend for token data '
+                     'caching.'),
     cfg.BoolOpt('include_service_catalog',
                 default=True,
                 help='(Optional) Indicate whether to set the X-Service-Catalog'

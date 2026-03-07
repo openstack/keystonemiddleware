@@ -1,4 +1,11 @@
 ---
+features:
+  - |
+    The new ``use_oslo_cache`` option has been added to the ``auth_token``
+    middleware and the ``external_oauth2_token`` middleware.
+    When this option is set to True (it defaults to False), token cache data is
+    stored to the cacke bachend managed by the oslo.cache library.
+
 deprecations:
   - |
     The following options have been deprecated.

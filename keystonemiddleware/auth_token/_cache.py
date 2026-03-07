@@ -10,9 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import abc
 import contextlib
 import hashlib
 
+import oslo_cache
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 
@@ -261,7 +263,7 @@ class SecureTokenSerializer(TokenSerializer):
         return crypt.protect_data(context, data)
 
 
-class TokenCache(object):
+class TokenCacheBase(object, metaclass=abc.ABCMeta):
     """Encapsulates the auth_token token cache functionality.
 
     auth_token caches tokens that it's seen so that when a token is re-used the
@@ -276,13 +278,76 @@ class TokenCache(object):
 
     """
 
+    def __init__(self, log, serializer, cache_time=None):
+        self._LOG = log
+        self._cache_time = cache_time
+        self._serializer = serializer
+        self._initialized = False
+
+    @abc.abstractmethod
+    def _initialize(self, env):
+        raise NotImplementedError()
+
+    def initialize(self, env):
+        if self._initialized:
+            return
+
+        self._initialize(env)
+        self._initialized = True
+
+    @abc.abstractmethod
+    def _get(self, key):
+        raise NotImplementedError()
+
+    def get(self, token_id):
+        """Return token information from cache.
+
+        If token is invalid raise exc.InvalidToken return token only if fresh
+        (not expired).
+        """
+        if not token_id:
+            # Nothing to do
+            return
+
+        key, context = self._serializer.get_cache_key(token_id)
+
+        serialized = self._get(key)
+        if serialized is None:
+            return None
+
+        if isinstance(serialized, str):
+            serialized = serialized.encode('utf8')
+        data = self._serializer.deserialize(serialized, context)
+
+        if data is None:
+            # In case decryption fails, e.g. data corrupted in memcached.
+            return None
+
+        return jsonutils.loads(data)
+
+    @abc.abstractmethod
+    def _set(self, token_id, data):
+        raise NotImplementedError()
+
+    def set(self, token_id, data):
+        """Store value into memcache."""
+        data = jsonutils.dumps(data).encode('utf8')
+        cache_key, context = self._serializer.get_cache_key(token_id)
+        data_to_store = self._serializer.serialize(data, context)
+
+        self._set(cache_key, data_to_store)
+
+
+class TokenCache(TokenCacheBase):
+    """A token cache that stores tokens in memcached.
+
+    """
     def __init__(self, log, serializer, cache_time=None,
                  env_cache_name=None, memcached_servers=None, tls_context=None,
                  use_advanced_pool=True, dead_retry=None, socket_timeout=None,
                  **kwargs):
-        self._LOG = log
-        self._serializer = serializer
-        self._cache_time = cache_time
+        super(TokenCache, self).__init__(log, serializer, cache_time)
+
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
         self._tls_context = tls_context
@@ -299,7 +364,6 @@ class TokenCache(object):
         self._memcache_pool_options = kwargs
 
         self._cache_pool = None
-        self._initialized = False
 
     def _get_cache_pool(self, cache):
         if cache:
@@ -314,49 +378,37 @@ class TokenCache(object):
             return _CachePool(self._memcached_servers, self._LOG,
                               self._arguments)
 
-    def initialize(self, env):
-        if self._initialized:
-            return
-
+    def _initialize(self, env):
         self._cache_pool = self._get_cache_pool(env.get(self._env_cache_name))
-        self._initialized = True
 
-    def get(self, token_id):
-        """Return token information from cache.
-
-        If token is invalid raise exc.InvalidToken
-        return token only if fresh (not expired).
-        """
-        if not token_id:
-            # Nothing to do
-            return
-
-        key, context = self._serializer.get_cache_key(token_id)
-
+    def _get(self, key):
         with self._cache_pool.reserve() as cache:
-            serialized = cache.get(key)
+            return cache.get(key)
 
-        if serialized is None:
-            return None
-
-        if isinstance(serialized, str):
-            serialized = serialized.encode('utf8')
-        data = self._serializer.deserialize(serialized, context)
-
-        if data is None:
-            # In case decryption fails, e.g. data corrupted in memcached.
-            return None
-
-        return jsonutils.loads(data)
-
-    def set(self, token_id, data):
-        """Store value into memcache."""
-        data = jsonutils.dumps(data).encode('utf-8')
-        cache_key, context = self._serializer.get_cache_key(token_id)
-        data_to_store = self._serializer.serialize(data, context)
-
+    def _set(self, cache_key, data_to_store):
         with self._cache_pool.reserve() as cache:
             cache.set(cache_key, data_to_store, time=self._cache_time)
+
+
+class OsloTokenCache(TokenCacheBase):
+    def __init__(self, log, serializer, cache_time, conf):
+        super(OsloTokenCache, self).__init__(log, serializer, cache_time)
+        self._conf = conf
+        self._region = None
+
+    def _initialize(self, env):
+        oslo_cache.configure(self._conf)
+        self._region = oslo_cache.create_region()
+        oslo_cache.configure_cache_region(self._conf, self._region)
+
+    def _get(self, key):
+        data = self._region.get(key, self._cache_time)
+        if data == oslo_cache.NO_VALUE:
+            return None
+        return data
+
+    def _set(self, cache_key, data_to_store):
+        return self._region.set(cache_key, data_to_store)
 
 
 class _FakeClient(object):

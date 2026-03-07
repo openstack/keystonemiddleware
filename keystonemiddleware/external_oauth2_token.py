@@ -179,7 +179,11 @@ _EXTERNAL_AUTH2_OPTS = [
     cfg.BoolOpt('memcache_use_advanced_pool',
                 default=True,
                 help='(Optional) Use the advanced (eventlet safe) memcached '
-                     'client pool.')
+                     'client pool.'),
+    cfg.BoolOpt('use_oslo_cache',
+                default=False,
+                help='(Optional) Use oslo.cache backend for token data '
+                     'caching.'),
 ]
 
 cfg.CONF.register_opts(_EXTERNAL_AUTH2_OPTS,
@@ -517,6 +521,14 @@ class ExternalAuth2Protocol(object):
                 self._log, security_strategy, secret_key)
         else:
             serializer = _cache.TokenSerializer(self._log)
+
+        if self._conf.get('use_oslo_cache'):
+            return _cache.OsloTokenCache(
+                log=self._log,
+                serializer=serializer,
+                cache_time=int(self._conf.get('token_cache_time')),
+                conf=self._conf.oslo_conf_obj,
+            )
 
         cache_kwargs = dict(
             cache_time=int(self._conf.get('token_cache_time')),

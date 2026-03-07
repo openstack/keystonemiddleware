@@ -833,6 +833,14 @@ class AuthProtocol(BaseAuthProtocol):
         else:
             serializer = _cache.TokenSerializer(self.log)
 
+        if self._conf.get('use_oslo_cache'):
+            return _cache.OsloTokenCache(
+                log=self.log,
+                serializer=serializer,
+                cache_time=int(self._conf.get('token_cache_time')),
+                conf=self._conf.oslo_conf_obj,
+            )
+
         cache_kwargs = dict(
             cache_time=int(self._conf.get('token_cache_time')),
             env_cache_name=self._conf.get('cache'),
