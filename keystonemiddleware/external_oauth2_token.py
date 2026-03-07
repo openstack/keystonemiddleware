@@ -19,7 +19,6 @@ import time
 import uuid
 
 import jwt.utils
-import oslo_cache
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
@@ -38,7 +37,6 @@ from keystonemiddleware.exceptions import ConfigurationError
 from keystonemiddleware.exceptions import KeystoneMiddlewareException
 from keystonemiddleware.i18n import _
 
-oslo_cache.configure(cfg.CONF)
 _EXT_AUTH_CONFIG_GROUP_NAME = 'ext_oauth2_auth'
 _EXTERNAL_AUTH2_OPTS = [
     cfg.StrOpt('certfile',

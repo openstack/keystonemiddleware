@@ -24,7 +24,6 @@ from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import fixture
 from keystoneauth1 import loading
 from keystoneauth1 import session
-import oslo_cache
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
@@ -251,17 +250,6 @@ class v3CompositeFakeApp(CompositeBase, v3FakeApp):
             v3_default_service_env_additions)
 
 
-class FakeOsloCache(_cache._FakeClient):
-    """A fake oslo_cache object.
-
-    The memcache and oslo_cache interfaces are almost the same except we need
-    to return NO_VALUE when not found.
-    """
-
-    def get(self, key):
-        return super(FakeOsloCache, self).get(key) or oslo_cache.NO_VALUE
-
-
 class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
     """Base test class for auth_token middleware.
 
@@ -280,11 +268,6 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         super(BaseAuthTokenMiddlewareTest, self).setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
-
-        # the default oslo_cache is null cache, always use an in-mem cache
-        self.useFixture(fixtures.MockPatchObject(auth_token.AuthProtocol,
-                                                 '_create_oslo_cache',
-                                                 return_value=FakeOsloCache()))
 
         self.expected_env = expected_env or dict()
         self.fake_app = fake_app or FakeApp

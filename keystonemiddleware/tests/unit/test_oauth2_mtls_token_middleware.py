@@ -42,8 +42,6 @@ from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import FakeApp
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
-    import FakeOsloCache
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import request_timeout_response
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import TIMEOUT_TOKEN
@@ -84,10 +82,6 @@ class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         super(BaseOauth2mTlsTokenMiddlewareTest, self).setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
-        self.useFixture(
-            fixtures.MockPatchObject(oauth2_mtls_token.OAuth2mTlsProtocol,
-                                     '_create_oslo_cache',
-                                     return_value=FakeOsloCache))
         self.expected_env = expected_env or dict()
         self.fake_app = fake_app or FakeApp
         self.middleware = None
