@@ -123,6 +123,33 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         self.assertEqual("audit.http.response", call_args[1])
         self.assertEqual("/accept/foo", call_args[2]["requestPath"])
 
+    def test_ignore_path_opt(self):
+        app = self.create_simple_app(
+            ignore_path_list="/skip/foo,/skip/bar/, /skip/baz "
+        )
+
+        # Check request to the ignored paths does not send notification
+        app.get("/skip/foo", extra_environ=self.get_environ_header())
+        app.get("/skip/foo/", extra_environ=self.get_environ_header())
+        app.get("/skip/bar", extra_environ=self.get_environ_header())
+        app.get("/skip/bar/", extra_environ=self.get_environ_header())
+        app.get("/skip/baz", extra_environ=self.get_environ_header())
+        app.get("/skip/baz/", extra_environ=self.get_environ_header())
+
+        self.assertFalse(self.notifier.notify.called)
+
+        # Check request to the other paths send notification
+        app.post("/accept/foo", extra_environ=self.get_environ_header())
+        self.assertEqual(2, self.notifier.notify.call_count)
+
+        self.notifier.notify.reset_mock()
+        app.get("/skip/foo/bar", extra_environ=self.get_environ_header())
+        self.assertEqual(2, self.notifier.notify.call_count)
+
+        self.notifier.notify.reset_mock()
+        app.get("/skip/foobar", extra_environ=self.get_environ_header())
+        self.assertEqual(2, self.notifier.notify.call_count)
+
     def test_cadf_event_context_scoped(self):
         self.create_simple_app().get(
             "/foo/bar", extra_environ=self.get_environ_header()
