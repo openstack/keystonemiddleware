@@ -262,17 +262,11 @@ class TokenCache(object):
             # In case decryption fails, e.g. data corrupted in memcached.
             return None
 
-        if not isinstance(data, str):
-            data = data.decode('utf-8')
-
         return jsonutils.loads(data)
 
     def set(self, token_id, data):
         """Store value into memcache."""
-        data = jsonutils.dumps(data)
-        if isinstance(data, str):
-            data = data.encode('utf-8')
-
+        data = jsonutils.dumps(data).encode('utf-8')
         cache_key, context = self._get_cache_key(token_id)
         data_to_store = self._serialize(data, context)
 
