@@ -174,13 +174,6 @@ class TokenCache(object):
                                        **self._memcache_pool_options)
 
         else:
-            if not self._use_advanced_pool:
-                self._LOG.warning(
-                    "Using the eventlet-unsafe cache pool is deprecated."
-                    "It is recommended to use eventlet-safe cache pool"
-                    "implementation from oslo.cache. This can be enabled"
-                    "through config option memcache_use_advanced_pool = True")
-
             return _CachePool(self._memcached_servers, self._LOG,
                               self._arguments)
 

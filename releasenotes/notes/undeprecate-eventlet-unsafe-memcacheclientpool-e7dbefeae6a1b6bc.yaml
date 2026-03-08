@@ -1,0 +1,6 @@
+---
+other:
+  - |
+    Using ``[keystone_authtoken] memcache_use_advanced_pool = False`` has been
+    formally undeprecated, because eventlet is being removed from OpenStack
+    globally.
