@@ -167,11 +167,14 @@ _OPTS = [
                 ' Roles here are applied as an ANY check so any role in this'
                 ' list must be present. For backwards compatibility reasons'
                 ' this currently only affects the allow_expired check.'),
-    cfg.BoolOpt('service_token_roles_required', default=False,
-                help='For backwards compatibility reasons we must let valid'
-                ' service tokens pass that don\'t pass the service_token_roles'
-                ' check as valid. Setting this true will become the default'
-                ' in a future release and should be enabled if possible.'),
+    cfg.BoolOpt('service_token_roles_required', default=True,
+                help='When set to True, service tokens must contain a role'
+                ' from the service_token_roles list to be considered valid.'
+                ' This prevents end-user tokens from being used as service'
+                ' tokens and ensures proper service-to-service authentication.'
+                ' Setting this to False is NOT RECOMMENDED as it allows any'
+                ' valid token to be used as a service token, which can bypass'
+                ' access-rule checks and weaken composite-auth protections.'),
     cfg.StrOpt('service_type',
                help='The name or type of the service as it appears in the'
                ' service catalog. This is used to validate tokens that have'

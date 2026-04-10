@@ -146,7 +146,7 @@ class BaseAuthProtocolTests(testtools.TestCase):
     def test_good_v3_service_token(self):
         t = fixture.V3Token()
         t.set_project_scope()
-        role = t.add_role()
+        role = t.add_role(name='service')
 
         token_id = uuid.uuid4().hex
         token_dict = {token_id: t}
@@ -172,7 +172,8 @@ class BaseAuthProtocolTests(testtools.TestCase):
 
             return webob.Response()
 
-        m = FetchingMiddleware(_do_cb, token_dict)
+        m = FetchingMiddleware(_do_cb, token_dict,
+                               service_token_roles=['service'])
         self.call(m, headers={'X-Service-Token': token_id})
 
         # also try with whitespace in the token

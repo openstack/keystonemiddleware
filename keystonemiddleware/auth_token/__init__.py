@@ -321,7 +321,7 @@ class BaseAuthProtocol(object):
                  log=_LOG,
                  enforce_token_bind=_BIND_MODE.PERMISSIVE,
                  service_token_roles=None,
-                 service_token_roles_required=False,
+                 service_token_roles_required=True,
                  service_type=None):
         self.log = log
         self._app = app
@@ -607,8 +607,10 @@ class AuthProtocol(BaseAuthProtocol):
         if not token_roles_required:
             log.warning('AuthToken middleware is set with '
                         'keystone_authtoken.service_token_roles_required '
-                        'set to False. This is backwards compatible but '
-                        'deprecated behaviour. Please set this to True.')
+                        'set to False. This allows any valid token to be '
+                        'used as a service token, which can bypass access '
+                        'rule checks and weaken security. It is strongly '
+                        'recommended to set this to True.')
 
         super(AuthProtocol, self).__init__(
             app,
