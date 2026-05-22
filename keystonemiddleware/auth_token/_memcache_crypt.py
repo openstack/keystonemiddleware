@@ -76,11 +76,13 @@ class CryptoUnavailableError(Exception):
 
 def assert_crypto_availability(f):
     """Ensure cryptography module is available."""
+
     @functools.wraps(f)
     def wrapper(*args, **kwds):
         if ciphers is None:
             raise CryptoUnavailableError()
         return f(*args, **kwds)
+
     return wrapper
 
 
@@ -107,10 +109,12 @@ def derive_keys(token, secret, strategy):
         strategy = strategy.encode()
 
     digest = hmac.new(secret, token + strategy, HASH_FUNCTION).digest()
-    return {'CACHE_KEY': digest[:DIGEST_SPLIT],
-            'MAC': digest[DIGEST_SPLIT: 2 * DIGEST_SPLIT],
-            'ENCRYPTION': digest[2 * DIGEST_SPLIT:],
-            'strategy': strategy}
+    return {
+        "CACHE_KEY": digest[:DIGEST_SPLIT],
+        "MAC": digest[DIGEST_SPLIT : 2 * DIGEST_SPLIT],
+        "ENCRYPTION": digest[2 * DIGEST_SPLIT :],
+        "strategy": strategy,
+    }
 
 
 def sign_data(key, data):
@@ -133,9 +137,8 @@ def encrypt_data(key, data):
     """
     iv = os.urandom(16)
     cipher = ciphers.Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=crypto_backends.default_backend())
+        algorithms.AES(key), modes.CBC(iv), backend=crypto_backends.default_backend()
+    )
 
     # AES algorithm uses block size of 16 bytes = 128 bits, defined in
     # algorithms.AES.block_size. Previously, we manually padded this using
@@ -152,14 +155,13 @@ def decrypt_data(key, data):
     """Decrypt the data with the given secret key."""
     iv = data[:16]
     cipher = ciphers.Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=crypto_backends.default_backend())
+        algorithms.AES(key), modes.CBC(iv), backend=crypto_backends.default_backend()
+    )
     try:
         decryptor = cipher.decryptor()
         result = decryptor.update(data[16:]) + decryptor.finalize()
     except Exception:
-        raise DecryptError(_('Encrypted data appears to be corrupted.'))
+        raise DecryptError(_("Encrypted data appears to be corrupted."))
 
     # Strip the last n padding bytes where n is the last value in
     # the plaintext
@@ -174,12 +176,12 @@ def protect_data(keys, data):
     suitable for storage in the cache.
 
     """
-    if keys['strategy'] == b'ENCRYPT':
-        data = encrypt_data(keys['ENCRYPTION'], data)
+    if keys["strategy"] == b"ENCRYPT":
+        data = encrypt_data(keys["ENCRYPTION"], data)
 
     encoded_data = base64.b64encode(data)
 
-    signature = sign_data(keys['MAC'], encoded_data)
+    signature = sign_data(keys["MAC"], encoded_data)
     return signature + encoded_data
 
 
@@ -197,19 +199,17 @@ def unprotect_data(keys, signed_data):
 
     # First we calculate the signature
     provided_mac = signed_data[:DIGEST_LENGTH_B64]
-    calculated_mac = sign_data(
-        keys['MAC'],
-        signed_data[DIGEST_LENGTH_B64:])
+    calculated_mac = sign_data(keys["MAC"], signed_data[DIGEST_LENGTH_B64:])
 
     # Then verify that it matches the provided value
     if not hmac.compare_digest(provided_mac, calculated_mac):
-        raise InvalidMacError(_('Invalid MAC; data appears to be corrupted.'))
+        raise InvalidMacError(_("Invalid MAC; data appears to be corrupted."))
 
     data = base64.b64decode(signed_data[DIGEST_LENGTH_B64:])
 
     # then if necessary decrypt the data
-    if keys['strategy'] == b'ENCRYPT':
-        data = decrypt_data(keys['ENCRYPTION'], data)
+    if keys["strategy"] == b"ENCRYPT":
+        data = decrypt_data(keys["ENCRYPTION"], data)
 
     return data
 
@@ -221,4 +221,4 @@ def get_cache_key(keys):
     suitable for use as a cache key in memcached.
 
     """
-    return base64.b64encode(keys['CACHE_KEY'])
+    return base64.b64encode(keys["CACHE_KEY"])

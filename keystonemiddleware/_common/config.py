@@ -38,7 +38,7 @@ def _conf_values_type_convert(group_name, all_options, conf):
             continue
 
         for o in options:
-            type_dest = (getattr(o, 'type', str), o.dest)
+            type_dest = (getattr(o, "type", str), o.dest)
             opt_types[o.dest] = type_dest
             # Also add the deprecated name with the same type and dest.
             for d_o in o.deprecated_opts:
@@ -51,34 +51,34 @@ def _conf_values_type_convert(group_name, all_options, conf):
         try:
             # 'here' and '__file__' come from paste.deploy
             # 'configkey' is added by panko and gnocchi
-            if v is not None and k not in ['here', '__file__', 'configkey']:
+            if v is not None and k not in ["here", "__file__", "configkey"]:
                 type_, dest = opt_types[k]
                 v = type_(v)
         except KeyError:  # nosec
-            _LOG.warning(
-                'The option "%s" is not known to keystonemiddleware', k)
+            _LOG.warning('The option "%s" is not known to keystonemiddleware', k)
         except ValueError as e:
             raise exceptions.ConfigurationError(
-                _('Unable to convert the value of option "%(key)s" into '
-                  'correct type: %(ex)s') % {'key': k, 'ex': e})
+                _(
+                    'Unable to convert the value of option "%(key)s" into '
+                    "correct type: %(ex)s"
+                )
+                % {"key": k, "ex": e}
+            )
         opts[dest] = v
 
     return opts
 
 
 class Config(object):
-
     def __init__(self, name, group_name, all_options, conf):
-        local_oslo_config = conf.pop('oslo_config_config', None)
-        local_config_project = conf.pop('oslo_config_project', None)
-        local_config_file = conf.pop('oslo_config_file', None)
+        local_oslo_config = conf.pop("oslo_config_config", None)
+        local_config_project = conf.pop("oslo_config_project", None)
+        local_config_file = conf.pop("oslo_config_file", None)
 
         # NOTE(wanghong): If options are set in paste file, all the option
         # values passed into conf are string type. So, we should convert the
         # conf value into correct type.
-        self.paste_overrides = _conf_values_type_convert(group_name,
-                                                         all_options,
-                                                         conf)
+        self.paste_overrides = _conf_values_type_convert(group_name, all_options, conf)
 
         # NOTE(sileht, cdent): If we don't want to use oslo.config global
         # object there are two options: set "oslo_config_project" in
@@ -91,10 +91,12 @@ class Config(object):
             config_files = [local_config_file] if local_config_file else None
 
             local_oslo_config = cfg.ConfigOpts()
-            local_oslo_config([],
-                              project=local_config_project,
-                              default_config_files=config_files,
-                              validate_default_values=True)
+            local_oslo_config(
+                [],
+                project=local_config_project,
+                default_config_files=config_files,
+                validate_default_values=True,
+            )
 
         if local_oslo_config:
             for group, opts in all_options:
@@ -127,7 +129,7 @@ class Config(object):
 
         """
         try:
-            return self.get('project', group=self.group_name)
+            return self.get("project", group=self.group_name)
         except cfg.NoSuchOptError:
             try:
                 # CONF.project will exist only if the service uses
@@ -141,7 +143,7 @@ class Config(object):
     @property
     def user_agent(self):
         if not self._user_agent:
-            project = self.project or ''
+            project = self.project or ""
 
             if project:
                 try:
@@ -154,6 +156,7 @@ class Config(object):
             self._user_agent = "%skeystonemiddleware.%s/%s" % (
                 project,
                 self.name,
-                pbr.version.VersionInfo('keystonemiddleware').version_string())
+                pbr.version.VersionInfo("keystonemiddleware").version_string(),
+            )
 
         return self._user_agent

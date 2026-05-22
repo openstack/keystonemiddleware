@@ -22,7 +22,7 @@ from keystonemiddleware.tests.unit import utils
 
 
 class _TestConnectionPool(_memcache_pool.ConnectionPool):
-    destroyed_value = 'destroyed'
+    destroyed_value = "destroyed"
 
     def _create_connection(self):
         return mock.MagicMock()
@@ -37,8 +37,8 @@ class TestConnectionPool(utils.TestCase):
         self.unused_timeout = 10
         self.maxsize = 2
         self.connection_pool = _TestConnectionPool(
-            maxsize=self.maxsize,
-            unused_timeout=self.unused_timeout)
+            maxsize=self.maxsize, unused_timeout=self.unused_timeout
+        )
 
     def test_get_context_manager(self):
         self.assertThat(self.connection_pool.queue, matchers.HasLength(0))
@@ -52,16 +52,15 @@ class TestConnectionPool(utils.TestCase):
         self.test_get_context_manager()
         newtime = time.time() + self.unused_timeout * 2
         non_expired_connection = _memcache_pool._PoolItem(
-            ttl=(newtime * 2),
-            connection=mock.MagicMock())
+            ttl=(newtime * 2), connection=mock.MagicMock()
+        )
         self.connection_pool.queue.append(non_expired_connection)
         self.assertThat(self.connection_pool.queue, matchers.HasLength(2))
-        with mock.patch.object(time, 'time', return_value=newtime):
+        with mock.patch.object(time, "time", return_value=newtime):
             conn = self.connection_pool.queue[0].connection
             with self.connection_pool.acquire():
                 pass
-            conn.assert_has_calls(
-                [mock.call(self.connection_pool.destroyed_value)])
+            conn.assert_has_calls([mock.call(self.connection_pool.destroyed_value)])
         self.assertThat(self.connection_pool.queue, matchers.HasLength(1))
         self.assertEqual(0, non_expired_connection.connection.call_count)
 
@@ -69,13 +68,13 @@ class TestConnectionPool(utils.TestCase):
         class TestException(Exception):
             pass
 
-        with mock.patch.object(_TestConnectionPool, '_create_connection',
-                               side_effect=TestException):
+        with mock.patch.object(
+            _TestConnectionPool, "_create_connection", side_effect=TestException
+        ):
             with testtools.ExpectedException(TestException):
                 with self.connection_pool.acquire():
                     pass
-            self.assertThat(self.connection_pool.queue,
-                            matchers.HasLength(0))
+            self.assertThat(self.connection_pool.queue, matchers.HasLength(0))
             self.assertEqual(0, self.connection_pool._acquired)
 
     def test_connection_pool_limits_maximum_connections(self):
@@ -98,9 +97,8 @@ class TestConnectionPool(utils.TestCase):
 
     def test_connection_pool_maximum_connection_get_timeout(self):
         connection_pool = _TestConnectionPool(
-            maxsize=1,
-            unused_timeout=self.unused_timeout,
-            conn_get_timeout=0)
+            maxsize=1, unused_timeout=self.unused_timeout, conn_get_timeout=0
+        )
 
         def _acquire_connection():
             with connection_pool.acquire():
@@ -109,8 +107,7 @@ class TestConnectionPool(utils.TestCase):
         # Make sure we've consumed the only available connection from the pool
         conn = connection_pool.get_nowait()
 
-        self.assertRaises(_memcache_pool.exception.QueueEmpty,
-                          _acquire_connection)
+        self.assertRaises(_memcache_pool.exception.QueueEmpty, _acquire_connection)
 
         # Put the connection back and ensure we can acquire the connection
         # after it is available.

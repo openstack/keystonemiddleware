@@ -24,7 +24,6 @@ from keystonemiddleware.tests.unit import utils
 
 
 class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
-
     def setUp(self):
         super(BaseAuthTokenTestCase, self).setUp()
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
@@ -33,7 +32,6 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
         self.cfg.conf(args=[])
 
     def create_middleware(self, cb, conf=None, use_global_conf=False):
-
         @webob.dec.wsgify
         def _do_cb(req):
             return cb(req)
@@ -42,15 +40,21 @@ class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
             opts = conf or {}
         else:
             opts = {
-                'oslo_config_config': self.cfg.conf,
+                "oslo_config_config": self.cfg.conf,
             }
             opts.update(conf or {})
 
         return auth_token.AuthProtocol(_do_cb, opts)
 
-    def call(self, middleware, method='GET', path='/', headers=None,
-             expected_status=http_client.OK,
-             expected_body_string=None):
+    def call(
+        self,
+        middleware,
+        method="GET",
+        path="/",
+        headers=None,
+        expected_status=http_client.OK,
+        expected_body_string=None,
+    ):
         req = webob.Request.blank(path)
         req.method = method
 

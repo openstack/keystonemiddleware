@@ -30,30 +30,31 @@ class BaseTestCase(oslotest.BaseTestCase):
 
         # If keystonemiddleware calls any deprecated function this will raise
         # an exception.
-        warnings.filterwarnings('error', category=DeprecationWarning,
-                                module='^keystonemiddleware\\.')
+        warnings.filterwarnings(
+            "error", category=DeprecationWarning, module="^keystonemiddleware\\."
+        )
         self.addCleanup(warnings.resetwarnings)
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
 
 
 class TestCase(BaseTestCase):
-    TEST_DOMAIN_ID = '1'
-    TEST_DOMAIN_NAME = 'aDomain'
+    TEST_DOMAIN_ID = "1"
+    TEST_DOMAIN_NAME = "aDomain"
     TEST_GROUP_ID = uuid.uuid4().hex
     TEST_ROLE_ID = uuid.uuid4().hex
-    TEST_TENANT_ID = '1'
-    TEST_TENANT_NAME = 'aTenant'
-    TEST_TOKEN = 'aToken'
-    TEST_TRUST_ID = 'aTrust'
-    TEST_USER = 'test'
+    TEST_TENANT_ID = "1"
+    TEST_TENANT_NAME = "aTenant"
+    TEST_TOKEN = "aToken"
+    TEST_TRUST_ID = "aTrust"
+    TEST_USER = "test"
     TEST_USER_ID = uuid.uuid4().hex
 
-    TEST_ROOT_URL = 'http://127.0.0.1:5000/'
+    TEST_ROOT_URL = "http://127.0.0.1:5000/"
 
     def setUp(self):
         super(TestCase, self).setUp()
-        self.time_patcher = mock.patch.object(time, 'time', lambda: 1234)
+        self.time_patcher = mock.patch.object(time, "time", lambda: 1234)
         self.time_patcher.start()
 
     def tearDown(self):
@@ -62,15 +63,12 @@ class TestCase(BaseTestCase):
 
 
 class MiddlewareTestCase(BaseTestCase):
-
     def create_middleware(self, cb, **kwargs):
         raise NotImplementedError("implement this in your tests")
 
-    def create_simple_middleware(self,
-                                 status='200 OK',
-                                 body='',
-                                 headers=None,
-                                 **kwargs):
+    def create_simple_middleware(
+        self, status="200 OK", body="", headers=None, **kwargs
+    ):
         def cb(req):
             resp = webob.Response(body, status)
             resp.headers.update(headers or {})
@@ -96,13 +94,13 @@ class TestResponse(requests.Response):
         self._text = None
         super(TestResponse, self).__init__()
         if isinstance(data, dict):
-            self.status_code = data.get('status_code', 200)
-            headers = data.get('headers')
+            self.status_code = data.get("status_code", 200)
+            headers = data.get("headers")
             if headers:
                 self.headers.update(headers)
             # Fake the text attribute to streamline Response creation
             # _content is defined by requests.Response
-            self._content = data.get('text')
+            self._content = data.get("text")
         else:
             self.status_code = data
 
@@ -137,8 +135,7 @@ class DisableModuleFixture(fixtures.Fixture):
     def clear_module(self):
         cleared_modules = {}
         for fullname in list(sys.modules.keys()):
-            if (fullname == self.module or
-                    fullname.startswith(self.module + '.')):
+            if fullname == self.module or fullname.startswith(self.module + "."):
                 cleared_modules[fullname] = sys.modules.pop(fullname)
         return cleared_modules
 
@@ -161,5 +158,5 @@ class NoModuleFinder(object):
         self.module = module
 
     def find_module(self, fullname, path):
-        if fullname == self.module or fullname.startswith(self.module + '.'):
+        if fullname == self.module or fullname.startswith(self.module + "."):
             raise ImportError

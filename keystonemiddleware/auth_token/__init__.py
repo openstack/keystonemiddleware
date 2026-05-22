@@ -227,6 +227,8 @@ from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
+import oslo_cache
+from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import webob.dec
@@ -243,10 +245,10 @@ from keystonemiddleware.i18n import _
 
 
 _LOG = logging.getLogger(__name__)
+oslo_cache.configure(cfg.CONF)
 
 AUTH_TOKEN_OPTS = [
-    (_base.AUTHTOKEN_GROUP,
-     _opts._OPTS + loading.get_auth_common_conf_options())
+    (_base.AUTHTOKEN_GROUP, _opts._OPTS + loading.get_auth_common_conf_options())
 ]
 
 
@@ -277,29 +279,31 @@ def list_opts():
 def _path_matches(request_path, path_pattern):
     # The fnmatch module doesn't provide the ability to match * versus **,
     # so convert to regex.
-    token_regex = (r'(?P<tag>{[^}]*})|'  # {tag} # nosec
-                   r'(?P<wild>\*(?=$|[^\*]))|'  # *
-                   r'(?P<rec_wild>\*\*)|'  # **
-                   r'(?P<literal>[^{}\*])')  # anything else
-    path_regex = ''
+    token_regex = (
+        r"(?P<tag>{[^}]*})|"  # {tag} # nosec  # noqa: S105
+        r"(?P<wild>\*(?=$|[^\*]))|"  # *
+        r"(?P<rec_wild>\*\*)|"  # **
+        r"(?P<literal>[^{}\*])"
+    )  # anything else
+    path_regex = ""
     for match in re.finditer(token_regex, path_pattern):
         token = match.groupdict()
-        if token['tag'] or token['wild']:
-            path_regex += r'[^\/]+'
-        if token['rec_wild']:
-            path_regex += '.*'
-        if token['literal']:
-            path_regex += token['literal']
-    path_regex = r'^%s$' % path_regex
+        if token["tag"] or token["wild"]:
+            path_regex += r"[^\/]+"
+        if token["rec_wild"]:
+            path_regex += ".*"
+        if token["literal"]:
+            path_regex += token["literal"]
+    path_regex = r"^%s$" % path_regex
     return re.match(path_regex, request_path)
 
 
 class _BIND_MODE(object):
-    DISABLED = 'disabled'
-    PERMISSIVE = 'permissive'
-    STRICT = 'strict'
-    REQUIRED = 'required'
-    KERBEROS = 'kerberos'
+    DISABLED = "disabled"
+    PERMISSIVE = "permissive"
+    STRICT = "strict"
+    REQUIRED = "required"
+    KERBEROS = "kerberos"
 
 
 class BaseAuthProtocol(object):
@@ -313,13 +317,15 @@ class BaseAuthProtocol(object):
                                    perform.
     """
 
-    def __init__(self,
-                 app,
-                 log=_LOG,
-                 enforce_token_bind=_BIND_MODE.PERMISSIVE,
-                 service_token_roles=None,
-                 service_token_roles_required=True,
-                 service_type=None):
+    def __init__(
+        self,
+        app,
+        log=_LOG,
+        enforce_token_bind=_BIND_MODE.PERMISSIVE,
+        service_token_roles=None,
+        service_token_roles_required=True,
+        service_type=None,
+    ):
         self.log = log
         self._app = app
         self._enforce_token_bind = enforce_token_bind
@@ -358,13 +364,13 @@ class BaseAuthProtocol(object):
         allow_expired = False
 
         if request.service_token:
-            self.log.debug('Authenticating service token')
+            self.log.debug("Authenticating service token")
             try:
                 _, serv_auth_ref = self._do_fetch_token(request.service_token)
                 self._validate_token(serv_auth_ref)
                 self._confirm_token_bind(serv_auth_ref, request)
             except ksm_exceptions.InvalidToken:
-                self.log.info('Invalid service token')
+                self.log.info("Invalid service token")
                 request.service_token_valid = False
             else:
                 # FIXME(jamielennox): The new behaviour for service tokens is
@@ -385,12 +391,14 @@ class BaseAuthProtocol(object):
                     request.service_token_valid = role_check_passed
                 else:
                     if not self._service_token_warning_emitted:
-                        self.log.warning('A valid token was submitted as '
-                                         'a service token, but it was not '
-                                         'a valid service token. This is '
-                                         'incorrect but backwards '
-                                         'compatible behaviour. This will '
-                                         'be removed in future releases.')
+                        self.log.warning(
+                            "A valid token was submitted as "
+                            "a service token, but it was not "
+                            "a valid service token. This is "
+                            "incorrect but backwards "
+                            "compatible behaviour. This will "
+                            "be removed in future releases."
+                        )
                         # prevent log spam on every single request
                         self._service_token_warning_emitted = True
 
@@ -400,25 +408,24 @@ class BaseAuthProtocol(object):
                 allow_expired = role_check_passed
 
         if request.user_token:
-            self.log.debug('Authenticating user token')
+            self.log.debug("Authenticating user token")
             try:
                 data, user_auth_ref = self._do_fetch_token(
-                    request.user_token,
-                    allow_expired=allow_expired)
-                self._validate_token(user_auth_ref,
-                                     allow_expired=allow_expired)
-                self.validate_allowed_request(request, data['token'])
+                    request.user_token, allow_expired=allow_expired
+                )
+                self._validate_token(user_auth_ref, allow_expired=allow_expired)
+                if user_auth_ref.version != "v2.0":
+                    self.validate_allowed_request(request, data["token"])
                 if not request.service_token:
                     self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
-                self.log.info('Invalid user token')
+                self.log.info("Invalid user token")
                 request.user_token_valid = False
             else:
                 request.user_token_valid = True
                 request.token_info = data
 
-        request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref,
-                                                         serv_auth_ref)
+        request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref, serv_auth_ref)
 
     def _validate_token(self, auth_ref, allow_expired=False):
         """Perform the validation steps on the token.
@@ -430,7 +437,7 @@ class BaseAuthProtocol(object):
         """
         # 0 seconds of validity means it is invalid right now
         if (not allow_expired) and auth_ref.will_expire_soon(stale_duration=0):
-            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+            raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
 
     def _do_fetch_token(self, token, **kwargs):
         """Helper method to fetch a token and convert it into an AccessInfo."""
@@ -442,8 +449,8 @@ class BaseAuthProtocol(object):
         try:
             return data, access.create(body=data, auth_token=token)
         except Exception:
-            self.log.warning('Invalid token contents.', exc_info=True)
-            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+            self.log.warning("Invalid token contents.", exc_info=True)
+            raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
 
     def fetch_token(self, token, **kwargs):
         """Fetch the token data based on the value in the header.
@@ -478,7 +485,7 @@ class BaseAuthProtocol(object):
     def _invalid_user_token(self, msg=False):
         # NOTE(jamielennox): use False as the default so that None is valid
         if msg is False:
-            msg = _('Token authorization failed')
+            msg = _("Token authorization failed")
 
         raise ksm_exceptions.InvalidToken(msg)
 
@@ -487,15 +494,17 @@ class BaseAuthProtocol(object):
             return
 
         # permissive and strict modes don't require there to be a bind
-        permissive = self._enforce_token_bind in (_BIND_MODE.PERMISSIVE,
-                                                  _BIND_MODE.STRICT)
+        permissive = self._enforce_token_bind in (
+            _BIND_MODE.PERMISSIVE,
+            _BIND_MODE.STRICT,
+        )
 
         if not auth_ref.bind:
             if permissive:
                 # no bind provided and none required
                 return
             else:
-                self.log.info('No bind information present in token.')
+                self.log.info("No bind information present in token.")
                 self._invalid_user_token()
 
         # get the named mode if bind_mode is not one of the predefined
@@ -505,138 +514,147 @@ class BaseAuthProtocol(object):
             name = self._enforce_token_bind
 
         if name and name not in auth_ref.bind:
-            self.log.info('Named bind mode %s not in bind information',
-                          name)
+            self.log.info("Named bind mode %s not in bind information", name)
             self._invalid_user_token()
 
         for bind_type, identifier in auth_ref.bind.items():
             if bind_type == _BIND_MODE.KERBEROS:
-                if req.auth_type != 'negotiate':
-                    self.log.info('Kerberos credentials required and '
-                                  'not present.')
+                if req.auth_type != "negotiate":
+                    self.log.info("Kerberos credentials required and not present.")
                     self._invalid_user_token()
 
                 if req.remote_user != identifier:
-                    self.log.info('Kerberos credentials do not match '
-                                  'those in bind.')
+                    self.log.info("Kerberos credentials do not match those in bind.")
                     self._invalid_user_token()
 
-                self.log.debug('Kerberos bind authentication successful.')
+                self.log.debug("Kerberos bind authentication successful.")
 
             elif self._enforce_token_bind == _BIND_MODE.PERMISSIVE:
-                self.log.debug('Ignoring Unknown bind for permissive mode: '
-                               '%(bind_type)s: %(identifier)s.',
-                               {'bind_type': bind_type,
-                                'identifier': identifier})
+                self.log.debug(
+                    "Ignoring Unknown bind for permissive mode: "
+                    "%(bind_type)s: %(identifier)s.",
+                    {"bind_type": bind_type, "identifier": identifier},
+                )
 
             else:
                 self.log.info(
-                    'Couldn`t verify unknown bind: %(bind_type)s: '
-                    '%(identifier)s.',
-                    {'bind_type': bind_type, 'identifier': identifier})
+                    "Couldn`t verify unknown bind: %(bind_type)s: %(identifier)s.",
+                    {"bind_type": bind_type, "identifier": identifier},
+                )
                 self._invalid_user_token()
 
     def validate_allowed_request(self, request, token):
         self.log.debug("Validating token access rules against request")
-        app_cred = token.get('application_credential')
+        app_cred = token.get("application_credential")
         if not app_cred:
             return
-        access_rules = app_cred.get('access_rules')
+        access_rules = app_cred.get("access_rules")
         if access_rules is None:
             return
-        if hasattr(self, '_conf'):
-            my_service_type = self._conf.get('service_type')
+        if hasattr(self, "_conf"):
+            my_service_type = self._conf.get("service_type")
         else:
             my_service_type = self._service_type
         if not my_service_type:
-            self.log.warning('Cannot validate request with restricted'
-                             ' access rules. Set service_type in'
-                             ' [keystone_authtoken] to allow access rule'
-                             ' validation.')
-            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+            self.log.warning(
+                "Cannot validate request with restricted"
+                " access rules. Set service_type in"
+                " [keystone_authtoken] to allow access rule"
+                " validation."
+            )
+            raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
         # token can always be validated regardless of access rules
-        if (my_service_type == 'identity' and
-                request.method == 'GET' and
-                request.path.endswith('/v3/auth/tokens')):
+        if (
+            my_service_type == "identity"
+            and request.method == "GET"
+            and request.path.endswith("/v3/auth/tokens")
+        ):
             return
-        catalog = token['catalog']
+        catalog = token["catalog"]
         # validate service type is in catalog
-        catalog_svcs = [s for s in catalog if s['type'] == my_service_type]
+        catalog_svcs = [s for s in catalog if s["type"] == my_service_type]
         if len(catalog_svcs) == 0:
-            self.log.warning('Cannot validate request with restricted'
-                             ' access rules. service_type in'
-                             ' [keystone_authtoken] is not a valid service'
-                             ' type in the catalog.')
-            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+            self.log.warning(
+                "Cannot validate request with restricted"
+                " access rules. service_type in"
+                " [keystone_authtoken] is not a valid service"
+                " type in the catalog."
+            )
+            raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
         if request.service_token:
             # The request may not match an allowed request, but the presence
             # of the service token indicates this is a chain of requests and
             # hence this request was not user-facing
             return
         for access_rule in access_rules:
-            method = access_rule['method']
-            path = access_rule['path']
-            service = access_rule['service']
-            if request.method == method and \
-                    service == my_service_type and \
-                    _path_matches(request.path, path):
+            method = access_rule["method"]
+            path = access_rule["path"]
+            service = access_rule["service"]
+            if (
+                request.method == method
+                and service == my_service_type
+                and _path_matches(request.path, path)
+            ):
                 return
-        raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+        raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
 
 
 class AuthProtocol(BaseAuthProtocol):
     """Middleware that handles authenticating client calls."""
 
     def __init__(self, app, conf):
-        log = logging.getLogger(conf.get('log_name', __name__))
-        log.info('Starting Keystone auth_token middleware')
+        log = logging.getLogger(conf.get("log_name", __name__))
+        log.info("Starting Keystone auth_token middleware")
 
-        self._conf = config.Config('auth_token',
-                                   _base.AUTHTOKEN_GROUP,
-                                   list_opts(),
-                                   conf)
+        self._conf = config.Config(
+            "auth_token", _base.AUTHTOKEN_GROUP, list_opts(), conf
+        )
+        if self._conf.oslo_conf_obj is not cfg.CONF:
+            oslo_cache.configure(self._conf.oslo_conf_obj)
 
-        token_roles_required = self._conf.get('service_token_roles_required')
+        token_roles_required = self._conf.get("service_token_roles_required")
 
         if not token_roles_required:
-            log.warning('AuthToken middleware is set with '
-                        'keystone_authtoken.service_token_roles_required '
-                        'set to False. This allows any valid token to be '
-                        'used as a service token, which can bypass access '
-                        'rule checks and weaken security. It is strongly '
-                        'recommended to set this to True.')
+            log.warning(
+                "AuthToken middleware is set with "
+                "keystone_authtoken.service_token_roles_required "
+                "set to False. This allows any valid token to be "
+                "used as a service token, which can bypass access "
+                "rule checks and weaken security. It is strongly "
+                "recommended to set this to True."
+            )
 
         super(AuthProtocol, self).__init__(
             app,
             log=log,
-            enforce_token_bind=self._conf.get('enforce_token_bind'),
-            service_token_roles=self._conf.get('service_token_roles'),
-            service_token_roles_required=token_roles_required)
+            enforce_token_bind=self._conf.get("enforce_token_bind"),
+            service_token_roles=self._conf.get("service_token_roles"),
+            service_token_roles_required=token_roles_required,
+        )
 
         # delay_auth_decision means we still allow unauthenticated requests
         # through and we let the downstream service make the final decision
-        self._delay_auth_decision = self._conf.get('delay_auth_decision')
-        self._include_service_catalog = self._conf.get(
-            'include_service_catalog')
-        self._interface = self._conf.get('interface')
+        self._delay_auth_decision = self._conf.get("delay_auth_decision")
+        self._include_service_catalog = self._conf.get("include_service_catalog")
+        self._interface = self._conf.get("interface")
         self._auth = self._create_auth_plugin()
         self._session = self._create_session()
         self._identity_server = self._create_identity_server()
 
-        self._www_authenticate_uri = self._conf.get('www_authenticate_uri')
+        self._www_authenticate_uri = self._conf.get("www_authenticate_uri")
         if not self._www_authenticate_uri:
             self.log.warning(
-                'Configuring www_authenticate_uri to point to the public '
-                'identity endpoint is required; clients may not be able to '
-                'authenticate against an admin endpoint')
+                "Configuring www_authenticate_uri to point to the public "
+                "identity endpoint is required; clients may not be able to "
+                "authenticate against an admin endpoint"
+            )
 
         self._token_cache = self._token_cache_factory()
 
     @property
     def www_authenticate_uri(self):
         if not self._www_authenticate_uri:
-            self._www_authenticate_uri = \
-                self._identity_server.www_authenticate_uri
+            self._www_authenticate_uri = self._identity_server.www_authenticate_uri
         return self._www_authenticate_uri
 
     def process_request(self, request):
@@ -663,26 +681,27 @@ class AuthProtocol(BaseAuthProtocol):
         # a valid request. We should find a better way to expose this from the
         # request object.
         user_status = request.user_token and request.user_token_valid
-        service_status = request.headers.get('X-Service-Identity-Status',
-                                             'Confirmed')
+        service_status = request.headers.get("X-Service-Identity-Status", "Confirmed")
 
-        if not (user_status and service_status == 'Confirmed'):
+        if not (user_status and service_status == "Confirmed"):
             if self._delay_auth_decision:
-                self.log.debug('Deferring reject downstream')
+                self.log.debug("Deferring reject downstream")
             else:
-                self.log.info('Rejecting request')
-                message = _('The request you have made requires '
-                            'authentication.')
-                body = {'error': {
-                    'code': 401,
-                    'title': 'Unauthorized',
-                    'message': message,
-                }}
+                self.log.info("Rejecting request")
+                message = _("The request you have made requires authentication.")
+                body = {
+                    "error": {
+                        "code": 401,
+                        "title": "Unauthorized",
+                        "message": message,
+                    }
+                }
                 raise webob.exc.HTTPUnauthorized(
                     body=jsonutils.dumps(body),
                     headers=self._reject_auth_headers,
-                    charset='UTF-8',
-                    content_type='application/json')
+                    charset="UTF-8",
+                    content_type="application/json",
+                )
 
         if request.user_token_valid:
             request.set_user_headers(request.token_auth.user)
@@ -698,8 +717,7 @@ class AuthProtocol(BaseAuthProtocol):
             request.set_service_headers(request.token_auth.service)
 
         if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug('Received request from %s',
-                           request.token_auth._log_format)
+            self.log.debug("Received request from %s", request.token_auth._log_format)
 
     def process_response(self, response):
         """Process Response.
@@ -716,7 +734,7 @@ class AuthProtocol(BaseAuthProtocol):
     @property
     def _reject_auth_headers(self):
         header_val = 'Keystone uri="%s"' % self.www_authenticate_uri
-        return [('WWW-Authenticate', header_val)]
+        return [("WWW-Authenticate", header_val)]
 
     def fetch_token(self, token, allow_expired=False):
         """Retrieve a token from either a PKI bundle or the identity server.
@@ -740,26 +758,30 @@ class AuthProtocol(BaseAuthProtocol):
                 data = cached
             else:
                 data = self._identity_server.verify_token(
-                    token,
-                    allow_expired=allow_expired)
+                    token, allow_expired=allow_expired
+                )
 
                 self._token_cache.set(token, data)
 
-        except (ksa_exceptions.ConnectFailure,
-                ksa_exceptions.DiscoveryFailure,
-                ksa_exceptions.RequestTimeout,
-                ksm_exceptions.ServiceError) as e:
-            self.log.critical('Unable to validate token: %s', e)
+        except (
+            ksa_exceptions.ConnectFailure,
+            ksa_exceptions.DiscoveryFailure,
+            ksa_exceptions.RequestTimeout,
+            ksm_exceptions.ServiceError,
+        ) as e:
+            self.log.critical("Unable to validate token: %s", e)
             if self._delay_auth_decision:
-                self.log.debug('Keystone unavailable; marking token as '
-                               'invalid and deferring auth decision.')
-                raise ksm_exceptions.InvalidToken(
-                    'Keystone unavailable: %s' % e)
+                self.log.debug(
+                    "Keystone unavailable; marking token as "
+                    "invalid and deferring auth decision."
+                )
+                raise ksm_exceptions.InvalidToken("Keystone unavailable: %s" % e)
             raise webob.exc.HTTPServiceUnavailable(
-                'The Keystone service is temporarily unavailable.')
+                "The Keystone service is temporarily unavailable."
+            )
         except ksm_exceptions.InvalidToken:
-            self.log.debug('Token validation failure.', exc_info=True)
-            self.log.warning('Authorization failed for token')
+            self.log.debug("Token validation failure.", exc_info=True)
+            self.log.warning("Authorization failed for token")
             raise
         except ksa_exceptions.EndpointNotFound:
             # Invalidate auth in adapter for identity endpoint update
@@ -768,15 +790,22 @@ class AuthProtocol(BaseAuthProtocol):
 
         return data
 
+    def _validate_token(self, auth_ref, **kwargs):
+        super(AuthProtocol, self)._validate_token(auth_ref, **kwargs)
+
+        if auth_ref.version == "v2.0" and not auth_ref.project_id:
+            msg = _("Unable to determine service tenancy.")
+            raise ksm_exceptions.InvalidToken(msg)
+
     def _create_auth_plugin(self):
         # NOTE(jamielennox): Ideally this would use load_from_conf_options
         # however that is not possible because we have to support the override
         # pattern we use in _conf.get. This function therefore does a manual
         # version of load_from_conf_options with the fallback plugin inline.
 
-        group = self._conf.get('auth_section') or _base.AUTHTOKEN_GROUP
+        group = self._conf.get("auth_section") or _base.AUTHTOKEN_GROUP
 
-        plugin_name = self._conf.get('auth_type', group=group)
+        plugin_name = self._conf.get("auth_type", group=group)
 
         if not plugin_name:
             return None
@@ -796,12 +825,12 @@ class AuthProtocol(BaseAuthProtocol):
         # same as calling Session.load_from_conf_options(CONF, GROUP)
         # however we can't do that because we have to use _conf.get to
         # support the paste.ini options.
-        kwargs.setdefault('cert', self._conf.get('certfile'))
-        kwargs.setdefault('key', self._conf.get('keyfile'))
-        kwargs.setdefault('cacert', self._conf.get('cafile'))
-        kwargs.setdefault('insecure', self._conf.get('insecure'))
-        kwargs.setdefault('timeout', self._conf.get('http_connect_timeout'))
-        kwargs.setdefault('user_agent', self._conf.user_agent)
+        kwargs.setdefault("cert", self._conf.get("certfile"))
+        kwargs.setdefault("key", self._conf.get("keyfile"))
+        kwargs.setdefault("cacert", self._conf.get("cafile"))
+        kwargs.setdefault("insecure", self._conf.get("insecure"))
+        kwargs.setdefault("timeout", self._conf.get("http_connect_timeout"))
+        kwargs.setdefault("user_agent", self._conf.user_agent)
 
         return session_loading.Session().load_from_options(**kwargs)
 
@@ -809,12 +838,13 @@ class AuthProtocol(BaseAuthProtocol):
         adap = adapter.Adapter(
             self._session,
             auth=self._auth,
-            service_type='identity',
+            service_type="identity",
             interface=self._interface,
-            region_name=self._conf.get('region_name'),
-            connect_retries=self._conf.get('http_request_max_retries'))
+            region_name=self._conf.get("region_name"),
+            connect_retries=self._conf.get("http_request_max_retries"),
+        )
 
-        auth_version = self._conf.get('auth_version')
+        auth_version = self._conf.get("auth_version")
         if auth_version is not None:
             auth_version = discover.normalize_version_number(auth_version)
         return _identity.IdentityServer(
@@ -822,34 +852,39 @@ class AuthProtocol(BaseAuthProtocol):
             adap,
             include_service_catalog=self._include_service_catalog,
             requested_auth_version=auth_version,
-            requested_auth_interface=self._interface)
-
-    def _token_cache_factory(self):
-
-        security_strategy = self._conf.get('memcache_security_strategy')
-
-        cache_kwargs = dict(
-            cache_time=int(self._conf.get('token_cache_time')),
-            env_cache_name=self._conf.get('cache'),
-            memcached_servers=self._conf.get('memcached_servers'),
-            use_advanced_pool=self._conf.get('memcache_use_advanced_pool'),
-            dead_retry=self._conf.get('memcache_pool_dead_retry'),
-            maxsize=self._conf.get('memcache_pool_maxsize'),
-            unused_timeout=self._conf.get('memcache_pool_unused_timeout'),
-            conn_get_timeout=self._conf.get('memcache_pool_conn_get_timeout'),
-            socket_timeout=self._conf.get('memcache_pool_socket_timeout'),
-            sasl_enabled=self._conf.get('memcache_sasl_enabled'),
-            username=self._conf.get('memcache_username'),
-            password=self._conf.get('memcache_password'),
-            tls_enabled=self._conf.get('memcache_tls_enabled'),
+            requested_auth_interface=self._interface,
         )
 
-        if self._conf.get('memcache_tls_enabled'):
-            tls_cafile = self._conf.get('memcache_tls_cafile')
-            tls_certfile = self._conf.get('memcache_tls_certfile')
-            tls_keyfile = self._conf.get('memcache_tls_keyfile')
-            tls_allowed_ciphers = self._conf.get(
-                'memcache_tls_allowed_ciphers')
+    def _create_oslo_cache(self):
+        # having this as a function makes test mocking easier
+        region = oslo_cache.create_region()
+        oslo_cache.configure_cache_region(self._conf.oslo_conf_obj, region)
+        return region
+
+    def _token_cache_factory(self):
+        security_strategy = self._conf.get("memcache_security_strategy")
+
+        cache_kwargs = dict(
+            cache_time=int(self._conf.get("token_cache_time")),
+            env_cache_name=self._conf.get("cache"),
+            memcached_servers=self._conf.get("memcached_servers"),
+            use_advanced_pool=self._conf.get("memcache_use_advanced_pool"),
+            dead_retry=self._conf.get("memcache_pool_dead_retry"),
+            maxsize=self._conf.get("memcache_pool_maxsize"),
+            unused_timeout=self._conf.get("memcache_pool_unused_timeout"),
+            conn_get_timeout=self._conf.get("memcache_pool_conn_get_timeout"),
+            socket_timeout=self._conf.get("memcache_pool_socket_timeout"),
+            sasl_enabled=self._conf.get("memcache_sasl_enabled"),
+            username=self._conf.get("memcache_username"),
+            password=self._conf.get("memcache_password"),
+            tls_enabled=self._conf.get("memcache_tls_enabled"),
+        )
+
+        if self._conf.get("memcache_tls_enabled"):
+            tls_cafile = self._conf.get("memcache_tls_cafile")
+            tls_certfile = self._conf.get("memcache_tls_certfile")
+            tls_keyfile = self._conf.get("memcache_tls_keyfile")
+            tls_allowed_ciphers = self._conf.get("memcache_tls_allowed_ciphers")
 
             tls_context = ssl.create_default_context(cafile=tls_cafile)
 
@@ -859,14 +894,13 @@ class AuthProtocol(BaseAuthProtocol):
             if tls_allowed_ciphers:
                 tls_context.set_ciphers(tls_allowed_ciphers)
 
-            cache_kwargs['tls_context'] = tls_context
+            cache_kwargs["tls_context"] = tls_context
 
-        if security_strategy.lower() != 'none':
-            secret_key = self._conf.get('memcache_secret_key')
-            return _cache.SecureTokenCache(self.log,
-                                           security_strategy,
-                                           secret_key,
-                                           **cache_kwargs)
+        if security_strategy.lower() != "none":
+            secret_key = self._conf.get("memcache_secret_key")
+            return _cache.SecureTokenCache(
+                self.log, security_strategy, secret_key, **cache_kwargs
+            )
         else:
             return _cache.TokenCache(self.log, **cache_kwargs)
 
@@ -878,6 +912,7 @@ def filter_factory(global_conf, **local_conf):
 
     def auth_filter(app):
         return AuthProtocol(app, conf)
+
     return auth_filter
 
 

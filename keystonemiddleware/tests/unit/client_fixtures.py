@@ -30,7 +30,7 @@ import testresources
 
 
 TESTDIR = os.path.dirname(os.path.abspath(__file__))
-ROOTDIR = os.path.normpath(os.path.join(TESTDIR, '..', '..', '..'))
+ROOTDIR = os.path.normpath(os.path.join(TESTDIR, "..", "..", ".."))
 
 
 class Examples(fixtures.Fixture):
@@ -51,51 +51,51 @@ class Examples(fixtures.Fixture):
     def setUp(self):
         super(Examples, self).setUp()
 
-        self.KERBEROS_BIND = 'USER@REALM'
-        self.SERVICE_KERBEROS_BIND = 'SERVICE_USER@SERVICE_REALM'
+        self.KERBEROS_BIND = "USER@REALM"
+        self.SERVICE_KERBEROS_BIND = "SERVICE_USER@SERVICE_REALM"
 
         self.UUID_TOKEN_DEFAULT = "ec6c0710ec2f471498484c1b53ab4f9d"
-        self.UUID_TOKEN_NO_SERVICE_CATALOG = '8286720fbe4941e69fa8241723bb02df'
-        self.UUID_TOKEN_UNSCOPED = '731f903721c14827be7b2dc912af7776'
-        self.UUID_TOKEN_BIND = '3fc54048ad64405c98225ce0897af7c5'
-        self.UUID_TOKEN_UNKNOWN_BIND = '8885fdf4d42e4fb9879e6379fa1eaf48'
-        self.v3_UUID_TOKEN_DEFAULT = '5603457654b346fdbb93437bfe76f2f1'
-        self.v3_UUID_TOKEN_UNSCOPED = 'd34835fdaec447e695a0a024d84f8d79'
-        self.v3_UUID_TOKEN_DOMAIN_SCOPED = 'e8a7b63aaa4449f38f0c5c05c3581792'
-        self.v3_UUID_TOKEN_BIND = '2f61f73e1c854cbb9534c487f9bd63c2'
-        self.v3_UUID_TOKEN_UNKNOWN_BIND = '7ed9781b62cd4880b8d8c6788ab1d1e2'
-        self.v3_SYSTEM_SCOPED_TOKEN = '9ca6e88364b6418a88ffc02e6a24afd8'
+        self.UUID_TOKEN_NO_SERVICE_CATALOG = "8286720fbe4941e69fa8241723bb02df"
+        self.UUID_TOKEN_UNSCOPED = "731f903721c14827be7b2dc912af7776"
+        self.UUID_TOKEN_BIND = "3fc54048ad64405c98225ce0897af7c5"
+        self.UUID_TOKEN_UNKNOWN_BIND = "8885fdf4d42e4fb9879e6379fa1eaf48"
+        self.v3_UUID_TOKEN_DEFAULT = "5603457654b346fdbb93437bfe76f2f1"
+        self.v3_UUID_TOKEN_UNSCOPED = "d34835fdaec447e695a0a024d84f8d79"
+        self.v3_UUID_TOKEN_DOMAIN_SCOPED = "e8a7b63aaa4449f38f0c5c05c3581792"
+        self.v3_UUID_TOKEN_BIND = "2f61f73e1c854cbb9534c487f9bd63c2"
+        self.v3_UUID_TOKEN_UNKNOWN_BIND = "7ed9781b62cd4880b8d8c6788ab1d1e2"
+        self.v3_SYSTEM_SCOPED_TOKEN = "9ca6e88364b6418a88ffc02e6a24afd8"
 
-        self.UUID_SERVICE_TOKEN_DEFAULT = 'fe4c0710ec2f492748596c1b53ab124'
-        self.UUID_SERVICE_TOKEN_BIND = '5e43439613d34a13a7e03b2762bd08ab'
-        self.v3_UUID_SERVICE_TOKEN_DEFAULT = 'g431071bbc2f492748596c1b53cb229'
-        self.v3_UUID_SERVICE_TOKEN_BIND = 'be705e4426d0449a89e35ae21c380a05'
+        self.UUID_SERVICE_TOKEN_DEFAULT = "fe4c0710ec2f492748596c1b53ab124"
+        self.UUID_SERVICE_TOKEN_BIND = "5e43439613d34a13a7e03b2762bd08ab"
+        self.v3_UUID_SERVICE_TOKEN_DEFAULT = "g431071bbc2f492748596c1b53cb229"
+        self.v3_UUID_SERVICE_TOKEN_BIND = "be705e4426d0449a89e35ae21c380a05"
         self.v3_NOT_IS_ADMIN_PROJECT = uuid.uuid4().hex
 
-        self.v3_APP_CRED_TOKEN = '6f506fa9641448bbaecbd12dd30678a9'
-        self.v3_APP_CRED_ACCESS_RULES = 'c417747898c44629b08791f2579e40a5'
-        self.v3_APP_CRED_EMPTY_ACCESS_RULES = 'c75905c307f04fdd9979126582d7aae'
-        self.v3_APP_CRED_MATCHING_RULES = 'ad49decc7106489d95ca9ed874b6cb66'
+        self.v3_APP_CRED_TOKEN = "6f506fa9641448bbaecbd12dd30678a9"
+        self.v3_APP_CRED_ACCESS_RULES = "c417747898c44629b08791f2579e40a5"
+        self.v3_APP_CRED_EMPTY_ACCESS_RULES = "c75905c307f04fdd9979126582d7aae"
+        self.v3_APP_CRED_MATCHING_RULES = "ad49decc7106489d95ca9ed874b6cb66"
 
         self.v3_OAUTH2_CREDENTIAL = uuid.uuid4().hex
         self.V3_OAUTH2_MTLS_CERTIFICATE = self._create_pem_certificate(
             self._create_dn(
-                country_name='jp',
-                state_or_province_name='kanagawa',
-                locality_name='kawasaki',
-                organization_name='fujitsu',
-                organizational_unit_name='test',
-                common_name='root'
+                country_name="jp",
+                state_or_province_name="kanagawa",
+                locality_name="kawasaki",
+                organization_name="fujitsu",
+                organizational_unit_name="test",
+                common_name="root",
             )
         )
         self.V3_OAUTH2_MTLS_CERTIFICATE_DIFF = self._create_pem_certificate(
             self._create_dn(
-                country_name='jp',
-                state_or_province_name='kanagawa',
-                locality_name='kawasaki',
-                organization_name='fujitsu',
-                organizational_unit_name='test',
-                common_name='diff'
+                country_name="jp",
+                state_or_province_name="kanagawa",
+                locality_name="kawasaki",
+                organization_name="fujitsu",
+                organizational_unit_name="test",
+                common_name="diff",
             )
         )
 
@@ -103,188 +103,263 @@ class Examples(fixtures.Fixture):
         self.TOKEN_RESPONSES = {}
 
         # basic values
-        PROJECT_ID = 'tenant_id1'
-        PROJECT_NAME = 'tenant_name1'
-        USER_ID = 'user_id1'
-        USER_NAME = 'user_name1'
-        DOMAIN_ID = 'domain_id1'
-        DOMAIN_NAME = 'domain_name1'
-        ROLE_NAME1 = 'role1'
-        ROLE_NAME2 = 'role2'
+        PROJECT_ID = "tenant_id1"
+        PROJECT_NAME = "tenant_name1"
+        USER_ID = "user_id1"
+        USER_NAME = "user_name1"
+        DOMAIN_ID = "domain_id1"
+        DOMAIN_NAME = "domain_name1"
+        ROLE_NAME1 = "role1"
+        ROLE_NAME2 = "role2"
 
-        SERVICE_PROJECT_ID = 'service_project_id1'
-        SERVICE_PROJECT_NAME = 'service_project_name1'
-        SERVICE_USER_ID = 'service_user_id1'
-        SERVICE_USER_NAME = 'service_user_name1'
-        SERVICE_DOMAIN_ID = 'service_domain_id1'
-        SERVICE_DOMAIN_NAME = 'service_domain_name1'
-        SERVICE_ROLE_NAME1 = 'service'
-        SERVICE_ROLE_NAME2 = 'service_role2'
+        SERVICE_PROJECT_ID = "service_project_id1"
+        SERVICE_PROJECT_NAME = "service_project_name1"
+        SERVICE_USER_ID = "service_user_id1"
+        SERVICE_USER_NAME = "service_user_name1"
+        SERVICE_DOMAIN_ID = "service_domain_id1"
+        SERVICE_DOMAIN_NAME = "service_domain_name1"
+        SERVICE_ROLE_NAME1 = "service"
+        SERVICE_ROLE_NAME2 = "service_role2"
 
-        APP_CRED_ID = 'app_cred_id1'
+        APP_CRED_ID = "app_cred_id1"
 
-        self.SERVICE_TYPE = 'identity'
-        self.UNVERSIONED_SERVICE_URL = 'https://keystone.example.com:1234/'
-        self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + 'v3'
+        self.SERVICE_TYPE = "identity"
+        self.UNVERSIONED_SERVICE_URL = "https://keystone.example.com:1234/"
+        self.SERVICE_URL = self.UNVERSIONED_SERVICE_URL + "v2.0"
 
-        # Generated V3 Tokens
+        # Generated V2 Tokens
 
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME)
-        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
-        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DEFAULT] = token
-
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME)
-        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNSCOPED] = token
-
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME)
-        token.system = {'all': True}
-        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
-        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.v3_SYSTEM_SCOPED_TOKEN] = token
-
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                domain_id=DOMAIN_ID,
-                                domain_name=DOMAIN_NAME)
-        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
-        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DOMAIN_SCOPED] = token
-
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME)
+        token = fixture.V2Token(
+            token_id=self.UUID_TOKEN_DEFAULT,
+            tenant_id=PROJECT_ID,
+            tenant_name=PROJECT_NAME,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
+        svc.add_endpoint(public=self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_DEFAULT] = token
 
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME)
-        token.add_role(name=ROLE_NAME1)
-        token.add_role(name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        token['token']['bind'] = {'kerberos': self.KERBEROS_BIND}
-        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_BIND] = token
+        token = fixture.V2Token(
+            token_id=self.UUID_TOKEN_UNSCOPED, user_id=USER_ID, user_name=USER_NAME
+        )
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNSCOPED] = token
 
-        token = fixture.V3Token(user_id=SERVICE_USER_ID,
-                                user_name=SERVICE_USER_NAME,
-                                user_domain_id=SERVICE_DOMAIN_ID,
-                                user_domain_name=SERVICE_DOMAIN_NAME,
-                                project_id=SERVICE_PROJECT_ID,
-                                project_name=SERVICE_PROJECT_NAME,
-                                project_domain_id=SERVICE_DOMAIN_ID,
-                                project_domain_name=SERVICE_DOMAIN_NAME)
+        token = fixture.V2Token(
+            token_id="valid-token",
+            tenant_id=PROJECT_ID,
+            tenant_name=PROJECT_NAME,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_NO_SERVICE_CATALOG] = token
+
+        token = fixture.V2Token(
+            token_id=self.UUID_TOKEN_BIND,
+            tenant_id=PROJECT_ID,
+            tenant_name=PROJECT_NAME,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        token["access"]["token"]["bind"] = {"kerberos": self.KERBEROS_BIND}
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_BIND] = token
+
+        token = fixture.V2Token(
+            token_id=self.UUID_SERVICE_TOKEN_BIND,
+            tenant_id=SERVICE_PROJECT_ID,
+            tenant_name=SERVICE_PROJECT_NAME,
+            user_id=SERVICE_USER_ID,
+            user_name=SERVICE_USER_NAME,
+        )
+        token.add_role(SERVICE_ROLE_NAME1)
+        token.add_role(SERVICE_ROLE_NAME2)
+        token["access"]["token"]["bind"] = {"kerberos": self.SERVICE_KERBEROS_BIND}
+        self.TOKEN_RESPONSES[self.UUID_SERVICE_TOKEN_BIND] = token
+
+        token = fixture.V2Token(
+            token_id=self.UUID_TOKEN_UNKNOWN_BIND,
+            tenant_id=PROJECT_ID,
+            tenant_name=PROJECT_NAME,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+        token.add_role(ROLE_NAME1)
+        token.add_role(ROLE_NAME2)
+        token["access"]["token"]["bind"] = {"FOO": "BAR"}
+        self.TOKEN_RESPONSES[self.UUID_TOKEN_UNKNOWN_BIND] = token
+
+        token = fixture.V2Token(
+            token_id=self.UUID_SERVICE_TOKEN_DEFAULT,
+            tenant_id=SERVICE_PROJECT_ID,
+            tenant_name=SERVICE_PROJECT_NAME,
+            user_id=SERVICE_USER_ID,
+            user_name=SERVICE_USER_NAME,
+        )
         token.add_role(name=SERVICE_ROLE_NAME1)
         token.add_role(name=SERVICE_ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        token['token']['bind'] = {'kerberos': self.SERVICE_KERBEROS_BIND}
+        svc.add_endpoint(public=self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.UUID_SERVICE_TOKEN_DEFAULT] = token
+
+        # Generated V3 Tokens
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+        )
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DEFAULT] = token
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+        )
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNSCOPED] = token
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+        )
+        token.system = {"all": True}
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_SYSTEM_SCOPED_TOKEN] = token
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            domain_id=DOMAIN_ID,
+            domain_name=DOMAIN_NAME,
+        )
+        token.add_role(id=ROLE_NAME1, name=ROLE_NAME1)
+        token.add_role(id=ROLE_NAME2, name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_DOMAIN_SCOPED] = token
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+        )
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+        )
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        token["token"]["bind"] = {"kerberos": self.KERBEROS_BIND}
+        self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_BIND] = token
+
+        token = fixture.V3Token(
+            user_id=SERVICE_USER_ID,
+            user_name=SERVICE_USER_NAME,
+            user_domain_id=SERVICE_DOMAIN_ID,
+            user_domain_name=SERVICE_DOMAIN_NAME,
+            project_id=SERVICE_PROJECT_ID,
+            project_name=SERVICE_PROJECT_NAME,
+            project_domain_id=SERVICE_DOMAIN_ID,
+            project_domain_name=SERVICE_DOMAIN_NAME,
+        )
+        token.add_role(name=SERVICE_ROLE_NAME1)
+        token.add_role(name=SERVICE_ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        token["token"]["bind"] = {"kerberos": self.SERVICE_KERBEROS_BIND}
         self.TOKEN_RESPONSES[self.v3_UUID_SERVICE_TOKEN_BIND] = token
 
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME)
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        token['token']['bind'] = {'FOO': 'BAR'}
+        svc.add_endpoint("public", self.SERVICE_URL)
+        token["token"]["bind"] = {"FOO": "BAR"}
         self.TOKEN_RESPONSES[self.v3_UUID_TOKEN_UNKNOWN_BIND] = token
 
-        token = fixture.V3Token(user_id=SERVICE_USER_ID,
-                                user_name=SERVICE_USER_NAME,
-                                user_domain_id=SERVICE_DOMAIN_ID,
-                                user_domain_name=SERVICE_DOMAIN_NAME,
-                                project_id=SERVICE_PROJECT_ID,
-                                project_name=SERVICE_PROJECT_NAME,
-                                project_domain_id=SERVICE_DOMAIN_ID,
-                                project_domain_name=SERVICE_DOMAIN_NAME)
-        token.add_role(id=SERVICE_ROLE_NAME1,
-                       name=SERVICE_ROLE_NAME1)
-        token.add_role(id=SERVICE_ROLE_NAME2,
-                       name=SERVICE_ROLE_NAME2)
+        token = fixture.V3Token(
+            user_id=SERVICE_USER_ID,
+            user_name=SERVICE_USER_NAME,
+            user_domain_id=SERVICE_DOMAIN_ID,
+            user_domain_name=SERVICE_DOMAIN_NAME,
+            project_id=SERVICE_PROJECT_ID,
+            project_name=SERVICE_PROJECT_NAME,
+            project_domain_id=SERVICE_DOMAIN_ID,
+            project_domain_name=SERVICE_DOMAIN_NAME,
+        )
+        token.add_role(id=SERVICE_ROLE_NAME1, name=SERVICE_ROLE_NAME1)
+        token.add_role(id=SERVICE_ROLE_NAME2, name=SERVICE_ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
+        svc.add_endpoint("public", self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_UUID_SERVICE_TOKEN_DEFAULT] = token
 
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME,
-                                is_admin_project=False)
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+            is_admin_project=False,
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
+        svc.add_endpoint("public", self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_NOT_IS_ADMIN_PROJECT] = token
 
         # Application credential token
-        token = fixture.V3Token(user_id=USER_ID,
-                                user_name=USER_NAME,
-                                user_domain_id=DOMAIN_ID,
-                                user_domain_name=DOMAIN_NAME,
-                                project_id=PROJECT_ID,
-                                project_name=PROJECT_NAME,
-                                project_domain_id=DOMAIN_ID,
-                                project_domain_name=DOMAIN_NAME,
-                                application_credential_id=APP_CRED_ID)
-        token.add_role(name=ROLE_NAME1)
-        token.add_role(name=ROLE_NAME2)
-        svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        svc = token.add_service('compute')
-        svc.add_endpoint('public', 'https://nova.openstack.example.org/v2.1')
-        self.TOKEN_RESPONSES[self.v3_APP_CRED_TOKEN] = token
-
-        # Application credential with access_rules token
-        access_rules = [{
-            'path': '/v2.1/servers',
-            'method': 'GET',
-            'service': 'compute'
-        }]
         token = fixture.V3Token(
             user_id=USER_ID,
             user_name=USER_NAME,
@@ -295,15 +370,39 @@ class Examples(fixtures.Fixture):
             project_domain_id=DOMAIN_ID,
             project_domain_name=DOMAIN_NAME,
             application_credential_id=APP_CRED_ID,
-            application_credential_access_rules=access_rules)
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        svc = token.add_service('compute')
-        svc.add_endpoint('public', 'https://nova.openstack.example.org')
-        svc = token.add_service('image')
-        svc.add_endpoint('public', 'https://glance.openstack.example.org')
+        svc.add_endpoint("public", self.SERVICE_URL)
+        svc = token.add_service("compute")
+        svc.add_endpoint("public", "https://nova.openstack.example.org/v2.1")
+        self.TOKEN_RESPONSES[self.v3_APP_CRED_TOKEN] = token
+
+        # Application credential with access_rules token
+        access_rules = [
+            {"path": "/v2.1/servers", "method": "GET", "service": "compute"}
+        ]
+        token = fixture.V3Token(
+            user_id=USER_ID,
+            user_name=USER_NAME,
+            user_domain_id=DOMAIN_ID,
+            user_domain_name=DOMAIN_NAME,
+            project_id=PROJECT_ID,
+            project_name=PROJECT_NAME,
+            project_domain_id=DOMAIN_ID,
+            project_domain_name=DOMAIN_NAME,
+            application_credential_id=APP_CRED_ID,
+            application_credential_access_rules=access_rules,
+        )
+        token.add_role(name=ROLE_NAME1)
+        token.add_role(name=ROLE_NAME2)
+        svc = token.add_service(self.SERVICE_TYPE)
+        svc.add_endpoint("public", self.SERVICE_URL)
+        svc = token.add_service("compute")
+        svc.add_endpoint("public", "https://nova.openstack.example.org")
+        svc = token.add_service("image")
+        svc.add_endpoint("public", "https://glance.openstack.example.org")
         self.TOKEN_RESPONSES[self.v3_APP_CRED_ACCESS_RULES] = token
 
         # Application credential with explicitly empty access_rules
@@ -318,40 +417,29 @@ class Examples(fixtures.Fixture):
             project_domain_id=DOMAIN_ID,
             project_domain_name=DOMAIN_NAME,
             application_credential_id=APP_CRED_ID,
-            application_credential_access_rules=access_rules)
+            application_credential_access_rules=access_rules,
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
+        svc.add_endpoint("public", self.SERVICE_URL)
         self.TOKEN_RESPONSES[self.v3_APP_CRED_EMPTY_ACCESS_RULES] = token
 
         # Application credential with matching rules
         access_rules = [
             {
-                'path': '/v2.1/servers/{server_id}',
-                'method': 'GET',
-                'service': 'compute'
+                "path": "/v2.1/servers/{server_id}",
+                "method": "GET",
+                "service": "compute",
             },
+            {"path": "/v2/images/*", "method": "GET", "service": "image"},
+            {"path": "**", "method": "GET", "service": "identity"},
             {
-                'path': '/v2/images/*',
-                'method': 'GET',
-                'service': 'image'
+                "path": "/v3/{project_id}/types/{volume_type_id}",
+                "method": "GET",
+                "service": "block-storage",
             },
-            {
-                'path': '**',
-                'method': 'GET',
-                'service': 'identity'
-            },
-            {
-                'path': '/v3/{project_id}/types/{volume_type_id}',
-                'method': 'GET',
-                'service': 'block-storage'
-            },
-            {
-                'path': '/v1/*/*/*',
-                'method': 'GET',
-                'service': 'object-store'
-            }
+            {"path": "/v1/*/*/*", "method": "GET", "service": "object-store"},
         ]
         token = fixture.V3Token(
             user_id=USER_ID,
@@ -363,28 +451,29 @@ class Examples(fixtures.Fixture):
             project_domain_id=DOMAIN_ID,
             project_domain_name=DOMAIN_NAME,
             application_credential_id=APP_CRED_ID,
-            application_credential_access_rules=access_rules)
+            application_credential_access_rules=access_rules,
+        )
         token.add_role(name=ROLE_NAME1)
         token.add_role(name=ROLE_NAME2)
         svc = token.add_service(self.SERVICE_TYPE)
-        svc.add_endpoint('public', self.SERVICE_URL)
-        svc = token.add_service('compute')
-        svc.add_endpoint('public', 'https://nova.openstack.example.org')
-        svc = token.add_service('image')
-        svc.add_endpoint('public', 'https://glance.openstack.example.org')
-        svc = token.add_service('block-storage')
-        svc.add_endpoint('public', 'https://cinder.openstack.example.org')
-        svc = token.add_service('object-store')
-        svc.add_endpoint('public', 'https://swift.openstack.example.org')
+        svc.add_endpoint("public", self.SERVICE_URL)
+        svc = token.add_service("compute")
+        svc.add_endpoint("public", "https://nova.openstack.example.org")
+        svc = token.add_service("image")
+        svc.add_endpoint("public", "https://glance.openstack.example.org")
+        svc = token.add_service("block-storage")
+        svc.add_endpoint("public", "https://cinder.openstack.example.org")
+        svc = token.add_service("object-store")
+        svc.add_endpoint("public", "https://swift.openstack.example.org")
         self.TOKEN_RESPONSES[self.v3_APP_CRED_MATCHING_RULES] = token
 
         # oauth2 credential token
         cert_pem = ssl.DER_cert_to_PEM_cert(self.V3_OAUTH2_MTLS_CERTIFICATE)
-        thumb_sha256 = hashlib.sha256(cert_pem.encode('ascii')).digest()
-        cert_thumb = base64.urlsafe_b64encode(thumb_sha256).decode('ascii')
+        thumb_sha256 = hashlib.sha256(cert_pem.encode("ascii")).digest()
+        cert_thumb = base64.urlsafe_b64encode(thumb_sha256).decode("ascii")
 
         token = fixture.V3Token(
-            methods=['oauth2_credential'],
+            methods=["oauth2_credential"],
             user_id=USER_ID,
             user_name=USER_NAME,
             project_id=PROJECT_ID,
@@ -392,8 +481,9 @@ class Examples(fixtures.Fixture):
         )
         self.TOKEN_RESPONSES[self.v3_OAUTH2_CREDENTIAL] = token
 
-        self.JSON_TOKEN_RESPONSES = dict([(k, jsonutils.dumps(v)) for k, v in
-                                          self.TOKEN_RESPONSES.items()])
+        self.JSON_TOKEN_RESPONSES = dict(
+            [(k, jsonutils.dumps(v)) for k, v in self.TOKEN_RESPONSES.items()]
+        )
 
     def _create_dn(
         self,
@@ -420,10 +510,7 @@ class Examples(fixtures.Fixture):
         if organization_name:
             dn.append(attr(oid.ORGANIZATION_NAME, organization_name))
         if organizational_unit_name:
-            dn.append(
-                attr(
-                    oid.ORGANIZATIONAL_UNIT_NAME,
-                    organizational_unit_name))
+            dn.append(attr(oid.ORGANIZATIONAL_UNIT_NAME, organizational_unit_name))
         if country_name:
             dn.append(attr(oid.COUNTRY_NAME, country_name))
         if street_address:

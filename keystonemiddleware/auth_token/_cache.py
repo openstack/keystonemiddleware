@@ -33,7 +33,7 @@ def _hash_key(key):
         # get a text_type (unicode). In python 3.4 all strings are
         # text_type and not bytes by default. This encode coerces the
         # text_type to the appropriate bytes values.
-        key = key.encode('utf-8')
+        key = key.encode("utf-8")
     return hashlib.sha256(key).hexdigest()
 
 
@@ -66,7 +66,8 @@ class _CachePool(list):
                 "is removed the auth_token middleware will not cache tokens "
                 "by default which may result in performance issues. It is "
                 "recommended to use  memcache for the auth_token token cache "
-                "by setting the memcached_servers option.")
+                "by setting the memcached_servers option."
+            )
 
     @contextlib.contextmanager
     def reserve(self):
@@ -78,10 +79,13 @@ class _CachePool(list):
             if self._memcached_servers:
                 if self._sasl_enabled:
                     import bmemcached
-                    c = bmemcached.Client(self._memcached_servers,
-                                          self._username, self._password)
+
+                    c = bmemcached.Client(
+                        self._memcached_servers, self._username, self._password
+                    )
                 else:
                     import memcache
+
                     c = memcache.Client(self._memcached_servers, debug=0)
             else:
                 c = _FakeClient()
@@ -103,16 +107,18 @@ class _MemcacheClientPool(object):
         self._tls_enabled = arguments.pop("tls_enabled", False)
         if self._tls_enabled or self._sasl_enabled:
             from oslo_cache import _bmemcache_pool
-            self._pool = _bmemcache_pool.BMemcacheClientPool(memcache_servers,
-                                                             arguments,
-                                                             **kwargs)
+
+            self._pool = _bmemcache_pool.BMemcacheClientPool(
+                memcache_servers, arguments, **kwargs
+            )
         else:
             from oslo_cache import _memcache_pool
+
             arguments.pop("username", None)
             arguments.pop("password", None)
-            self._pool = _memcache_pool.MemcacheClientPool(memcache_servers,
-                                                           arguments,
-                                                           **kwargs)
+            self._pool = _memcache_pool.MemcacheClientPool(
+                memcache_servers, arguments, **kwargs
+            )
 
     @contextlib.contextmanager
     def reserve(self):
@@ -138,12 +144,20 @@ class TokenCache(object):
 
     """
 
-    _CACHE_KEY_TEMPLATE = 'tokens/%s'
+    _CACHE_KEY_TEMPLATE = "tokens/%s"
 
-    def __init__(self, log, cache_time=None,
-                 env_cache_name=None, memcached_servers=None, tls_context=None,
-                 use_advanced_pool=True, dead_retry=None, socket_timeout=None,
-                 **kwargs):
+    def __init__(
+        self,
+        log,
+        cache_time=None,
+        env_cache_name=None,
+        memcached_servers=None,
+        tls_context=None,
+        use_advanced_pool=True,
+        dead_retry=None,
+        socket_timeout=None,
+        **kwargs,
+    ):
         self._LOG = log
         self._cache_time = cache_time
         self._env_cache_name = env_cache_name
@@ -151,13 +165,13 @@ class TokenCache(object):
         self._tls_context = tls_context
         self._use_advanced_pool = use_advanced_pool
         self._arguments = {
-            'dead_retry': dead_retry,
-            'socket_timeout': socket_timeout,
-            'sasl_enabled': kwargs.pop("sasl_enabled", False),
-            'username': kwargs.pop("username", None),
-            'password': kwargs.pop("password", None),
-            'tls_enabled': kwargs.pop("tls_enabled", False),
-            'tls_context': tls_context
+            "dead_retry": dead_retry,
+            "socket_timeout": socket_timeout,
+            "sasl_enabled": kwargs.pop("sasl_enabled", False),
+            "username": kwargs.pop("username", None),
+            "password": kwargs.pop("password", None),
+            "tls_enabled": kwargs.pop("tls_enabled", False),
+            "tls_context": tls_context,
         }
         self._memcache_pool_options = kwargs
 
@@ -169,13 +183,20 @@ class TokenCache(object):
             return _EnvCachePool(cache)
 
         elif self._use_advanced_pool and self._memcached_servers:
-            return _MemcacheClientPool(self._memcached_servers,
-                                       self._arguments,
-                                       **self._memcache_pool_options)
+            return _MemcacheClientPool(
+                self._memcached_servers, self._arguments, **self._memcache_pool_options
+            )
 
         else:
-            return _CachePool(self._memcached_servers, self._LOG,
-                              self._arguments)
+            if not self._use_advanced_pool:
+                self._LOG.warning(
+                    "Using the eventlet-unsafe cache pool is deprecated."
+                    "It is recommended to use eventlet-safe cache pool"
+                    "implementation from oslo.cache. This can be enabled"
+                    "through config option memcache_use_advanced_pool = True"
+                )
+
+            return _CachePool(self._memcached_servers, self._LOG, self._arguments)
 
     def initialize(self, env):
         if self._initialized:
@@ -255,18 +276,24 @@ class TokenCache(object):
             return None
 
         if isinstance(serialized, str):
-            serialized = serialized.encode('utf8')
+            serialized = serialized.encode("utf8")
         data = self._deserialize(serialized, context)
 
         if data is None:
             # In case decryption fails, e.g. data corrupted in memcached.
             return None
 
+        if not isinstance(data, str):
+            data = data.decode("utf-8")
+
         return jsonutils.loads(data)
 
     def set(self, token_id, data):
         """Store value into memcache."""
-        data = jsonutils.dumps(data).encode('utf-8')
+        data = jsonutils.dumps(data)
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+
         cache_key, context = self._get_cache_key(token_id)
         data_to_store = self._serialize(data, context)
 
@@ -285,22 +312,24 @@ class SecureTokenCache(TokenCache):
         super(SecureTokenCache, self).__init__(log, **kwargs)
 
         if not secret_key:
-            msg = _('memcache_secret_key must be defined when a '
-                    'memcache_security_strategy is defined')
+            msg = _(
+                "memcache_secret_key must be defined when a "
+                "memcache_security_strategy is defined"
+            )
             raise exc.ConfigurationError(msg)
 
         if isinstance(security_strategy, str):
-            security_strategy = security_strategy.encode('utf-8')
+            security_strategy = security_strategy.encode("utf-8")
         if isinstance(secret_key, str):
-            secret_key = secret_key.encode('utf-8')
+            secret_key = secret_key.encode("utf-8")
 
         self._security_strategy = security_strategy
         self._secret_key = secret_key
 
     def _get_cache_key(self, token_id):
-        context = memcache_crypt.derive_keys(token_id,
-                                             self._secret_key,
-                                             self._security_strategy)
+        context = memcache_crypt.derive_keys(
+            token_id, self._secret_key, self._security_strategy
+        )
         key = self._CACHE_KEY_TEMPLATE % memcache_crypt.get_cache_key(context)
         return key, context
 
@@ -308,10 +337,8 @@ class SecureTokenCache(TokenCache):
         try:
             # unprotect_data will return None if raw_cached is None
             return memcache_crypt.unprotect_data(context, data)
-        except memcache_crypt.InvalidMacError as e:
-            self._LOG.info("Unable to deserialize, %s", e)
         except Exception:
-            msg = 'Failed to decrypt/verify cache data'
+            msg = "Failed to decrypt/verify cache data"
             self._LOG.exception(msg)
 
         # this should have the same effect as data not

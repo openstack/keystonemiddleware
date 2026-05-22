@@ -1,0 +1,17 @@
+[lint]
+# Note: ruff 0.16+ changed the default rule set to a much broader one.
+# Keep the historical ruff defaults (E4, E7, E9, F) and add the bandit
+# (flake8-bandit) rules on top:
+#
+# S: https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "S",
+]
+
+[lint.per-file-ignores]
+# tests use fake credentials and asserts on purpose
+"keystonemiddleware/tests/**" = ["S101", "S105", "S106"]

@@ -19,27 +19,21 @@ from keystonemiddleware.auth_token import _base
 from keystonemiddleware.tests.unit.auth_token import base
 
 # NOTE(jamielennox): just some sample values that we can use for testing
-BASE_URI = 'https://keystone.example.com:1234'
-AUTH_URL = 'https://keystone.auth.com:1234'
+BASE_URI = "https://keystone.example.com:1234"
+AUTH_URL = "https://keystone.auth.com:1234"
 
 
 class BaseUserPluginTests(object):
-
-    def configure_middleware(self,
-                             auth_type,
-                             **kwargs):
+    def configure_middleware(self, auth_type, **kwargs):
         opts = loading.get_auth_plugin_conf_options(auth_type)
         self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
 
         # Since these tests cfg.config() themselves rather than waiting for
         # auth_token to do it on __init__ we need to register the base auth
         # options (e.g., auth_plugin)
-        loading.register_auth_conf_options(self.cfg.conf,
-                                           group=_base.AUTHTOKEN_GROUP)
+        loading.register_auth_conf_options(self.cfg.conf, group=_base.AUTHTOKEN_GROUP)
 
-        self.cfg.config(group=_base.AUTHTOKEN_GROUP,
-                        auth_type=auth_type,
-                        **kwargs)
+        self.cfg.config(group=_base.AUTHTOKEN_GROUP, auth_type=auth_type, **kwargs)
 
     def assertTokenDataEqual(self, token_id, token, token_data):
         self.assertEqual(token_id, token_data.auth_token)
@@ -52,15 +46,15 @@ class BaseUserPluginTests(object):
         self.assertEqual(self.get_role_names(token), token_data.role_names)
 
     def get_plugin(self, token_id, service_token_id=None):
-        headers = {'X-Auth-Token': token_id}
+        headers = {"X-Auth-Token": token_id}
 
         if service_token_id:
-            headers['X-Service-Token'] = service_token_id
+            headers["X-Service-Token"] = service_token_id
 
         m = self.create_simple_middleware()
 
         resp = self.call(m, headers=headers)
-        return resp.request.environ['keystone.token_auth']
+        return resp.request.environ["keystone.token_auth"]
 
     def test_user_information(self):
         token_id, token = self.get_token()
@@ -81,22 +75,21 @@ class BaseUserPluginTests(object):
 
 
 class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
-
     def setUp(self):
         super(V3UserPluginTests, self).setUp()
 
         self.service_token_id = uuid.uuid4().hex
         self.service_token = fixture.V3Token()
-        s = self.service_token.add_service('identity', name='keystone')
-        s.add_standard_endpoints(public=BASE_URI,
-                                 admin=BASE_URI,
-                                 internal=BASE_URI)
+        s = self.service_token.add_service("identity", name="keystone")
+        s.add_standard_endpoints(public=BASE_URI, admin=BASE_URI, internal=BASE_URI)
 
-        self.configure_middleware(auth_type='v3password',
-                                  auth_url='%s/v3/' % AUTH_URL,
-                                  user_id=self.service_token.user_id,
-                                  password=uuid.uuid4().hex,
-                                  project_id=self.service_token.project_id)
+        self.configure_middleware(
+            auth_type="v3password",
+            auth_url="%s/v3/" % AUTH_URL,
+            user_id=self.service_token.user_id,
+            password=uuid.uuid4().hex,
+            project_id=self.service_token.project_id,
+        )
 
         auth_discovery = fixture.DiscoveryList(href=AUTH_URL)
         self.requests_mock.get(AUTH_URL, json=auth_discovery)
@@ -105,12 +98,13 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         self.requests_mock.get(BASE_URI, json=base_discovery)
 
         self.requests_mock.post(
-            '%s/v3/auth/tokens' % AUTH_URL,
-            headers={'X-Subject-Token': self.service_token_id},
-            json=self.service_token)
+            "%s/v3/auth/tokens" % AUTH_URL,
+            headers={"X-Subject-Token": self.service_token_id},
+            json=self.service_token,
+        )
 
     def get_role_names(self, token):
-        return [x['name'] for x in token['token'].get('roles', [])]
+        return [x["name"] for x in token["token"].get("roles", [])]
 
     def get_token(self, project=True, service=False):
         token_id = uuid.uuid4().hex
@@ -119,23 +113,25 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
             token.set_project_scope()
         token.add_role()
         if service:
-            token.add_role('service')
+            token.add_role("service")
 
-        request_headers = {'X-Auth-Token': self.service_token_id,
-                           'X-Subject-Token': token_id}
-        headers = {'X-Subject-Token': token_id}
+        request_headers = {
+            "X-Auth-Token": self.service_token_id,
+            "X-Subject-Token": token_id,
+        }
+        headers = {"X-Subject-Token": token_id}
 
-        self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
-                               request_headers=request_headers,
-                               headers=headers,
-                               json=token)
+        self.requests_mock.get(
+            "%s/v3/auth/tokens" % BASE_URI,
+            request_headers=request_headers,
+            headers=headers,
+            json=token,
+        )
 
         return token_id, token
 
     def assertTokenDataEqual(self, token_id, token, token_data):
-        super(V3UserPluginTests, self).assertTokenDataEqual(token_id,
-                                                            token,
-                                                            token_data)
+        super(V3UserPluginTests, self).assertTokenDataEqual(token_id, token, token_data)
 
         self.assertEqual(token.user_domain_id, token_data.user_domain_id)
         self.assertEqual(token.project_id, token_data.project_id)

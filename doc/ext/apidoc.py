@@ -34,13 +34,20 @@ def run_apidoc(app):
         return
     run_already = True
 
-    package_dir = path.abspath(path.join(app.srcdir, '..', '..',
-                                         'keystonemiddleware'))
-    source_dir = path.join(app.srcdir, 'api')
-    apidoc.main(['apidoc', package_dir, '-f',
-                 '-H', 'keystonemiddleware Modules',
-                 '-o', source_dir])
+    package_dir = path.abspath(path.join(app.srcdir, "..", "..", "keystonemiddleware"))
+    source_dir = path.join(app.srcdir, "api")
+    apidoc.main(
+        [
+            "apidoc",
+            package_dir,
+            "-f",
+            "-H",
+            "keystonemiddleware Modules",
+            "-o",
+            source_dir,
+        ]
+    )
 
 
 def setup(app):
-    app.connect('builder-inited', run_apidoc)
+    app.connect("builder-inited", run_apidoc)

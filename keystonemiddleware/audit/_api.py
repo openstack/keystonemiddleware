@@ -28,16 +28,15 @@ from pycadf import tag
 from urllib import parse as urlparse
 
 
-Service = collections.namedtuple('Service',
-                                 ['id', 'name', 'type', 'admin_endp',
-                                  'public_endp', 'private_endp'])
+Service = collections.namedtuple(
+    "Service", ["id", "name", "type", "admin_endp", "public_endp", "private_endp"]
+)
 
 
-AuditMap = collections.namedtuple('AuditMap',
-                                  ['path_kw',
-                                   'custom_actions',
-                                   'service_endpoints',
-                                   'default_target_endpoint_type'])
+AuditMap = collections.namedtuple(
+    "AuditMap",
+    ["path_kw", "custom_actions", "service_endpoints", "default_target_endpoint_type"],
+)
 
 
 class PycadfAuditApiConfigError(Exception):
@@ -47,8 +46,9 @@ class PycadfAuditApiConfigError(Exception):
 
 
 class ClientResource(resource.Resource):
-    def __init__(self, project_id=None, request_id=None,
-                 global_request_id=None, **kwargs):
+    def __init__(
+        self, project_id=None, request_id=None, global_request_id=None, **kwargs
+    ):
         super(ClientResource, self).__init__(**kwargs)
         if project_id is not None:
             self.project_id = project_id
@@ -66,7 +66,6 @@ class KeystoneCredential(credential.Credential):
 
 
 class OpenStackAuditApi(object):
-
     def __init__(self, cfg_file, log=logging.getLogger(__name__)):
         """Configure to recognize and map known api paths."""
         path_kw = {}
@@ -82,43 +81,47 @@ class OpenStackAuditApi(object):
 
                 try:
                     default_target_endpoint_type = map_conf.get(
-                        'DEFAULT', 'target_endpoint_type')
+                        "DEFAULT", "target_endpoint_type"
+                    )
                 except configparser.NoOptionError:  # nosec
                     # Ignore the undefined config option,
                     # default_target_endpoint_type remains None which is valid.
                     pass
 
                 try:
-                    custom_actions = dict(map_conf.items('custom_actions'))
+                    custom_actions = dict(map_conf.items("custom_actions"))
                 except configparser.Error:  # nosec
                     # custom_actions remains {} which is valid.
                     pass
 
                 try:
-                    path_kw = dict(map_conf.items('path_keywords'))
+                    path_kw = dict(map_conf.items("path_keywords"))
                 except configparser.Error:  # nosec
                     # path_kw remains {} which is valid.
                     pass
 
                 try:
-                    endpoints = dict(map_conf.items('service_endpoints'))
+                    endpoints = dict(map_conf.items("service_endpoints"))
                 except configparser.Error:  # nosec
                     # endpoints remains {} which is valid.
                     pass
             except configparser.ParsingError as err:
                 raise PycadfAuditApiConfigError(
-                    'Error parsing audit map file: %s' % err)
+                    "Error parsing audit map file: %s" % err
+                )
 
         self._log = log
         self._MAP = AuditMap(
-            path_kw=path_kw, custom_actions=custom_actions,
+            path_kw=path_kw,
+            custom_actions=custom_actions,
             service_endpoints=endpoints,
-            default_target_endpoint_type=default_target_endpoint_type)
+            default_target_endpoint_type=default_target_endpoint_type,
+        )
 
     @staticmethod
     def _clean_path(value):
         """Clean path if path has json suffix."""
-        return value[:-5] if value.endswith('.json') else value
+        return value[:-5] if value.endswith(".json") else value
 
     def get_action(self, req):
         """Take a given Request, parse url path to calculate action type.
@@ -142,21 +145,20 @@ class OpenStackAuditApi(object):
         if HEAD, assume read action.
 
         """
-        path = req.path[:-1] if req.path.endswith('/') else req.path
-        url_ending = self._clean_path(path[path.rfind('/') + 1:])
+        path = req.path[:-1] if req.path.endswith("/") else req.path
+        url_ending = self._clean_path(path[path.rfind("/") + 1 :])
         method = req.method
 
-        if url_ending + '/' + method.lower() in self._MAP.custom_actions:
-            action = self._MAP.custom_actions[url_ending + '/' +
-                                              method.lower()]
+        if url_ending + "/" + method.lower() in self._MAP.custom_actions:
+            action = self._MAP.custom_actions[url_ending + "/" + method.lower()]
         elif url_ending in self._MAP.custom_actions:
             action = self._MAP.custom_actions[url_ending]
-        elif method == 'POST':
-            if url_ending == 'action':
+        elif method == "POST":
+            if url_ending == "action":
                 try:
                     if req.json:
                         body_action = list(req.json.keys())[0]
-                        action = taxonomy.ACTION_UPDATE + '/' + body_action
+                        action = taxonomy.ACTION_UPDATE + "/" + body_action
                     else:
                         action = taxonomy.ACTION_CREATE
                 except ValueError:
@@ -165,16 +167,16 @@ class OpenStackAuditApi(object):
                 action = taxonomy.ACTION_UPDATE
             else:
                 action = taxonomy.ACTION_CREATE
-        elif method == 'GET':
+        elif method == "GET":
             if url_ending in self._MAP.path_kw:
                 action = taxonomy.ACTION_LIST
             else:
                 action = taxonomy.ACTION_READ
-        elif method == 'PUT' or method == 'PATCH':
+        elif method == "PUT" or method == "PATCH":
             action = taxonomy.ACTION_UPDATE
-        elif method == 'DELETE':
+        elif method == "DELETE":
             action = taxonomy.ACTION_DELETE
-        elif method == 'HEAD':
+        elif method == "HEAD":
             action = taxonomy.ACTION_READ
         else:
             action = taxonomy.UNKNOWN
@@ -183,20 +185,21 @@ class OpenStackAuditApi(object):
 
     def _get_service_info(self, endp):
         service = Service(
-            type=self._MAP.service_endpoints.get(
-                endp['type'],
-                taxonomy.UNKNOWN),
-            name=endp['name'],
-            id=endp['endpoints'][0].get('id', endp['name']),
+            type=self._MAP.service_endpoints.get(endp["type"], taxonomy.UNKNOWN),
+            name=endp["name"],
+            id=endp["endpoints"][0].get("id", endp["name"]),
             admin_endp=endpoint.Endpoint(
-                name='admin',
-                url=endp['endpoints'][0].get('adminURL', taxonomy.UNKNOWN)),
+                name="admin", url=endp["endpoints"][0].get("adminURL", taxonomy.UNKNOWN)
+            ),
             private_endp=endpoint.Endpoint(
-                name='private',
-                url=endp['endpoints'][0].get('internalURL', taxonomy.UNKNOWN)),
+                name="private",
+                url=endp["endpoints"][0].get("internalURL", taxonomy.UNKNOWN),
+            ),
             public_endp=endpoint.Endpoint(
-                name='public',
-                url=endp['endpoints'][0].get('publicURL', taxonomy.UNKNOWN)))
+                name="public",
+                url=endp["endpoints"][0].get("publicURL", taxonomy.UNKNOWN),
+            ),
+        )
 
         return service
 
@@ -205,14 +208,14 @@ class OpenStackAuditApi(object):
 
         Combines service type and corresponding path for greater detail.
         """
-        type_uri = ''
+        type_uri = ""
         prev_key = None
-        for key in re.split('/', req.path):
+        for key in re.split("/", req.path):
             key = self._clean_path(key)
             if key in self._MAP.path_kw:
-                type_uri += '/' + key
+                type_uri += "/" + key
             elif prev_key in self._MAP.path_kw:
-                type_uri += '/' + self._MAP.path_kw[prev_key]
+                type_uri += "/" + self._MAP.path_kw[prev_key]
             prev_key = key
         return service_type + type_uri
 
@@ -220,9 +223,12 @@ class OpenStackAuditApi(object):
         """Build target resource."""
         target_typeURI = (
             self._build_typeURI(req, service.type)
-            if service.type != taxonomy.UNKNOWN else service.type)
-        target = resource.Resource(typeURI=target_typeURI,
-                                   id=service.id, name=service.name)
+            if service.type != taxonomy.UNKNOWN
+            else service.type
+        )
+        target = resource.Resource(
+            typeURI=target_typeURI, id=service.id, name=service.name
+        )
         if service.admin_endp:
             target.add_address(service.admin_endp)
         if service.private_endp:
@@ -238,42 +244,50 @@ class OpenStackAuditApi(object):
         from service catalog. If not, the information will be taken from
         given config file.
         """
-        service_info = Service(type=taxonomy.UNKNOWN, name=taxonomy.UNKNOWN,
-                               id=taxonomy.UNKNOWN, admin_endp=None,
-                               private_endp=None, public_endp=None)
+        service_info = Service(
+            type=taxonomy.UNKNOWN,
+            name=taxonomy.UNKNOWN,
+            id=taxonomy.UNKNOWN,
+            admin_endp=None,
+            private_endp=None,
+            public_endp=None,
+        )
 
         catalog = {}
         try:
-            catalog = jsonutils.loads(req.environ['HTTP_X_SERVICE_CATALOG'])
+            catalog = jsonutils.loads(req.environ["HTTP_X_SERVICE_CATALOG"])
         except KeyError:
             self._log.warning(
-                'Unable to discover target information because '
-                'service catalog is missing. Either the incoming '
-                'request does not contain an auth token or auth '
-                'token does not contain a service catalog. For '
-                'the latter, please make sure the '
+                "Unable to discover target information because "
+                "service catalog is missing. Either the incoming "
+                "request does not contain an auth token or auth "
+                "token does not contain a service catalog. For "
+                "the latter, please make sure the "
                 '"include_service_catalog" property in '
-                'auth_token middleware is set to "True"')
+                'auth_token middleware is set to "True"'
+            )
 
         default_endpoint = None
         for endp in catalog:
-            if not endp['endpoints']:
+            if not endp["endpoints"]:
                 self._log.warning(
-                    'Skipping service %s as it have no endpoints.',
-                    endp['name'])
+                    "Skipping service %s as it have no endpoints.", endp["name"]
+                )
                 continue
-            endpoint_urls = endp['endpoints'][0]
-            admin_urlparse = urlparse.urlparse(
-                endpoint_urls.get('adminURL', ''))
-            public_urlparse = urlparse.urlparse(
-                endpoint_urls.get('publicURL', ''))
+            endpoint_urls = endp["endpoints"][0]
+            admin_urlparse = urlparse.urlparse(endpoint_urls.get("adminURL", ""))
+            public_urlparse = urlparse.urlparse(endpoint_urls.get("publicURL", ""))
             req_url = urlparse.urlparse(req.host_url)
-            if req_url.port and (req_url.netloc == admin_urlparse.netloc
-                                 or req_url.netloc == public_urlparse.netloc):
+            if req_url.port and (
+                req_url.netloc == admin_urlparse.netloc
+                or req_url.netloc == public_urlparse.netloc
+            ):
                 service_info = self._get_service_info(endp)
                 break
-            elif (self._MAP.default_target_endpoint_type and
-                  endp['type'] == self._MAP.default_target_endpoint_type):
+            elif (
+                self._MAP.default_target_endpoint_type
+                and endp["type"] == self._MAP.default_target_endpoint_type
+            ):
                 default_endpoint = endp
         else:
             if default_endpoint:
@@ -286,16 +300,19 @@ class OpenStackAuditApi(object):
 
         initiator = ClientResource(
             typeURI=taxonomy.ACCOUNT_USER,
-            id=req.environ.get('HTTP_X_USER_ID', taxonomy.UNKNOWN),
-            name=req.environ.get('HTTP_X_USER_NAME', taxonomy.UNKNOWN),
+            id=req.environ.get("HTTP_X_USER_ID", taxonomy.UNKNOWN),
+            name=req.environ.get("HTTP_X_USER_NAME", taxonomy.UNKNOWN),
             host=host.Host(address=req.client_addr, agent=req.user_agent),
             credential=KeystoneCredential(
-                token=req.environ.get('HTTP_X_AUTH_TOKEN', ''),
-                identity_status=req.environ.get('HTTP_X_IDENTITY_STATUS',
-                                                taxonomy.UNKNOWN)),
-            project_id=req.environ.get('HTTP_X_PROJECT_ID', taxonomy.UNKNOWN),
-            request_id=req.environ.get('openstack.request_id'),
-            global_request_id=req.environ.get('openstack.global_request_id'))
+                token=req.environ.get("HTTP_X_AUTH_TOKEN", ""),
+                identity_status=req.environ.get(
+                    "HTTP_X_IDENTITY_STATUS", taxonomy.UNKNOWN
+                ),
+            ),
+            project_id=req.environ.get("HTTP_X_PROJECT_ID", taxonomy.UNKNOWN),
+            request_id=req.environ.get("openstack.request_id"),
+            global_request_id=req.environ.get("openstack.global_request_id"),
+        )
 
         target = self.get_target_resource(req)
 
@@ -305,8 +322,8 @@ class OpenStackAuditApi(object):
             action=action,
             initiator=initiator,
             target=target,
-            observer=resource.Resource(id='target'))
+            observer=resource.Resource(id="target"),
+        )
         event.requestPath = req.path_qs
-        event.add_tag(tag.generate_name_value_tag('correlation_id',
-                                                  correlation_id))
+        event.add_tag(tag.generate_name_value_tag("correlation_id", correlation_id))
         return event

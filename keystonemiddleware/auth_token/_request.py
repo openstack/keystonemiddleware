@@ -21,9 +21,9 @@ def _normalize_catalog(catalog):
     services = []
     for v3_service in catalog:
         # first copy over the entries we allow for the service
-        service = {'type': v3_service['type']}
+        service = {"type": v3_service["type"]}
         try:
-            service['name'] = v3_service['name']
+            service["name"] = v3_service["name"]
         except KeyError:  # nosec
             # v3 service doesn't have a name, move on.
             pass
@@ -32,18 +32,18 @@ def _normalize_catalog(catalog):
         # URL not per group we have to collect all the entries of the same
         # region together before adding it to the new service.
         regions = {}
-        for v3_endpoint in v3_service.get('endpoints', []):
-            region_name = v3_endpoint.get('region')
+        for v3_endpoint in v3_service.get("endpoints", []):
+            region_name = v3_endpoint.get("region")
             try:
                 region = regions[region_name]
             except KeyError:
-                region = {'region': region_name} if region_name else {}
+                region = {"region": region_name} if region_name else {}
                 regions[region_name] = region
 
-            interface_name = v3_endpoint['interface'].lower() + 'URL'
-            region[interface_name] = v3_endpoint['url']
+            interface_name = v3_endpoint["interface"].lower() + "URL"
+            region[interface_name] = v3_endpoint["url"]
 
-        service['endpoints'] = list(regions.values())
+        service["endpoints"] = list(regions.values())
         services.append(service)
 
     return services
@@ -55,65 +55,63 @@ def _is_admin_project(auth_ref):
     Headers must be strings so we can't simply pass a boolean value through so
     return a True or False string to signal the admin project.
     """
-    return 'True' if auth_ref.is_admin_project else 'False'
+    return "True" if auth_ref.is_admin_project else "False"
 
 
 def _get_system_scope(auth_ref):
     """Return the scope information of a system scoped token."""
     if auth_ref.system_scoped:
-        if auth_ref.system.get('all'):
-            return 'all'
+        if auth_ref.system.get("all"):
+            return "all"
 
 
 # NOTE(jamielennox): this should probably be moved into its own file, but at
 # the moment there's no real logic here so just keep it locally.
 class _AuthTokenResponse(webob.Response):
-
     default_content_type = None  # prevents webob assigning a content type
 
 
 class _AuthTokenRequest(webob.Request):
-
     ResponseClass = _AuthTokenResponse
 
     _HEADER_TEMPLATE = {
-        'X%s-Domain-Id': 'domain_id',
-        'X%s-Domain-Name': 'domain_name',
-        'X%s-Project-Id': 'project_id',
-        'X%s-Project-Name': 'project_name',
-        'X%s-Project-Domain-Id': 'project_domain_id',
-        'X%s-Project-Domain-Name': 'project_domain_name',
-        'X%s-User-Id': 'user_id',
-        'X%s-User-Name': 'username',
-        'X%s-User-Domain-Id': 'user_domain_id',
-        'X%s-User-Domain-Name': 'user_domain_name',
+        "X%s-Domain-Id": "domain_id",
+        "X%s-Domain-Name": "domain_name",
+        "X%s-Project-Id": "project_id",
+        "X%s-Project-Name": "project_name",
+        "X%s-Project-Domain-Id": "project_domain_id",
+        "X%s-Project-Domain-Name": "project_domain_name",
+        "X%s-User-Id": "user_id",
+        "X%s-User-Name": "username",
+        "X%s-User-Domain-Id": "user_domain_id",
+        "X%s-User-Domain-Name": "user_domain_name",
     }
 
-    _ROLES_TEMPLATE = 'X%s-Roles'
+    _ROLES_TEMPLATE = "X%s-Roles"
 
-    _USER_HEADER_PREFIX = ''
-    _SERVICE_HEADER_PREFIX = '-Service'
+    _USER_HEADER_PREFIX = ""
+    _SERVICE_HEADER_PREFIX = "-Service"
 
-    _USER_STATUS_HEADER = 'X-Identity-Status'
-    _SERVICE_STATUS_HEADER = 'X-Service-Identity-Status'
+    _USER_STATUS_HEADER = "X-Identity-Status"
+    _SERVICE_STATUS_HEADER = "X-Service-Identity-Status"
 
-    _ADMIN_PROJECT_HEADER = 'X-Is-Admin-Project'
-    _SYSTEM_SCOPE_HEADER = 'OpenStack-System-Scope'
+    _ADMIN_PROJECT_HEADER = "X-Is-Admin-Project"
+    _SYSTEM_SCOPE_HEADER = "OpenStack-System-Scope"
 
-    _SERVICE_CATALOG_HEADER = 'X-Service-Catalog'
-    _TOKEN_AUTH = 'keystone.token_auth'  # nosec
-    _TOKEN_INFO = 'keystone.token_info'  # nosec
+    _SERVICE_CATALOG_HEADER = "X-Service-Catalog"
+    _TOKEN_AUTH = "keystone.token_auth"  # nosec  # noqa: S105
+    _TOKEN_INFO = "keystone.token_info"  # nosec  # noqa: S105
 
-    _CONFIRMED = 'Confirmed'
-    _INVALID = 'Invalid'
+    _CONFIRMED = "Confirmed"
+    _INVALID = "Invalid"
 
     # header names that have been deprecated in favour of something else.
     _DEPRECATED_HEADER_MAP = {
-        'X-Role': 'X-Roles',
-        'X-User': 'X-User-Name',
-        'X-Tenant-Id': 'X-Project-Id',
-        'X-Tenant-Name': 'X-Project-Name',
-        'X-Tenant': 'X-Project-Name',
+        "X-Role": "X-Roles",
+        "X-User": "X-User-Name",
+        "X-Tenant-Id": "X-Project-Id",
+        "X-Tenant-Name": "X-Project-Name",
+        "X-Tenant": "X-Project-Name",
     }
 
     def _confirmed(cls, value):
@@ -134,8 +132,7 @@ class _AuthTokenRequest(webob.Request):
 
     @property
     def user_token(self):
-        return self.headers.get('X-Auth-Token',
-                                self.headers.get('X-Storage-Token'))
+        return self.headers.get("X-Auth-Token", self.headers.get("X-Storage-Token"))
 
     @property
     def service_token_valid(self):
@@ -153,10 +150,10 @@ class _AuthTokenRequest(webob.Request):
 
     @property
     def service_token(self):
-        return self.headers.get('X-Service-Token')
+        return self.headers.get("X-Service-Token")
 
     def _set_auth_headers(self, auth_ref, prefix):
-        names = ','.join(auth_ref.role_names)
+        names = ",".join(auth_ref.role_names)
         self.headers[self._ROLES_TEMPLATE % prefix] = names
         self.headers[self._SYSTEM_SCOPE_HEADER] = _get_system_scope(auth_ref)
 
@@ -189,7 +186,7 @@ class _AuthTokenRequest(webob.Request):
             return
 
         catalog = auth_ref.service_catalog.catalog
-        if auth_ref.version == 'v3':
+        if auth_ref.version == "v3":
             catalog = _normalize_catalog(catalog)
 
         c = jsonutils.dumps(catalog)
@@ -236,7 +233,7 @@ class _AuthTokenRequest(webob.Request):
         :rtype: str or None
         """
         try:
-            auth_type = self.environ['AUTH_TYPE']
+            auth_type = self.environ["AUTH_TYPE"]
         except KeyError:
             return None
         else:

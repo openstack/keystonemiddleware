@@ -30,8 +30,8 @@ class OAuth2Protocol(AuthProtocol):
     """Middleware that handles OAuth2.0 client credentials authentication."""
 
     def __init__(self, app, conf):
-        log = logging.getLogger(conf.get('log_name', __name__))
-        log.info('Starting Keystone oauth2_token middleware')
+        log = logging.getLogger(conf.get("log_name", __name__))
+        log.info("Starting Keystone oauth2_token middleware")
         super(OAuth2Protocol, self).__init__(app, conf)
 
     def _is_valid_access_token(self, request):
@@ -41,25 +41,23 @@ class OAuth2Protocol(AuthProtocol):
         :type request: _request.AuthTokenRequest
         """
         access_token = None
-        if (request.authorization and
-                request.authorization.authtype == 'Bearer'):
+        if request.authorization and request.authorization.authtype == "Bearer":
             access_token = request.authorization.params
 
         if access_token:
             try:
                 token_data, user_auth_ref = self._do_fetch_token(
-                    access_token, allow_expired=False)
-                self._validate_token(user_auth_ref,
-                                     allow_expired=False)
-                token = token_data['token']
+                    access_token, allow_expired=False
+                )
+                self._validate_token(user_auth_ref, allow_expired=False)
+                token = token_data["token"]
                 self.validate_allowed_request(request, token)
                 self._confirm_token_bind(user_auth_ref, request)
                 request.token_info = token_data
-                request.token_auth = _user_plugin.UserAuthPlugin(
-                    user_auth_ref, None)
+                request.token_auth = _user_plugin.UserAuthPlugin(user_auth_ref, None)
                 return True
             except exceptions.KeystoneMiddlewareException as err:
-                _LOG.info('Invalid OAuth2.0 access token: %s' % str(err))
+                _LOG.info("Invalid OAuth2.0 access token: %s" % str(err))
         return False
 
     def process_request(self, request):
@@ -70,21 +68,26 @@ class OAuth2Protocol(AuthProtocol):
         """
         request.remove_auth_headers()
         self._token_cache.initialize(request.environ)
-        if (not self._is_valid_access_token(request)
-                or "keystone.token_info" not in request.environ
-                or "token" not in request.environ["keystone.token_info"]):
-            _LOG.info('Rejecting request')
-            message = _('The request you have made requires authentication.')
-            body = {'error': {
-                'code': 401,
-                'title': 'Unauthorized',
-                'message': message,
-            }}
+        if (
+            not self._is_valid_access_token(request)
+            or "keystone.token_info" not in request.environ
+            or "token" not in request.environ["keystone.token_info"]
+        ):
+            _LOG.info("Rejecting request")
+            message = _("The request you have made requires authentication.")
+            body = {
+                "error": {
+                    "code": 401,
+                    "title": "Unauthorized",
+                    "message": message,
+                }
+            }
             raise webob.exc.HTTPUnauthorized(
                 body=jsonutils.dumps(body),
                 headers=self._reject_auth_headers,
-                charset='UTF-8',
-                content_type='application/json')
+                charset="UTF-8",
+                content_type="application/json",
+            )
 
         request.set_user_headers(request.token_auth.user)
         request.set_service_catalog_headers(request.token_auth.user)

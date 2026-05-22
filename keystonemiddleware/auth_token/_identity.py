@@ -18,15 +18,15 @@ from keystoneclient.v3 import client as v3_client
 from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.i18n import _
 
-ACCESS_RULES_SUPPORT = '1'
+ACCESS_RULES_SUPPORT = "1"
 
 
 class _RequestStrategy(object):
-
     AUTH_VERSION = None
 
-    def __init__(self, adap, include_service_catalog=None,
-                 requested_auth_interface=None):
+    def __init__(
+        self, adap, include_service_catalog=None, requested_auth_interface=None
+    ):
         self._include_service_catalog = include_service_catalog
         self._requested_auth_interface = requested_auth_interface
 
@@ -35,14 +35,13 @@ class _RequestStrategy(object):
 
 
 class _V3RequestStrategy(_RequestStrategy):
-
     AUTH_VERSION = (3, 0)
 
     def __init__(self, adap, **kwargs):
         super(_V3RequestStrategy, self).__init__(adap, **kwargs)
-        client_args = {'session': adap}
+        client_args = {"session": adap}
         if self._requested_auth_interface:
-            client_args['interface'] = self._requested_auth_interface
+            client_args["interface"] = self._requested_auth_interface
         self._client = v3_client.Client(**client_args)
 
     def verify_token(self, token, allow_expired=False):
@@ -50,13 +49,14 @@ class _V3RequestStrategy(_RequestStrategy):
             token,
             include_catalog=self._include_service_catalog,
             allow_expired=allow_expired,
-            access_rules_support=ACCESS_RULES_SUPPORT)
+            access_rules_support=ACCESS_RULES_SUPPORT,
+        )
 
         if not auth_ref:
-            msg = _('Failed to fetch token data from identity server')
+            msg = _("Failed to fetch token data from identity server")
             raise ksm_exceptions.InvalidToken(msg)
 
-        return {'token': auth_ref}
+        return {"token": auth_ref}
 
 
 _REQUEST_STRATEGIES = [_V3RequestStrategy]
@@ -71,8 +71,14 @@ class IdentityServer(object):
 
     """
 
-    def __init__(self, log, adap, include_service_catalog=None,
-                 requested_auth_version=None, requested_auth_interface=None):
+    def __init__(
+        self,
+        log,
+        adap,
+        include_service_catalog=None,
+        requested_auth_version=None,
+        requested_auth_interface=None,
+    ):
         self._LOG = log
         self._adapter = adap
         self._include_service_catalog = include_service_catalog
@@ -99,16 +105,20 @@ class IdentityServer(object):
             self._request_strategy_obj = strategy_class(
                 self._adapter,
                 include_service_catalog=self._include_service_catalog,
-                requested_auth_interface=self._requested_auth_interface)
+                requested_auth_interface=self._requested_auth_interface,
+            )
 
         return self._request_strategy_obj
 
     def _get_strategy_class(self):
         if self._requested_auth_version:
-            if not discover.version_match(_V3RequestStrategy.AUTH_VERSION,
-                                          self._requested_auth_version):
-                self._LOG.info('A version other than v3 was requested: %s',
-                               self._requested_auth_interface)
+            if not discover.version_match(
+                _V3RequestStrategy.AUTH_VERSION, self._requested_auth_version
+            ):
+                self._LOG.info(
+                    "A version other than v3 was requested: %s",
+                    self._requested_auth_interface,
+                )
             # Return v3, even if the request is unknown
             return _V3RequestStrategy
 
@@ -116,15 +126,17 @@ class IdentityServer(object):
         # discovering available versions from the server
         for klass in _REQUEST_STRATEGIES:
             if self._adapter.get_endpoint(version=klass.AUTH_VERSION):
-                self._LOG.debug('Auth Token confirmed use of %s apis',
-                                klass.AUTH_VERSION)
+                self._LOG.debug(
+                    "Auth Token confirmed use of %s apis", klass.AUTH_VERSION
+                )
                 return klass
 
-        versions = ['v%d.%d' % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
-        self._LOG.error('No attempted versions [%s] supported by server',
-                        ', '.join(versions))
+        versions = ["v%d.%d" % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
+        self._LOG.error(
+            "No attempted versions [%s] supported by server", ", ".join(versions)
+        )
 
-        msg = _('No compatible apis supported by server')
+        msg = _("No compatible apis supported by server")
         raise ksm_exceptions.ServiceError(msg)
 
     def verify_token(self, user_token, retry=True, allow_expired=False):
@@ -143,28 +155,31 @@ class IdentityServer(object):
         """
         try:
             auth_ref = self._request_strategy.verify_token(
-                user_token,
-                allow_expired=allow_expired)
+                user_token, allow_expired=allow_expired
+            )
         except ksa_exceptions.NotFound as e:
-            self._LOG.info('Authorization failed for token')
-            self._LOG.info('Identity response: %s', e.response.text)
-            raise ksm_exceptions.InvalidToken(_('Token authorization failed'))
+            self._LOG.info("Authorization failed for token")
+            self._LOG.info("Identity response: %s", e.response.text)
+            raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
         except ksa_exceptions.Unauthorized as e:
-            self._LOG.info('Identity server rejected authorization')
-            self._LOG.warning('Identity response: %s', e.response.text)
+            self._LOG.info("Identity server rejected authorization")
+            self._LOG.warning("Identity response: %s", e.response.text)
             if retry:
-                self._LOG.info('Retrying validation')
+                self._LOG.info("Retrying validation")
                 return self.verify_token(user_token, False)
-            msg = _('Identity server rejected authorization necessary to '
-                    'fetch token data')
+            msg = _(
+                "Identity server rejected authorization necessary to fetch token data"
+            )
             raise ksm_exceptions.ServiceError(msg)
         except ksa_exceptions.HttpError as e:
             self._LOG.error(
-                'Bad response code while validating token: %s %s',
-                e.http_status, e.message)
-            if hasattr(e.response, 'text'):
-                self._LOG.warning('Identity response: %s', e.response.text)
-            msg = _('Failed to fetch token data from identity server')
+                "Bad response code while validating token: %s %s",
+                e.http_status,
+                e.message,
+            )
+            if hasattr(e.response, "text"):
+                self._LOG.warning("Identity response: %s", e.response.text)
+            msg = _("Failed to fetch token data from identity server")
             raise ksm_exceptions.ServiceError(msg)
         else:
             return auth_ref

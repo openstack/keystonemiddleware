@@ -21,118 +21,120 @@ from keystonemiddleware.tests.unit import utils
 
 
 class OptsTestCase(utils.TestCase):
-
     def test_original_list_all_options(self):
         result_of_old_opts = old_opts.list_auth_token_opts()
         self.assertThat(result_of_old_opts, matchers.HasLength(1))
 
         for group in (g for (g, _l) in result_of_old_opts):
-            self.assertEqual('keystone_authtoken', group)
+            self.assertEqual("keystone_authtoken", group)
 
         # This is the original list that includes deprecated options
         expected_opt_names = [
-            'interface',
-            'www_authenticate_uri',
-            'auth_version',
-            'delay_auth_decision',
-            'http_connect_timeout',
-            'http_request_max_retries',
-            'cache',
-            'certfile',
-            'keyfile',
-            'cafile',
-            'region_name',
-            'insecure',
-            'memcached_servers',
-            'token_cache_time',
-            'memcache_security_strategy',
-            'memcache_secret_key',
-            'memcache_use_advanced_pool',
-            'memcache_tls_enabled',
-            'memcache_tls_cafile',
-            'memcache_tls_certfile',
-            'memcache_tls_keyfile',
-            'memcache_tls_allowed_ciphers',
-            'memcache_pool_dead_retry',
-            'memcache_pool_maxsize',
-            'memcache_pool_unused_timeout',
-            'memcache_pool_conn_get_timeout',
-            'memcache_pool_socket_timeout',
-            'memcache_sasl_enabled',
-            'memcache_username',
-            'memcache_password',
-            'include_service_catalog',
-            'enforce_token_bind',
-            'auth_type',
-            'auth_section',
-            'service_token_roles',
-            'service_token_roles_required',
-            'service_type',
+            "interface",
+            "www_authenticate_uri",
+            "auth_version",
+            "delay_auth_decision",
+            "http_connect_timeout",
+            "http_request_max_retries",
+            "cache",
+            "certfile",
+            "keyfile",
+            "cafile",
+            "region_name",
+            "insecure",
+            "memcached_servers",
+            "token_cache_time",
+            "memcache_security_strategy",
+            "memcache_secret_key",
+            "memcache_use_advanced_pool",
+            "memcache_tls_enabled",
+            "memcache_tls_cafile",
+            "memcache_tls_certfile",
+            "memcache_tls_keyfile",
+            "memcache_tls_allowed_ciphers",
+            "memcache_pool_dead_retry",
+            "memcache_pool_maxsize",
+            "memcache_pool_unused_timeout",
+            "memcache_pool_conn_get_timeout",
+            "memcache_pool_socket_timeout",
+            "memcache_sasl_enabled",
+            "memcache_username",
+            "memcache_password",
+            "include_service_catalog",
+            "enforce_token_bind",
+            "auth_type",
+            "auth_section",
+            "service_token_roles",
+            "service_token_roles_required",
+            "service_type",
         ]
-        opt_names = set([o.name for (g, l) in result_of_old_opts for o in l])
-        for opt in expected_opt_names:
-            self.assertIn(opt, opt_names)
+        opt_names = [o.name for (g, _l) in result_of_old_opts for o in _l]
+        self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
+
+        for opt in opt_names:
+            self.assertIn(opt, expected_opt_names)
 
     def _test_list_auth_token_opts(self, result):
         self.assertThat(result, matchers.HasLength(1))
 
         for group in (g for (g, _l) in result):
-            self.assertEqual('keystone_authtoken', group)
+            self.assertEqual("keystone_authtoken", group)
 
         # This is the sample config generator list WITHOUT deprecations
         expected_opt_names = [
-            'www_authenticate_uri',
-            'interface',
-            'auth_version',
-            'delay_auth_decision',
-            'http_connect_timeout',
-            'http_request_max_retries',
-            'cache',
-            'certfile',
-            'keyfile',
-            'cafile',
-            'region_name',
-            'insecure',
-            'memcached_servers',
-            'token_cache_time',
-            'memcache_security_strategy',
-            'memcache_secret_key',
-            'memcache_use_advanced_pool',
-            'memcache_tls_enabled',
-            'memcache_tls_cafile',
-            'memcache_tls_certfile',
-            'memcache_tls_keyfile',
-            'memcache_tls_allowed_ciphers',
-            'memcache_pool_dead_retry',
-            'memcache_pool_maxsize',
-            'memcache_pool_unused_timeout',
-            'memcache_pool_conn_get_timeout',
-            'memcache_pool_socket_timeout',
-            'memcache_sasl_enabled',
-            'memcache_username',
-            'memcache_password',
-            'include_service_catalog',
-            'enforce_token_bind',
-            'auth_type',
-            'auth_section',
-            'service_token_roles',
-            'service_token_roles_required',
-            'service_type',
+            "www_authenticate_uri",
+            "interface",
+            "auth_version",
+            "delay_auth_decision",
+            "http_connect_timeout",
+            "http_request_max_retries",
+            "cache",
+            "certfile",
+            "keyfile",
+            "cafile",
+            "region_name",
+            "insecure",
+            "memcached_servers",
+            "token_cache_time",
+            "memcache_security_strategy",
+            "memcache_secret_key",
+            "memcache_use_advanced_pool",
+            "memcache_tls_enabled",
+            "memcache_tls_cafile",
+            "memcache_tls_certfile",
+            "memcache_tls_keyfile",
+            "memcache_tls_allowed_ciphers",
+            "memcache_pool_dead_retry",
+            "memcache_pool_maxsize",
+            "memcache_pool_unused_timeout",
+            "memcache_pool_conn_get_timeout",
+            "memcache_pool_socket_timeout",
+            "memcache_sasl_enabled",
+            "memcache_username",
+            "memcache_password",
+            "include_service_catalog",
+            "enforce_token_bind",
+            "auth_type",
+            "auth_section",
+            "service_token_roles",
+            "service_token_roles_required",
+            "service_type",
         ]
-        opt_names = [o.name for (g, l) in result for o in l]
-        for opt in expected_opt_names:
-            self.assertIn(opt, opt_names)
+        opt_names = [o.name for (g, _l) in result for o in _l]
+        self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
+
+        for opt in opt_names:
+            self.assertIn(opt, expected_opt_names)
 
     def test_list_auth_token_opts(self):
         self._test_list_auth_token_opts(new_opts.list_opts())
 
     def test_entry_point(self):
-        em = stevedore.ExtensionManager('oslo.config.opts',
-                                        invoke_on_load=True)
+        em = stevedore.ExtensionManager("oslo.config.opts", invoke_on_load=True)
         for extension in em:
-            if extension.name == 'keystonemiddleware.auth_token':
+            if extension.name == "keystonemiddleware.auth_token":
                 break
         else:
-            self.fail('keystonemiddleware.auth_token not found')
+            self.fail("keystonemiddleware.auth_token not found")
 
         self._test_list_auth_token_opts(extension.obj)
