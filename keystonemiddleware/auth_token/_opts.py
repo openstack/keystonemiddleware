@@ -184,10 +184,8 @@ _OPTS = [
                 help='Enable the SASL(Simple Authentication and Security'
                      ' Layer) if the SASL_enable is true, else disable.'),
     cfg.StrOpt('memcache_username',
-               default='',
                help='the user name for the SASL'),
     cfg.StrOpt('memcache_password',
-               default='',
                secret=True,
                help='the username password for SASL'),
 ]
