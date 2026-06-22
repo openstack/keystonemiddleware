@@ -188,6 +188,7 @@ _OPTS = [
                help='the user name for the SASL'),
     cfg.StrOpt('memcache_password',
                default='',
+               secret=True,
                help='the username password for SASL'),
 ]
 
