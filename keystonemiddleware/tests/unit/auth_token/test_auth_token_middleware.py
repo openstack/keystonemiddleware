@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import calendar
 import datetime
 import os
 import time
@@ -136,8 +137,20 @@ class TimeFixture(fixtures.Fixture):
 
     def setUp(self):
         super(TimeFixture, self).setUp()
-        timeutils.set_time_override(self.new_time)
-        self.addCleanup(timeutils.clear_time_override)
+        patcher = mock.patch.object(timeutils, "utcnow", lambda: self.new_time)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        ts_patcher = mock.patch.object(
+            timeutils,
+            "utcnow_ts",
+            lambda microsecond=False: calendar.timegm(
+                self.new_time.timetuple()),
+        )
+        ts_patcher.start()
+        self.addCleanup(ts_patcher.stop)
+
+    def advance_time_seconds(self, seconds):
+        self.new_time += datetime.timedelta(seconds=seconds)
 
 
 class FakeApp(object):
@@ -606,11 +619,11 @@ class CommonAuthTokenMiddlewareTest(object):
         req.environ.update(extra_environ)
 
         now = datetime.datetime.now(datetime.timezone.utc)
-        self.useFixture(TimeFixture(now))
+        time_fixture = self.useFixture(TimeFixture(now))
         req.get_response(self.middleware)
         self.assertIsNotNone(self._get_cached_token(token))
 
-        timeutils.advance_time_seconds(token_cache_time)
+        time_fixture.advance_time_seconds(token_cache_time)
         self.assertIsNone(self._get_cached_token(token))
 
     def test_swift_memcache_set_expired(self):
