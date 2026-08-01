@@ -235,6 +235,9 @@ _OPTS = [
     cfg.BoolOpt(
         "service_token_roles_required",
         default=True,
+        deprecated_for_removal=True,
+        deprecated_reason="Setting this option to False is known to weaken "
+        "protections and has been discouraged.",
         help="When set to True, service tokens must contain a role"
         " from the service_token_roles list to be considered valid."
         " This prevents end-user tokens from being used as service"

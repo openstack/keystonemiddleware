@@ -1,0 +1,6 @@
+---
+deprecations:
+  - |
+    The ``[keystone_authtoken] service_token_roles_required`` option has been
+    deprecated. Setting this option to False allows any token to be used as
+    a service token and weakens API security.
