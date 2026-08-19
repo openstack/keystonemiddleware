@@ -75,6 +75,7 @@ _EXTERNAL_AUTH2_OPTS = [
                help='The OAuth 2.0 Client Identifier valid at the '
                     'Authorization Server.'),
     cfg.StrOpt('client_secret',
+               secret=True,
                help='The OAuth 2.0 client secret. When the auth_method is '
                     'client_secret_basic, client_secret_post, or '
                     'client_secret_jwt, the value is used, and otherwise the '
