@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    When encountering a corrupted token from the cache, the previous
+    behavior was to log the event as an error. However, this situation
+    is expected and correctly handled in some scenarios. This commit
+    changes the log level to 'info' to keep operators aware without
+    treating it as an environment error that affects production.
