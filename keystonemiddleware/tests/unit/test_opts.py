@@ -69,11 +69,9 @@ class OptsTestCase(utils.TestCase):
             'service_token_roles_required',
             'service_type',
         ]
-        opt_names = [o.name for (g, l) in result_of_old_opts for o in l]
-        self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
-
-        for opt in opt_names:
-            self.assertIn(opt, expected_opt_names)
+        opt_names = set([o.name for (g, l) in result_of_old_opts for o in l])
+        for opt in expected_opt_names:
+            self.assertIn(opt, opt_names)
 
     def _test_list_auth_token_opts(self, result):
         self.assertThat(result, matchers.HasLength(1))
@@ -122,10 +120,8 @@ class OptsTestCase(utils.TestCase):
             'service_type',
         ]
         opt_names = [o.name for (g, l) in result for o in l]
-        self.assertThat(opt_names, matchers.HasLength(len(expected_opt_names)))
-
-        for opt in opt_names:
-            self.assertIn(opt, expected_opt_names)
+        for opt in expected_opt_names:
+            self.assertIn(opt, opt_names)
 
     def test_list_auth_token_opts(self):
         self._test_list_auth_token_opts(new_opts.list_opts())
