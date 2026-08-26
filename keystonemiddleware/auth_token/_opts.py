@@ -38,8 +38,8 @@ _OPTS = [
                help='API version of the Identity API endpoint.'),
     cfg.StrOpt('interface',
                default='internal',
-               help='Interface to use for the Identity API endpoint. Valid'
-               ' values are "public", "internal" (default) or "admin".'),
+               choices=('public', 'internal', 'admin'),
+               help='Interface to use for the Identity API endpoint.'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,
                 help='Do not handle authorization requests within the'
@@ -81,14 +81,15 @@ _OPTS = [
                ' caching completely.'),
     cfg.StrOpt('memcache_security_strategy',
                default='None',
-               choices=('None', 'MAC', 'ENCRYPT'),
+               choices=(('None',
+                         'Token data is not authenticated or encrypted.'),
+                        ('MAC',
+                         'Token data is authenticated (with HMAC).'),
+                        ('ENCRYPT',
+                         'Token data is encrypted and authenticated.')),
                ignore_case=True,
                help='(Optional) If defined, indicate whether token data'
-               ' should be authenticated or authenticated and encrypted.'
-               ' If MAC, token data is authenticated (with HMAC) in the cache.'
-               ' If ENCRYPT, token data is encrypted and authenticated in the'
-               ' cache. If the value is not one of these options or empty,'
-               ' auth_token will raise an exception on initialization.'),
+               ' should be authenticated or authenticated and encrypted.'),
     cfg.StrOpt('memcache_secret_key',
                secret=True,
                help='(Optional, mandatory if memcache_security_strategy is'
