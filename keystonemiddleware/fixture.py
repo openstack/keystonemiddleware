@@ -37,6 +37,10 @@ class AuthTokenFixture(fixtures.Fixture):
             auth_token.AuthProtocol,
             'fetch_token',
             self.fetch_token))
+        self.useFixture(fixtures.MockPatchObject(
+            auth_token.AuthProtocol,
+            'www_authenticate_uri',
+            'http://localhost/identity'))
 
     @property
     def tokens(self):
