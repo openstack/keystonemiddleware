@@ -206,9 +206,9 @@ class RequestObjectTests(utils.TestCase):
 
 class CatalogConversionTests(utils.TestCase):
 
-    PUBLIC_URL = 'http://server:5000/v2.0'
-    ADMIN_URL = 'http://admin:35357/v2.0'
-    INTERNAL_URL = 'http://internal:5000/v2.0'
+    PUBLIC_URL = 'http://server:5000/v3'
+    ADMIN_URL = 'http://admin:35357/v3'
+    INTERNAL_URL = 'http://internal:5000/v3'
 
     REGION_ONE = 'RegionOne'
     REGION_TWO = 'RegionTwo'

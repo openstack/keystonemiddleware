@@ -26,7 +26,6 @@ from keystoneauth1 import loading
 from keystoneauth1 import session
 import oslo_cache
 from oslo_log import log as logging
-from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 import pbr.version
 import testresources
@@ -42,7 +41,7 @@ from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit import client_fixtures
 
 
-EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
+EXPECTED_V3_DEFAULT_ENV_RESPONSE = {
     'HTTP_X_IDENTITY_STATUS': 'Confirmed',
     'HTTP_X_TENANT_ID': 'tenant_id1',
     'HTTP_X_TENANT_NAME': 'tenant_name1',
@@ -50,18 +49,6 @@ EXPECTED_V2_DEFAULT_ENV_RESPONSE = {
     'HTTP_X_USER_NAME': 'user_name1',
     'HTTP_X_ROLES': 'role1,role2',
     'HTTP_X_IS_ADMIN_PROJECT': 'True',
-}
-
-EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE = {
-    'HTTP_X_SERVICE_IDENTITY_STATUS': 'Confirmed',
-    'HTTP_X_SERVICE_PROJECT_ID': 'service_project_id1',
-    'HTTP_X_SERVICE_PROJECT_NAME': 'service_project_name1',
-    'HTTP_X_SERVICE_USER_ID': 'service_user_id1',
-    'HTTP_X_SERVICE_USER_NAME': 'service_user_name1',
-    'HTTP_X_SERVICE_ROLES': 'service,service_role2',
-}
-
-EXPECTED_V3_DEFAULT_ENV_ADDITIONS = {
     'HTTP_X_PROJECT_DOMAIN_ID': 'domain_id1',
     'HTTP_X_PROJECT_DOMAIN_NAME': 'domain_name1',
     'HTTP_X_USER_DOMAIN_ID': 'domain_id1',
@@ -69,7 +56,13 @@ EXPECTED_V3_DEFAULT_ENV_ADDITIONS = {
     'HTTP_X_IS_ADMIN_PROJECT': 'True'
 }
 
-EXPECTED_V3_DEFAULT_SERVICE_ENV_ADDITIONS = {
+EXPECTED_V3_DEFAULT_SERVICE_ENV_RESPONSE = {
+    'HTTP_X_SERVICE_IDENTITY_STATUS': 'Confirmed',
+    'HTTP_X_SERVICE_PROJECT_ID': 'service_project_id1',
+    'HTTP_X_SERVICE_PROJECT_NAME': 'service_project_name1',
+    'HTTP_X_SERVICE_USER_ID': 'service_user_id1',
+    'HTTP_X_SERVICE_USER_NAME': 'service_user_name1',
+    'HTTP_X_SERVICE_ROLES': 'service,service_role2',
     'HTTP_X_SERVICE_PROJECT_DOMAIN_ID': 'service_domain_id1',
     'HTTP_X_SERVICE_PROJECT_DOMAIN_NAME': 'service_domain_name1',
     'HTTP_X_SERVICE_USER_DOMAIN_ID': 'service_domain_id1',
@@ -80,13 +73,8 @@ EXPECTED_V3_DEFAULT_SERVICE_ENV_ADDITIONS = {
 BASE_HOST = 'https://keystone.example.com:1234'
 BASE_URI = '%s/testadmin' % BASE_HOST
 FAKE_ADMIN_TOKEN_ID = 'admin_token2'
-FAKE_ADMIN_TOKEN = jsonutils.dumps(
-    {'access': {'token': {'id': FAKE_ADMIN_TOKEN_ID,
-                          'expires': '%i-10-03T16:58:01Z' %
-                          (1 + time.gmtime().tm_year)}}})
 
-VERSION_LIST_v3 = fixture.DiscoveryList(href=BASE_URI)
-VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
+VERSION_LIST_v3 = fixture.DiscoveryList(v2=False, href=BASE_URI)
 
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
 TIMEOUT_TOKEN = '4ed1c5e53beee59458adcf8261a8cae2'
@@ -161,7 +149,7 @@ class FakeApp(object):
     expected_env = {}
 
     def __init__(self, expected_env=None, need_service_token=False):
-        self.expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
+        self.expected_env = dict(EXPECTED_V3_DEFAULT_ENV_RESPONSE)
 
         if expected_env:
             self.expected_env.update(expected_env)
@@ -202,24 +190,11 @@ class FakeApp(object):
         return resp
 
 
-class v3FakeApp(FakeApp):
-    """This represents a v3 WSGI app protected by the auth_token middleware."""
-
-    def __init__(self, expected_env=None, need_service_token=False):
-
-        # with v3 additions, these are for the DEFAULT TOKEN
-        v3_default_env_additions = dict(EXPECTED_V3_DEFAULT_ENV_ADDITIONS)
-        if expected_env:
-            v3_default_env_additions.update(expected_env)
-        super(v3FakeApp, self).__init__(expected_env=v3_default_env_additions,
-                                        need_service_token=need_service_token)
-
-
 class CompositeBase(object):
     """Base composite auth object with common service token environment."""
 
     def __init__(self, expected_env=None):
-        comp_expected_env = dict(EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
+        comp_expected_env = dict(EXPECTED_V3_DEFAULT_SERVICE_ENV_RESPONSE)
 
         if expected_env:
             comp_expected_env.update(expected_env)
@@ -229,26 +204,10 @@ class CompositeBase(object):
 
 
 class CompositeFakeApp(CompositeBase, FakeApp):
-    """A fake v2 WSGI app protected by composite auth_token middleware."""
-
-    def __init__(self, expected_env):
-        super(CompositeFakeApp, self).__init__(expected_env=expected_env)
-
-
-class v3CompositeFakeApp(CompositeBase, v3FakeApp):
-    """A fake v3 WSGI app protected by composite auth_token middleware."""
+    """A fake WSGI app protected by composite auth_token middleware."""
 
     def __init__(self, expected_env=None):
-
-        # with v3 additions, these are for the DEFAULT SERVICE TOKEN
-        v3_default_service_env_additions = dict(
-            EXPECTED_V3_DEFAULT_SERVICE_ENV_ADDITIONS)
-
-        if expected_env:
-            v3_default_service_env_additions.update(expected_env)
-
-        super(v3CompositeFakeApp, self).__init__(
-            v3_default_service_env_additions)
+        super(CompositeFakeApp, self).__init__(expected_env=expected_env)
 
 
 class FakeOsloCache(_cache._FakeClient):
@@ -482,9 +441,9 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         east_url = 'http://keystone-east.example.com:5000'
         west_url = 'http://keystone-west.example.com:5000'
 
-        auth_versions = fixture.DiscoveryList(href=auth_url)
-        east_versions = fixture.DiscoveryList(href=east_url)
-        west_versions = fixture.DiscoveryList(href=west_url)
+        auth_versions = fixture.DiscoveryList(v2=False, href=auth_url)
+        east_versions = fixture.DiscoveryList(v2=False, href=east_url)
+        west_versions = fixture.DiscoveryList(v2=False, href=west_url)
 
         s = token.add_service('identity')
         s.add_endpoint(interface='internal', url=east_url, region='east')
@@ -564,7 +523,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_request_invalid_uuid_token(self):
         # remember because we are testing the middleware we stub the connection
         # to the keystone server, but this is not what gets returned
-        invalid_uri = "%s/v2.0/tokens/invalid-token" % BASE_URI
+        invalid_uri = "%s/v3/auth/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
         resp = self.call_middleware(headers={'X-Auth-Token': 'invalid-token'},
@@ -592,7 +551,7 @@ class CommonAuthTokenMiddlewareTest(object):
         return self.middleware._token_cache.get(token)
 
     def test_memcache_set_invalid_uuid(self):
-        invalid_uri = "%s/v3/tokens/invalid-token" % BASE_URI
+        invalid_uri = "%s/v3/auth/tokens/invalid-token" % BASE_URI
         self.requests_mock.get(invalid_uri, status_code=404)
 
         token = 'invalid-token'
@@ -910,7 +869,7 @@ class CommonAuthTokenMiddlewareTest(object):
                            'version': 3}
 
         url = token_auth.get_endpoint(session.Session(), **endpoint_filter)
-        self.assertEqual('%s/v3' % BASE_URI, url)
+        self.assertEqual('%s/v3' % BASE_HOST, url)
 
         self.assertTrue(token_auth.has_user_token)
         self.assertFalse(token_auth.has_service_token)
@@ -1048,7 +1007,7 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
     def setUp(self):
         super(v3AuthTokenMiddlewareTest, self).setUp(
             auth_version='v3.0',
-            fake_app=v3FakeApp)
+            fake_app=FakeApp)
 
         self.token_dict = {
             'uuid_token_default': self.examples.v3_UUID_TOKEN_DEFAULT,
@@ -1063,11 +1022,6 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.requests_mock.get(BASE_URI,
                                json=VERSION_LIST_v3,
                                status_code=300)
-
-        # TODO(jamielennox): auth_token middleware uses a v2 admin token
-        # regardless of the auth_version that is set.
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
 
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
                                text=self.token_response,
@@ -1375,7 +1329,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         www_authenticate_uri = 'http://local.test'
         conf = {
             'delay_auth_decision': 'True',
-            'auth_version': 'v3',
+            'auth_version': 'v3.0',
             'www_authenticate_uri': www_authenticate_uri,
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
@@ -1520,8 +1474,8 @@ class CommonCompositeAuthTests(object):
         resp = self.call_middleware(headers={'X-Auth-Token': token,
                                              'X-Service-Token': service_token})
         self.assertEqual(FakeApp.SUCCESS, resp.body)
-        expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
-        expected_env.update(EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
+        expected_env = dict(EXPECTED_V3_DEFAULT_ENV_RESPONSE)
+        expected_env.update(EXPECTED_V3_DEFAULT_SERVICE_ENV_RESPONSE)
 
         # role list may get reordered, check for string pieces individually
         self.assertIn('Received request from user: ', fake_logger.output)
@@ -1701,9 +1655,9 @@ class CommonCompositeAuthTests(object):
                                             bind_level='required')
 
 
-class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
-                           CommonCompositeAuthTests,
-                           testresources.ResourcedTestCase):
+class CompositeAuthTests(BaseAuthTokenMiddlewareTest,
+                         CommonCompositeAuthTests,
+                         testresources.ResourcedTestCase):
     """Test auth_token middleware with v3 token based composite auth.
 
     Execute the Composite auth class tests, but with the
@@ -1714,9 +1668,9 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
     resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(v3CompositeAuthTests, self).setUp(
+        super(CompositeAuthTests, self).setUp(
             auth_version='v3',
-            fake_app=v3CompositeFakeApp)
+            fake_app=CompositeFakeApp)
 
         uuid_token_default = self.examples.v3_UUID_TOKEN_DEFAULT
         uuid_serv_token_default = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
@@ -1731,21 +1685,13 @@ class v3CompositeAuthTests(BaseAuthTokenMiddlewareTest,
 
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
 
-        # TODO(jamielennox): auth_token middleware uses a v2 admin token
-        # regardless of the auth_version that is set.
-        self.requests_mock.post('%s/v2.0/tokens' % BASE_URI,
-                                text=FAKE_ADMIN_TOKEN)
-
         self.requests_mock.get('%s/v3/auth/tokens' % BASE_URI,
                                text=self.token_response,
                                headers={'X-Subject-Token': uuid.uuid4().hex})
 
-        self.token_expected_env = dict(EXPECTED_V2_DEFAULT_ENV_RESPONSE)
-        self.token_expected_env.update(EXPECTED_V3_DEFAULT_ENV_ADDITIONS)
+        self.token_expected_env = dict(EXPECTED_V3_DEFAULT_ENV_RESPONSE)
         self.service_token_expected_env = dict(
-            EXPECTED_V2_DEFAULT_SERVICE_ENV_RESPONSE)
-        self.service_token_expected_env.update(
-            EXPECTED_V3_DEFAULT_SERVICE_ENV_ADDITIONS)
+            EXPECTED_V3_DEFAULT_SERVICE_ENV_RESPONSE)
         self.set_middleware()
 
     def token_response(self, request, context):
@@ -1803,7 +1749,6 @@ class OtherTests(BaseAuthTokenMiddlewareTest):
         self._assert_auth_version('v3.3.5', (3, 0))
 
     def test_default_auth_version(self):
-        # VERSION_LIST_v3 contains both v2 and v3 version elements
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
         self._assert_auth_version(None, (3, 0))
 
@@ -1828,15 +1773,17 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         self.project_id = uuid.uuid4().hex
 
         # first touch is to discover the available versions at the auth_url
-        self.requests_mock.get(self.AUTH_URL,
-                               json=fixture.DiscoveryList(href=self.DISC_URL),
-                               status_code=300)
+        self.requests_mock.get(
+            self.AUTH_URL,
+            json=fixture.DiscoveryList(v2=False, href=self.DISC_URL),
+            status_code=300)
 
         # then we do discovery on the URL from the service catalog. In practice
         # this is mostly the same URL as before but test the full range.
-        self.requests_mock.get(self.KEYSTONE_BASE_URL + '/',
-                               json=fixture.DiscoveryList(href=self.CRUD_URL),
-                               status_code=300)
+        self.requests_mock.get(
+            self.KEYSTONE_BASE_URL + '/',
+            json=fixture.DiscoveryList(v2=False, href=self.CRUD_URL),
+            status_code=300)
 
     def good_request(self, app):
         # admin_token is the token that the service will get back from auth

@@ -38,8 +38,6 @@ from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import FakeApp
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
-    import v3FakeApp
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import VERSION_LIST_v3
 from keystonemiddleware.tests.unit import client_fixtures
 from keystonemiddleware.tests.unit import utils
@@ -200,14 +198,14 @@ def get_config(
     return conf
 
 
-class FakeOauth2TokenV3App(v3FakeApp):
+class FakeOauth2TokenApp(FakeApp):
 
     def __init__(self,
                  expected_env=None,
                  need_service_token=False,
                  app_response_status_code=200):
-        super(FakeOauth2TokenV3App, self).__init__(expected_env,
-                                                   need_service_token)
+        super(FakeOauth2TokenApp, self).__init__(expected_env,
+                                                 need_service_token)
 
         self._status_code = app_response_status_code
 
@@ -255,7 +253,7 @@ class BaseExternalOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase,
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         self.expected_env = dict()
-        self.fake_app = FakeOauth2TokenV3App
+        self.fake_app = FakeOauth2TokenApp
         self.middleware = None
         self.conf = {}
         self.auth_version = 'v3.0'
@@ -1794,8 +1792,8 @@ class ExternalOauth2TokenMiddlewareClientSecretBasicTest(
         conf.pop('mapping_project_id')
         self.set_middleware(conf=conf)
         self.middleware = external_oauth2_token.ExternalAuth2Protocol(
-            FakeOauth2TokenV3App(expected_env=self.expected_env,
-                                 app_response_status_code=401), self.conf)
+            FakeOauth2TokenApp(expected_env=self.expected_env,
+                               app_response_status_code=401), self.conf)
 
         def mock_resp(request, context):
             return self._introspect_response(
