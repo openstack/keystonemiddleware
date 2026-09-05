@@ -227,8 +227,6 @@ from keystoneauth1 import discover
 from keystoneauth1 import exceptions as ksa_exceptions
 from keystoneauth1 import loading
 from keystoneauth1.loading import session as session_loading
-import oslo_cache
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 import webob.dec
@@ -245,7 +243,6 @@ from keystonemiddleware.i18n import _
 
 
 _LOG = logging.getLogger(__name__)
-oslo_cache.configure(cfg.CONF)
 
 AUTH_TOKEN_OPTS = [
     (_base.AUTHTOKEN_GROUP,
@@ -598,8 +595,6 @@ class AuthProtocol(BaseAuthProtocol):
                                    _base.AUTHTOKEN_GROUP,
                                    list_opts(),
                                    conf)
-        if self._conf.oslo_conf_obj is not cfg.CONF:
-            oslo_cache.configure(self._conf.oslo_conf_obj)
 
         token_roles_required = self._conf.get('service_token_roles_required')
 
@@ -828,12 +823,6 @@ class AuthProtocol(BaseAuthProtocol):
             include_service_catalog=self._include_service_catalog,
             requested_auth_version=auth_version,
             requested_auth_interface=self._interface)
-
-    def _create_oslo_cache(self):
-        # having this as a function makes test mocking easier
-        region = oslo_cache.create_region()
-        oslo_cache.configure_cache_region(self._conf.oslo_conf_obj, region)
-        return region
 
     def _token_cache_factory(self):
 
