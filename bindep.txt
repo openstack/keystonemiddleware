@@ -1,0 +1,4 @@
+# This file contains runtime (non-python) dependencies
+# More info at: https://docs.openstack.org/infra/bindep/readme.html
+
+memcached [test]
