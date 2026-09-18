@@ -28,7 +28,7 @@ class AuditMiddlewareTest(base.BaseAuditMiddlewareTest):
         f = fixtures.MockPatch(p, return_value=self.notifier)
         self.notifier_fixture = self.useFixture(f)
 
-        super(AuditMiddlewareTest, self).setUp()
+        super().setUp()
 
     def test_api_request(self):
         self.create_simple_app().get(

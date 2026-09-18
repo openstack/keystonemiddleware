@@ -26,7 +26,7 @@ import webtest
 
 class BaseTestCase(oslotest.BaseTestCase):
     def setUp(self):
-        super(BaseTestCase, self).setUp()
+        super().setUp()
 
         # If keystonemiddleware calls any deprecated function this will raise
         # an exception.
@@ -55,13 +55,13 @@ class TestCase(BaseTestCase):
     TEST_ROOT_URL = "http://127.0.0.1:5000/"
 
     def setUp(self):
-        super(TestCase, self).setUp()
+        super().setUp()
         self.time_patcher = mock.patch.object(time, "time", lambda: 1234)
         self.time_patcher.start()
 
     def tearDown(self):
         self.time_patcher.stop()
-        super(TestCase, self).tearDown()
+        super().tearDown()
 
 
 class MiddlewareTestCase(BaseTestCase):
@@ -94,7 +94,7 @@ class TestResponse(requests.Response):
 
     def __init__(self, data):
         self._text = None
-        super(TestResponse, self).__init__()
+        super().__init__()
         if isinstance(data, dict):
             self.status_code = data.get("status_code", 200)
             headers = data.get("headers")
@@ -123,13 +123,13 @@ class DisableModuleFixture(fixtures.Fixture):
     """A fixture to provide support for unloading/disabling modules."""
 
     def __init__(self, module, *args, **kw):
-        super(DisableModuleFixture, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
         self.module = module
         self._finders = []
         self._cleared_modules = {}
 
     def tearDown(self):
-        super(DisableModuleFixture, self).tearDown()
+        super().tearDown()
         for finder in self._finders:
             sys.meta_path.remove(finder)
         sys.modules.update(self._cleared_modules)
@@ -145,7 +145,7 @@ class DisableModuleFixture(fixtures.Fixture):
 
     def setUp(self):
         """Ensure ImportError for the specified module."""
-        super(DisableModuleFixture, self).setUp()
+        super().setUp()
 
         # Clear 'module' references in sys.modules
         self._cleared_modules.update(self.clear_module())
@@ -155,7 +155,7 @@ class DisableModuleFixture(fixtures.Fixture):
         sys.meta_path.insert(0, finder)
 
 
-class NoModuleFinder(object):
+class NoModuleFinder:
     """Disallow further imports of 'module'."""
 
     def __init__(self, module):

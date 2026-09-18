@@ -39,7 +39,7 @@ def _hash_key(key):
     return hashlib.sha256(key).hexdigest()
 
 
-class _EnvCachePool(object):
+class _EnvCachePool:
     """A cache pool that has been passed through ENV variables."""
 
     def __init__(self, cache):
@@ -98,7 +98,7 @@ class _CachePool(list):
             self.append(c)
 
 
-class _MemcacheClientPool(object):
+class _MemcacheClientPool:
     """An advanced memcached client pool that is eventlet safe."""
 
     def __init__(self, memcache_servers, arguments, **kwargs):
@@ -131,7 +131,7 @@ class _MemcacheClientPool(object):
             yield client
 
 
-class TokenSerializer(object):
+class TokenSerializer:
     """Serialize and deserialize cache data"""
 
     _CACHE_KEY_TEMPLATE = "tokens/%s"
@@ -196,7 +196,7 @@ class SecureTokenSerializer(TokenSerializer):
     """Serialize and Deserialize token data. The data is also encrypted."""
 
     def __init__(self, log, security_strategy, secret_key):
-        super(SecureTokenSerializer, self).__init__(log)
+        super().__init__(log)
         if not secret_key:
             msg = _(
                 "cache_secret_key must be defined when a "
@@ -272,7 +272,7 @@ class SecureTokenSerializer(TokenSerializer):
         return crypt.protect_data(context, data)
 
 
-class TokenCacheBase(object, metaclass=abc.ABCMeta):
+class TokenCacheBase(metaclass=abc.ABCMeta):
     """Encapsulates the auth_token token cache functionality.
 
     auth_token caches tokens that it's seen so that when a token is re-used the
@@ -363,7 +363,7 @@ class TokenCache(TokenCacheBase):
         socket_timeout=None,
         **kwargs,
     ):
-        super(TokenCache, self).__init__(log, serializer, cache_time)
+        super().__init__(log, serializer, cache_time)
 
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
@@ -412,7 +412,7 @@ class TokenCache(TokenCacheBase):
 
 class OsloTokenCache(TokenCacheBase):
     def __init__(self, log, serializer, cache_time, conf):
-        super(OsloTokenCache, self).__init__(log, serializer, cache_time)
+        super().__init__(log, serializer, cache_time)
         self._conf = conf
         self._region = None
 
@@ -431,7 +431,7 @@ class OsloTokenCache(TokenCacheBase):
         return self._region.set(cache_key, data_to_store)
 
 
-class _FakeClient(object):
+class _FakeClient:
     """Replicates a tiny subset of memcached client interface."""
 
     def __init__(self, *args, **kwargs):

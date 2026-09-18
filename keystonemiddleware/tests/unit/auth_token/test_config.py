@@ -26,7 +26,7 @@ def conf_get(app, *args, **kwargs):
 
 class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
     def setUp(self):
-        super(TestAuthPluginLocalOsloConfig, self).setUp()
+        super().setUp()
         self.project = uuid.uuid4().hex
 
         # NOTE(cdent): The options below are selected from those
@@ -62,10 +62,10 @@ class TestAuthPluginLocalOsloConfig(base.BaseAuthTokenTestCase):
             "[DEFAULT]\n"
             "test_opt=15\n"
             "[keystone_authtoken]\n"
-            "auth_type=%(auth_type)s\n"
-            "www_authenticate_uri=%(www_authenticate_uri)s\n"
-            "auth_url=%(www_authenticate_uri)s\n"
-            "password=%(password)s\n" % self.file_options
+            "auth_type={auth_type}\n"
+            "www_authenticate_uri={www_authenticate_uri}\n"
+            "auth_url={www_authenticate_uri}\n"
+            "password={password}\n".format(**self.file_options)
         )
 
         self.conf_file_fixture = self.useFixture(

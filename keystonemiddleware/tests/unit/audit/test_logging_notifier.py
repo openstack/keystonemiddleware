@@ -23,7 +23,7 @@ class TestLoggingNotifier(base.BaseAuditMiddlewareTest):
         f = fixtures.MockPatch(p, None)
         self.messaging_fixture = self.useFixture(f)
 
-        super(TestLoggingNotifier, self).setUp()
+        super().setUp()
 
     def test_api_request_no_messaging(self):
         self.cfg.config(

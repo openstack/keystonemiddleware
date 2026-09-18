@@ -21,7 +21,7 @@ from keystonemiddleware.i18n import _
 ACCESS_RULES_SUPPORT = "1"
 
 
-class _RequestStrategy(object):
+class _RequestStrategy:
     AUTH_VERSION = None
 
     def __init__(
@@ -38,7 +38,7 @@ class _V3RequestStrategy(_RequestStrategy):
     AUTH_VERSION = (3, 0)
 
     def __init__(self, adap, **kwargs):
-        super(_V3RequestStrategy, self).__init__(adap, **kwargs)
+        super().__init__(adap, **kwargs)
         client_args = {"session": adap}
         if self._requested_auth_interface:
             client_args["interface"] = self._requested_auth_interface
@@ -62,7 +62,7 @@ class _V3RequestStrategy(_RequestStrategy):
 _REQUEST_STRATEGIES = [_V3RequestStrategy]
 
 
-class IdentityServer(object):
+class IdentityServer:
     """Base class for operations on the Identity API server.
 
     The auth_token middleware needs to communicate with the Identity API server

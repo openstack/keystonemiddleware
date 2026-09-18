@@ -25,7 +25,7 @@ from keystonemiddleware.tests.unit import utils
 
 class BaseAuthTokenTestCase(utils.MiddlewareTestCase):
     def setUp(self):
-        super(BaseAuthTokenTestCase, self).setUp()
+        super().setUp()
         self.requests_mock = self.useFixture(rm_fixture.Fixture())
         self.logger = fixtures.FakeLogger(level=logging.DEBUG)
         self.cfg = self.useFixture(cfg_fixture.Config(conf=cfg.ConfigOpts()))

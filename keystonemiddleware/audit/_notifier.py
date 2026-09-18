@@ -19,7 +19,7 @@ except ImportError:
     oslo_messaging = None
 
 
-class _LogNotifier(object):
+class _LogNotifier:
     def __init__(self, log):
         self._log = log
 
@@ -31,7 +31,7 @@ class _LogNotifier(object):
         )
 
 
-class _MessagingNotifier(object):
+class _MessagingNotifier:
     def __init__(self, notifier):
         self._notifier = notifier
 

@@ -285,7 +285,7 @@ class ServiceError(KeystoneMiddlewareException):
     """
 
 
-class AbstractAuthClient(object, metaclass=abc.ABCMeta):
+class AbstractAuthClient(metaclass=abc.ABCMeta):
     """Abstract http client using to access the OAuth2.0 Server."""
 
     def __init__(
@@ -322,7 +322,7 @@ class ClientSecretBasicAuthClient(AbstractAuthClient):
         func_get_config_option,
         logger,
     ):
-        super(ClientSecretBasicAuthClient, self).__init__(
+        super().__init__(
             session,
             introspect_endpoint,
             audience,
@@ -364,7 +364,7 @@ class ClientSecretPostAuthClient(AbstractAuthClient):
         func_get_config_option,
         logger,
     ):
-        super(ClientSecretPostAuthClient, self).__init__(
+        super().__init__(
             session,
             introspect_endpoint,
             audience,
@@ -432,7 +432,7 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
         func_get_config_option,
         logger,
     ):
-        super(PrivateKeyJwtAuthClient, self).__init__(
+        super().__init__(
             session,
             introspect_endpoint,
             audience,
@@ -466,7 +466,7 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
                 _("Configuration error. JWT key file is not a file.")
             )
         try:
-            with open(self.jwt_key_file, "r") as jwt_file:
+            with open(self.jwt_key_file) as jwt_file:
                 jwt_key = jwt_file.read()
         except Exception as e:
             self.logger.critical(
@@ -544,7 +544,7 @@ class ClientSecretJwtAuthClient(AbstractAuthClient):
         func_get_config_option,
         logger,
     ):
-        super(ClientSecretJwtAuthClient, self).__init__(
+        super().__init__(
             session,
             introspect_endpoint,
             audience,
@@ -656,11 +656,11 @@ def _get_http_client(
     )
 
 
-class ExternalAuth2Protocol(object):
+class ExternalAuth2Protocol:
     """Middleware that handles External Server OAuth2.0 authentication."""
 
     def __init__(self, application, conf):
-        super(ExternalAuth2Protocol, self).__init__()
+        super().__init__()
         self._application = application
         self._log = logging.getLogger(conf.get("log_name", __name__))
         self._log.info("Starting Keystone external_oauth2_token middleware")
@@ -903,8 +903,8 @@ class ExternalAuth2Protocol(object):
         if not value:
             if is_required:
                 self._log.critical(
-                    "The value is required for option %s "
-                    "in group [%s]" % (key, _EXT_AUTH_CONFIG_GROUP_NAME)
+                    f"The value is required for option {key} "
+                    f"in group [{_EXT_AUTH_CONFIG_GROUP_NAME}]"
                 )
                 raise ConfigurationError(
                     _(
@@ -925,7 +925,7 @@ class ExternalAuth2Protocol(object):
         When response status is 401, this method will be called to add
         the 'WWW-Authenticate' header to the response.
         """
-        header_val = 'Authorization OAuth 2.0 uri="%s"' % self._audience
+        header_val = f'Authorization OAuth 2.0 uri="{self._audience}"'
         return [("WWW-Authenticate", header_val)]
 
     def _fetch_token(self, access_token):
@@ -937,20 +937,16 @@ class ExternalAuth2Protocol(object):
         try:
             cached = self._token_cache.get(access_token)
             if cached:
-                self._log.debug("The cached token: %s" % cached)
+                self._log.debug(f"The cached token: {cached}")
                 if (
                     not isinstance(cached, dict)
                     or "origin_token_metadata" not in cached
                 ):
-                    self._log.warning(
-                        "The cached data is invalid. %s" % cached
-                    )
+                    self._log.warning(f"The cached data is invalid. {cached}")
                     raise InvalidToken(_("The token is invalid."))
                 origin_token_metadata = cached.get("origin_token_metadata")
                 if not origin_token_metadata.get("active"):
-                    self._log.warning(
-                        "The cached data is invalid. %s" % cached
-                    )
+                    self._log.warning(f"The cached data is invalid. {cached}")
                     raise InvalidToken(_("The token is invalid."))
                 expire_at = self._read_data_from_token(
                     origin_token_metadata,
@@ -963,7 +959,7 @@ class ExternalAuth2Protocol(object):
                         cached["origin_token_metadata"]["active"] = False
                         self._token_cache.set(access_token, cached)
                         self._log.warning(
-                            "The cached data is invalid. %s" % cached
+                            f"The cached data is invalid. {cached}"
                         )
                         raise InvalidToken(_("The token is invalid."))
                 return cached
@@ -972,8 +968,7 @@ class ExternalAuth2Protocol(object):
                 self._log.critical(
                     "The introspect API returns an "
                     "incorrect response. "
-                    "response_status: %s, response_text: %s"
-                    % (http_response.status_code, http_response.text)
+                    f"response_status: {http_response.status_code}, response_text: {http_response.text}"
                 )
                 raise ServiceError(
                     _("The token cannot be verified for validity.")
@@ -981,7 +976,7 @@ class ExternalAuth2Protocol(object):
 
             origin_token_metadata = http_response.json()
             self._log.debug(
-                "The introspect API response: %s" % origin_token_metadata
+                f"The introspect API response: {origin_token_metadata}"
             )
             if not origin_token_metadata.get("active"):
                 self._token_cache.set(
@@ -989,8 +984,7 @@ class ExternalAuth2Protocol(object):
                     {"origin_token_metadata": origin_token_metadata},
                 )
                 self._log.info(
-                    "The token is invalid. response: %s"
-                    % origin_token_metadata
+                    f"The token is invalid. response: {origin_token_metadata}"
                 )
                 raise InvalidToken(_("The token is invalid."))
             token_data = self._parse_necessary_info(origin_token_metadata)
@@ -1042,8 +1036,7 @@ class ExternalAuth2Protocol(object):
                 if not temp_key:
                     self._log.critical(
                         "Configuration error. "
-                        "config_key: %s , meta_key: %s "
-                        % (config_key, meta_key)
+                        f"config_key: {config_key} , meta_key: {meta_key} "
                     )
                     raise ConfigurationError(
                         _(
@@ -1059,8 +1052,7 @@ class ExternalAuth2Protocol(object):
                         self._log.warning(
                             "Failed to parse the necessary information. "
                             "The meta_value is not of type dict."
-                            "config_key: %s , meta_key: %s, value: %s"
-                            % (config_key, meta_key, meta_value)
+                            f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}"
                         )
                         raise ForbiddenToken(
                             _(
@@ -1078,8 +1070,7 @@ class ExternalAuth2Protocol(object):
                 self._log.warning(
                     "Failed to parse the necessary information. "
                     "The meta value is required."
-                    "config_key: %s , meta_key: %s, value: %s, need_type: %s"
-                    % (config_key, meta_key, meta_value, value_type)
+                    f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}, need_type: {value_type}"
                 )
                 raise ForbiddenToken(
                     _(
@@ -1095,8 +1086,7 @@ class ExternalAuth2Protocol(object):
                 self._log.warning(
                     "Failed to parse the necessary information. "
                     "The meta value is of an incorrect type."
-                    "config_key: %s , meta_key: %s, value: %s, need_type: %s"
-                    % (config_key, meta_key, meta_value, value_type)
+                    f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}, need_type: {value_type}"
                 )
                 raise ForbiddenToken(
                     _(

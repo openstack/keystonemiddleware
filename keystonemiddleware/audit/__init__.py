@@ -89,7 +89,7 @@ def _log_and_ignore_error(fn):
     return wrapper
 
 
-class AuditMiddleware(object):
+class AuditMiddleware:
     """Create an audit event based on request/response.
 
     The audit middleware takes in various configuration options such as the

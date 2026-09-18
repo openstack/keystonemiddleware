@@ -32,7 +32,7 @@ class TestPasteDeploymentEntryPoints(utils.BaseTestCase):
         )
         actual_factories = set(
             [
-                "{0.__module__}:{0.__name__}".format(extension.plugin)
+                f"{extension.plugin.__module__}:{extension.plugin.__name__}"
                 for extension in em
             ]
         )

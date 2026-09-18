@@ -22,7 +22,7 @@ from keystonemiddleware.tests.unit import utils
 
 class RequestObjectTests(utils.TestCase):
     def setUp(self):
-        super(RequestObjectTests, self).setUp()
+        super().setUp()
         self.request = _request._AuthTokenRequest.blank("/")
 
     def test_setting_user_token_valid(self):
@@ -106,40 +106,40 @@ class RequestObjectTests(utils.TestCase):
 
     def _test_v3_headers(self, token, prefix):
         self.assertEqual(
-            token.domain_id, self.request.headers["X%s-Domain-Id" % prefix]
+            token.domain_id, self.request.headers[f"X{prefix}-Domain-Id"]
         )
         self.assertEqual(
-            token.domain_name, self.request.headers["X%s-Domain-Name" % prefix]
+            token.domain_name, self.request.headers[f"X{prefix}-Domain-Name"]
         )
         self.assertEqual(
-            token.project_id, self.request.headers["X%s-Project-Id" % prefix]
+            token.project_id, self.request.headers[f"X{prefix}-Project-Id"]
         )
         self.assertEqual(
             token.project_name,
-            self.request.headers["X%s-Project-Name" % prefix],
+            self.request.headers[f"X{prefix}-Project-Name"],
         )
         self.assertEqual(
             token.project_domain_id,
-            self.request.headers["X%s-Project-Domain-Id" % prefix],
+            self.request.headers[f"X{prefix}-Project-Domain-Id"],
         )
         self.assertEqual(
             token.project_domain_name,
-            self.request.headers["X%s-Project-Domain-Name" % prefix],
+            self.request.headers[f"X{prefix}-Project-Domain-Name"],
         )
 
         self.assertEqual(
-            token.user_id, self.request.headers["X%s-User-Id" % prefix]
+            token.user_id, self.request.headers[f"X{prefix}-User-Id"]
         )
         self.assertEqual(
-            token.user_name, self.request.headers["X%s-User-Name" % prefix]
+            token.user_name, self.request.headers[f"X{prefix}-User-Name"]
         )
         self.assertEqual(
             token.user_domain_id,
-            self.request.headers["X%s-User-Domain-Id" % prefix],
+            self.request.headers[f"X{prefix}-User-Domain-Id"],
         )
         self.assertEqual(
             token.user_domain_name,
-            self.request.headers["X%s-User-Domain-Name" % prefix],
+            self.request.headers[f"X{prefix}-User-Domain-Name"],
         )
 
     def test_project_scoped_user_headers(self):

@@ -15,11 +15,7 @@ from keystoneauth1.identity import base as base_identity
 
 def _log_format(auth_ref):
     roles = ",".join(auth_ref.role_names)
-    return "user_id %s, project_id %s, roles %s" % (
-        auth_ref.user_id,
-        auth_ref.project_id,
-        roles,
-    )
+    return f"user_id {auth_ref.user_id}, project_id {auth_ref.project_id}, roles {roles}"
 
 
 class UserAuthPlugin(base_identity.BaseIdentityPlugin):
@@ -34,7 +30,7 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
     """
 
     def __init__(self, user_auth_ref, serv_auth_ref, session=None, auth=None):
-        super(UserAuthPlugin, self).__init__(reauthenticate=False)
+        super().__init__(reauthenticate=False)
 
         self.user = user_auth_ref
         self.service = serv_auth_ref
@@ -65,15 +61,15 @@ class UserAuthPlugin(base_identity.BaseIdentityPlugin):
         msg = []
 
         if self.has_user_token:
-            msg.append("user: %s" % _log_format(self.user))
+            msg.append(f"user: {_log_format(self.user)}")
 
         if self.has_service_token:
-            msg.append("service: %s" % _log_format(self.service))
+            msg.append(f"service: {_log_format(self.service)}")
 
         return " ".join(msg)
 
     def get_headers(self, session, **kwargs):
-        headers = super(UserAuthPlugin, self).get_headers(session, **kwargs)
+        headers = super().get_headers(session, **kwargs)
 
         if headers is not None and self._session:
             token = self._session.get_token(auth=self._auth)

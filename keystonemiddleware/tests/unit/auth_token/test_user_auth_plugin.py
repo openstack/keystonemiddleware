@@ -23,7 +23,7 @@ BASE_URI = "https://keystone.example.com:1234"
 AUTH_URL = "https://keystone.auth.com:1234"
 
 
-class BaseUserPluginTests(object):
+class BaseUserPluginTests:
     def configure_middleware(self, auth_type, **kwargs):
         opts = loading.get_auth_plugin_conf_options(auth_type)
         self.cfg.register_opts(opts, group=_base.AUTHTOKEN_GROUP)
@@ -80,7 +80,7 @@ class BaseUserPluginTests(object):
 
 class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
     def setUp(self):
-        super(V3UserPluginTests, self).setUp()
+        super().setUp()
 
         self.service_token_id = uuid.uuid4().hex
         self.service_token = fixture.V3Token()
@@ -91,7 +91,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
 
         self.configure_middleware(
             auth_type="v3password",
-            auth_url="%s/v3/" % AUTH_URL,
+            auth_url=f"{AUTH_URL}/v3/",
             user_id=self.service_token.user_id,
             password=uuid.uuid4().hex,
             project_id=self.service_token.project_id,
@@ -104,7 +104,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         self.requests_mock.get(BASE_URI, json=base_discovery)
 
         self.requests_mock.post(
-            "%s/v3/auth/tokens" % AUTH_URL,
+            f"{AUTH_URL}/v3/auth/tokens",
             headers={"X-Subject-Token": self.service_token_id},
             json=self.service_token,
         )
@@ -128,7 +128,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         headers = {"X-Subject-Token": token_id}
 
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             request_headers=request_headers,
             headers=headers,
             json=token,
@@ -137,9 +137,7 @@ class V3UserPluginTests(BaseUserPluginTests, base.BaseAuthTokenTestCase):
         return token_id, token
 
     def assertTokenDataEqual(self, token_id, token, token_data):
-        super(V3UserPluginTests, self).assertTokenDataEqual(
-            token_id, token, token_data
-        )
+        super().assertTokenDataEqual(token_id, token, token_data)
 
         self.assertEqual(token.user_domain_id, token_data.user_domain_id)
         self.assertEqual(token.project_id, token_data.project_id)

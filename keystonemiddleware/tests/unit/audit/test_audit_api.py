@@ -79,10 +79,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(path, payload["requestPath"])
 
     def test_get_read(self):
-        url = "http://admin_host:8774/v2/%s/servers/%s" % (
-            uuid.uuid4().hex,
-            uuid.uuid4().hex,
-        )
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/servers/{uuid.uuid4().hex}"
         payload = self.get_payload("GET", url)
 
         self.assertEqual(
@@ -152,10 +149,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload["outcome"], "pending")
 
     def test_post_update(self):
-        url = "http://admin_host:8774/v2/%s/servers/%s" % (
-            uuid.uuid4().hex,
-            uuid.uuid4().hex,
-        )
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/servers/{uuid.uuid4().hex}"
         payload = self.get_payload("POST", url)
 
         self.assertEqual(
@@ -175,7 +169,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload["outcome"], "pending")
 
     def test_post_action(self):
-        url = "http://admin_host:8774/v2/%s/servers/action" % uuid.uuid4().hex
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/servers/action"
         body = (
             b'{"createImage" : {"name" : "new-image","metadata": '
             b'{"ImageType": "Gold","ImageVersion": "2.0"}}}'
@@ -188,7 +182,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload["outcome"], "pending")
 
     def test_post_empty_body_action(self):
-        url = "http://admin_host:8774/v2/%s/servers/action" % uuid.uuid4().hex
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/servers/action"
         payload = self.get_payload("POST", url)
 
         self.assertEqual(
@@ -198,10 +192,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload["outcome"], "pending")
 
     def test_custom_action(self):
-        url = "http://admin_host:8774/v2/%s/os-hosts/%s/reboot" % (
-            uuid.uuid4().hex,
-            uuid.uuid4().hex,
-        )
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/os-hosts/{uuid.uuid4().hex}/reboot"
         payload = self.get_payload("GET", url)
 
         self.assertEqual(
@@ -212,7 +203,7 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         self.assertEqual(payload["outcome"], "pending")
 
     def test_custom_action_complex(self):
-        url = "http://admin_host:8774/v2/%s/os-migrations" % uuid.uuid4().hex
+        url = f"http://admin_host:8774/v2/{uuid.uuid4().hex}/os-migrations"
         payload = self.get_payload("GET", url)
 
         self.assertEqual(
@@ -443,8 +434,8 @@ class AuditApiLogicTest(base.BaseAuditMiddlewareTest):
         path = "/v1/" + str(uuid.uuid4())
         url = "https://23.253.72.207" + path
 
-        request_id = "req-%s" % uuid.uuid4()
-        global_request_id = "req-%s" % uuid.uuid4()
+        request_id = f"req-{uuid.uuid4()}"
+        global_request_id = f"req-{uuid.uuid4()}"
 
         env_headers = self.get_environ_header("GET")
         env_headers["openstack.request_id"] = request_id

@@ -32,7 +32,7 @@ class OAuth2Protocol(AuthProtocol):
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get("log_name", __name__))
         log.info("Starting Keystone oauth2_token middleware")
-        super(OAuth2Protocol, self).__init__(app, conf)
+        super().__init__(app, conf)
 
     def _is_valid_access_token(self, request):
         """Check if the request contains an OAuth2.0 access token.
@@ -62,7 +62,7 @@ class OAuth2Protocol(AuthProtocol):
                 )
                 return True
             except exceptions.KeystoneMiddlewareException as err:
-                _LOG.info("Invalid OAuth2.0 access token: %s" % str(err))
+                _LOG.info(f"Invalid OAuth2.0 access token: {str(err)}")
         return False
 
     def process_request(self, request):

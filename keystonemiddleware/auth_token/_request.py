@@ -210,8 +210,7 @@ class _AuthTokenRequest(webob.Request):
         yield self._SERVICE_STATUS_HEADER
         yield self._ADMIN_PROJECT_HEADER
 
-        for header in self._DEPRECATED_HEADER_MAP:
-            yield header
+        yield from self._DEPRECATED_HEADER_MAP
 
         prefixes = (self._USER_HEADER_PREFIX, self._SERVICE_HEADER_PREFIX)
 

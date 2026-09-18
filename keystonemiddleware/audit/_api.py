@@ -59,7 +59,7 @@ class ClientResource(resource.Resource):
         global_request_id=None,
         **kwargs,
     ):
-        super(ClientResource, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if project_id is not None:
             self.project_id = project_id
         if request_id is not None:
@@ -70,12 +70,12 @@ class ClientResource(resource.Resource):
 
 class KeystoneCredential(credential.Credential):
     def __init__(self, identity_status=None, **kwargs):
-        super(KeystoneCredential, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if identity_status is not None:
             self.identity_status = identity_status
 
 
-class OpenStackAuditApi(object):
+class OpenStackAuditApi:
     def __init__(self, cfg_file, log=logging.getLogger(__name__)):
         """Configure to recognize and map known api paths."""
         path_kw = {}
@@ -117,7 +117,7 @@ class OpenStackAuditApi(object):
                     pass
             except configparser.ParsingError as err:
                 raise PycadfAuditApiConfigError(
-                    "Error parsing audit map file: %s" % err
+                    f"Error parsing audit map file: {err}"
                 )
 
         self._log = log

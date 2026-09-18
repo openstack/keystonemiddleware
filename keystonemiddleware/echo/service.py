@@ -39,7 +39,7 @@ def echo_app(environ, start_response):
     yield jsonutils.dumps(environment)
 
 
-class EchoService(object):
+class EchoService:
     """Runs an instance of the echo app on init."""
 
     def __init__(self):

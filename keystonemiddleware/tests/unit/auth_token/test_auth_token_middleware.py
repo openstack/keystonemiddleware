@@ -69,7 +69,7 @@ EXPECTED_V3_DEFAULT_SERVICE_ENV_RESPONSE = {
 
 
 BASE_HOST = "https://keystone.example.com:1234"
-BASE_URI = "%s/testadmin" % BASE_HOST
+BASE_URI = f"{BASE_HOST}/testadmin"
 FAKE_ADMIN_TOKEN_ID = "admin_token2"
 
 VERSION_LIST_v3 = fixture.DiscoveryList(v2=False, href=BASE_URI)
@@ -91,12 +91,12 @@ class TimezoneFixture(fixtures.Fixture):
         return hasattr(time, "tzset")
 
     def __init__(self, new_tz):
-        super(TimezoneFixture, self).__init__()
+        super().__init__()
         self.tz = new_tz
         self.old_tz = os.environ.get("TZ")
 
     def setUp(self):
-        super(TimezoneFixture, self).setUp()
+        super().setUp()
         if not self.supported():
             raise NotImplementedError("timezone override is not supported.")
         os.environ["TZ"] = self.tz
@@ -113,7 +113,7 @@ class TimezoneFixture(fixtures.Fixture):
 
 class TimeFixture(fixtures.Fixture):
     def __init__(self, new_time, normalize=True):
-        super(TimeFixture, self).__init__()
+        super().__init__()
         if isinstance(new_time, str):
             new_time = timeutils.parse_isotime(new_time)
         if normalize:
@@ -121,7 +121,7 @@ class TimeFixture(fixtures.Fixture):
         self.new_time = new_time
 
     def setUp(self):
-        super(TimeFixture, self).setUp()
+        super().setUp()
         patcher = mock.patch.object(timeutils, "utcnow", lambda: self.new_time)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -139,7 +139,7 @@ class TimeFixture(fixtures.Fixture):
         self.new_time += datetime.timedelta(seconds=seconds)
 
 
-class FakeApp(object):
+class FakeApp:
     """This represents a WSGI app protected by the auth_token middleware."""
 
     SUCCESS = b"SUCCESS"
@@ -157,7 +157,7 @@ class FakeApp(object):
     @webob.dec.wsgify
     def __call__(self, req):
         for k, v in self.expected_env.items():
-            assert req.environ[k] == v, "%s != %s" % (req.environ[k], v)
+            assert req.environ[k] == v, f"{req.environ[k]} != {v}"
 
         resp = webob.Response()
 
@@ -192,7 +192,7 @@ class FakeApp(object):
         return resp
 
 
-class CompositeBase(object):
+class CompositeBase:
     """Base composite auth object with common service token environment."""
 
     def __init__(self, expected_env=None):
@@ -201,7 +201,7 @@ class CompositeBase(object):
         if expected_env:
             comp_expected_env.update(expected_env)
 
-        super(CompositeBase, self).__init__(
+        super().__init__(
             expected_env=comp_expected_env, need_service_token=True
         )
 
@@ -210,7 +210,7 @@ class CompositeFakeApp(CompositeBase, FakeApp):
     """A fake WSGI app protected by composite auth_token middleware."""
 
     def __init__(self, expected_env=None):
-        super(CompositeFakeApp, self).__init__(expected_env=expected_env)
+        super().__init__(expected_env=expected_env)
 
 
 class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
@@ -228,7 +228,7 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
     """
 
     def setUp(self, expected_env=None, auth_version=None, fake_app=None):
-        super(BaseAuthTokenMiddlewareTest, self).setUp()
+        super().setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
 
@@ -239,7 +239,7 @@ class BaseAuthTokenMiddlewareTest(base.BaseAuthTokenTestCase):
         self.conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "auth_version": auth_version,
         }
@@ -297,7 +297,7 @@ class CachePoolTest(BaseAuthTokenMiddlewareTest):
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "cache": "swift.cache",
         }
@@ -362,7 +362,7 @@ class GeneralAuthTokenMiddlewareTest(
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "include_service_catalog": "0",
             "nonexsit_option": "0",
@@ -378,7 +378,7 @@ class GeneralAuthTokenMiddlewareTest(
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcache_servers": servers,
         }
@@ -390,7 +390,7 @@ class GeneralAuthTokenMiddlewareTest(
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "wrong_key": "123",
         }
@@ -402,7 +402,7 @@ class GeneralAuthTokenMiddlewareTest(
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "include_service_catalog": "123",
         }
@@ -433,19 +433,19 @@ class GeneralAuthTokenMiddlewareTest(
         self.requests_mock.get(west_url, json=west_versions)
 
         self.requests_mock.post(
-            "%s/v3/auth/tokens" % auth_url,
+            f"{auth_url}/v3/auth/tokens",
             headers={"X-Subject-Token": uuid.uuid4().hex},
             json=token,
         )
 
         east_mock = self.requests_mock.get(
-            "%s/v3/auth/tokens" % east_url,
+            f"{east_url}/v3/auth/tokens",
             headers={"X-Subject-Token": uuid.uuid4().hex},
             json=fixture.V3Token(),
         )
 
         west_mock = self.requests_mock.get(
-            "%s/v3/auth/tokens" % west_url,
+            f"{west_url}/v3/auth/tokens",
             headers={"X-Subject-Token": uuid.uuid4().hex},
             json=fixture.V3Token(),
         )
@@ -486,7 +486,7 @@ class GeneralAuthTokenMiddlewareTest(
         self.assertEqual(1, west_mock.call_count)
 
 
-class CommonAuthTokenMiddlewareTest(object):
+class CommonAuthTokenMiddlewareTest:
     """These tests are run once using v2 tokens and again using v3 tokens."""
 
     def assert_valid_request_200(self, token, with_catalog=True):
@@ -508,7 +508,7 @@ class CommonAuthTokenMiddlewareTest(object):
     def test_request_invalid_uuid_token(self):
         # remember because we are testing the middleware we stub the connection
         # to the keystone server, but this is not what gets returned
-        invalid_uri = "%s/v3/auth/tokens/invalid-token" % BASE_URI
+        invalid_uri = f"{BASE_URI}/v3/auth/tokens/invalid-token"
         self.requests_mock.get(invalid_uri, status_code=404)
 
         resp = self.call_middleware(
@@ -546,7 +546,7 @@ class CommonAuthTokenMiddlewareTest(object):
         return self.middleware._token_cache.get(token)
 
     def test_memcache_set_invalid_uuid(self):
-        invalid_uri = "%s/v3/auth/tokens/invalid-token" % BASE_URI
+        invalid_uri = f"{BASE_URI}/v3/auth/tokens/invalid-token"
         self.requests_mock.get(invalid_uri, status_code=404)
 
         token = "invalid-token"
@@ -559,9 +559,9 @@ class CommonAuthTokenMiddlewareTest(object):
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
-            "token_cache_time": "%s" % token_cache_time,
+            "token_cache_time": f"{token_cache_time}",
         }
         conf.update(extra_conf)
         self.set_middleware(conf=conf)
@@ -585,7 +585,7 @@ class CommonAuthTokenMiddlewareTest(object):
         extra_conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "cache": "swift.cache",
         }
@@ -632,9 +632,9 @@ class CommonAuthTokenMiddlewareTest(object):
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
-            "http_request_max_retries": "%s" % times_retry,
+            "http_request_max_retries": f"{times_retry}",
         }
         self.set_middleware(conf=conf)
 
@@ -658,7 +658,7 @@ class CommonAuthTokenMiddlewareTest(object):
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "include_service_catalog": "False",
         }
@@ -673,7 +673,7 @@ class CommonAuthTokenMiddlewareTest(object):
         conf = {
             "www_authenticate_uri": BASE_HOST,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "enforce_token_bind": bind_level,
             "auth_version": self.auth_version,
@@ -917,7 +917,7 @@ class CommonAuthTokenMiddlewareTest(object):
         }
 
         url = token_auth.get_endpoint(session.Session(), **endpoint_filter)
-        self.assertEqual("%s/v3" % BASE_HOST, url)
+        self.assertEqual(f"{BASE_HOST}/v3", url)
 
         self.assertTrue(token_auth.has_user_token)
         self.assertFalse(token_auth.has_service_token)
@@ -1078,9 +1078,7 @@ class v3AuthTokenMiddlewareTest(
     resources = [("examples", client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(v3AuthTokenMiddlewareTest, self).setUp(
-            auth_version="v3.0", fake_app=FakeApp
-        )
+        super().setUp(auth_version="v3.0", fake_app=FakeApp)
 
         self.token_dict = {
             "uuid_token_default": self.examples.v3_UUID_TOKEN_DEFAULT,
@@ -1093,7 +1091,7 @@ class v3AuthTokenMiddlewareTest(
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
 
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": uuid.uuid4().hex},
         )
@@ -1266,28 +1264,28 @@ class v3AuthTokenMiddlewareTest(
         )
 
     def test_service_token_with_valid_service_role_not_required(self):
-        s = super(v3AuthTokenMiddlewareTest, self)
+        s = super()
         s.test_service_token_with_valid_service_role_not_required()
 
         e = self.requests_mock.request_history[1].qs.get("allow_expired")
         self.assertEqual(["1"], e)
 
     def test_service_token_with_invalid_service_role_not_required(self):
-        s = super(v3AuthTokenMiddlewareTest, self)
+        s = super()
         s.test_service_token_with_invalid_service_role_not_required()
 
         e = self.requests_mock.request_history[1].qs.get("allow_expired")
         self.assertIsNone(e)
 
     def test_service_token_with_valid_service_role_required(self):
-        s = super(v3AuthTokenMiddlewareTest, self)
+        s = super()
         s.test_service_token_with_valid_service_role_required()
 
         e = self.requests_mock.request_history[1].qs.get("allow_expired")
         self.assertEqual(["1"], e)
 
     def test_service_token_with_invalid_service_role_required(self):
-        s = super(v3AuthTokenMiddlewareTest, self)
+        s = super()
         s.test_service_token_with_invalid_service_role_required()
 
         e = self.requests_mock.request_history[1].qs.get("allow_expired")
@@ -1479,7 +1477,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
             "auth_version": "v3.0",
             "www_authenticate_uri": www_authenticate_uri,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
 
@@ -1490,7 +1488,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         self.assertEqual(body.encode(), resp.body)
 
         self.assertEqual(
-            'Keystone uri="%s"' % www_authenticate_uri,
+            f'Keystone uri="{www_authenticate_uri}"',
             resp.headers["WWW-Authenticate"],
         )
 
@@ -1498,7 +1496,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         conf = {
             "www_authenticate_uri": "http://local.test",
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
         status = "401 Unauthorized"
@@ -1511,7 +1509,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
                 "delay_auth_decision": v,
                 "www_authenticate_uri": "http://local.test",
                 "auth_type": "admin_token",
-                "endpoint": "%s/v3" % BASE_URI,
+                "endpoint": f"{BASE_URI}/v3",
                 "token": FAKE_ADMIN_TOKEN_ID,
             }
 
@@ -1525,7 +1523,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
                 "delay_auth_decision": v,
                 "www_authenticate_uri": "http://local.test",
                 "auth_type": "admin_token",
-                "endpoint": "%s/v3" % BASE_URI,
+                "endpoint": f"{BASE_URI}/v3",
                 "token": FAKE_ADMIN_TOKEN_ID,
             }
 
@@ -1541,7 +1539,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
             "delay_auth_decision": True,
             "www_authenticate_uri": www_authenticate_uri,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
 
@@ -1558,7 +1556,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
     def test_auth_plugin_with_token(self):
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": uuid.uuid4().hex},
         )
@@ -1569,7 +1567,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
             "delay_auth_decision": "True",
             "www_authenticate_uri": www_authenticate_uri,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
 
@@ -1588,7 +1586,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
 
     def test_auth_plugin_with_token_keystone_down(self):
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": ERROR_TOKEN},
         )
@@ -1599,7 +1597,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
             "delay_auth_decision": "True",
             "www_authenticate_uri": www_authenticate_uri,
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "http_request_max_retries": "0",
         }
@@ -1616,7 +1614,7 @@ class DelayedAuthTests(BaseAuthTokenMiddlewareTest):
         self.assertIsNone(token_auth.service)
 
 
-class CommonCompositeAuthTests(object):
+class CommonCompositeAuthTests:
     """Test Composite authentication.
 
     Test the behaviour of adding a service-token.
@@ -1637,15 +1635,15 @@ class CommonCompositeAuthTests(object):
         # role list may get reordered, check for string pieces individually
         self.assertIn("Received request from user: ", fake_logger.output)
         self.assertIn(
-            "user_id %(HTTP_X_USER_ID)s, "
-            "project_id %(HTTP_X_TENANT_ID)s, "
-            "roles " % expected_env,
+            "user_id {HTTP_X_USER_ID}, "
+            "project_id {HTTP_X_TENANT_ID}, "
+            "roles ".format(**expected_env),
             fake_logger.output,
         )
         self.assertIn(
-            "service: user_id %(HTTP_X_SERVICE_USER_ID)s, "
-            "project_id %(HTTP_X_SERVICE_PROJECT_ID)s, "
-            "roles " % expected_env,
+            "service: user_id {HTTP_X_SERVICE_USER_ID}, "
+            "project_id {HTTP_X_SERVICE_PROJECT_ID}, "
+            "roles ".format(**expected_env),
             fake_logger.output,
         )
 
@@ -1846,9 +1844,7 @@ class CompositeAuthTests(
     resources = [("examples", client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(CompositeAuthTests, self).setUp(
-            auth_version="v3", fake_app=CompositeFakeApp
-        )
+        super().setUp(auth_version="v3", fake_app=CompositeFakeApp)
 
         uuid_token_default = self.examples.v3_UUID_TOKEN_DEFAULT
         uuid_serv_token_default = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
@@ -1864,7 +1860,7 @@ class CompositeAuthTests(
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
 
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": uuid.uuid4().hex},
         )
@@ -1900,7 +1896,7 @@ class CompositeAuthTests(
 
 class OtherTests(BaseAuthTokenMiddlewareTest):
     def setUp(self):
-        super(OtherTests, self).setUp()
+        super().setUp()
         self.logger = self.useFixture(fixtures.FakeLogger())
 
     def test_unknown_server_versions(self):
@@ -1949,7 +1945,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
     KEYSTONE_URL = KEYSTONE_BASE_URL + "/v3"
 
     def setUp(self):
-        super(AuthProtocolLoadingTests, self).setUp()
+        super().setUp()
 
         self.project_id = uuid.uuid4().hex
 
@@ -1976,7 +1972,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         s.add_standard_endpoints(internal=self.KEYSTONE_URL)
 
         self.requests_mock.post(
-            "%s/v3/auth/tokens" % self.AUTH_URL,
+            f"{self.AUTH_URL}/v3/auth/tokens",
             json=admin_token,
             headers={"X-Subject-Token": admin_token_id},
         )
@@ -1992,7 +1988,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
         }
 
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % self.KEYSTONE_BASE_URL,
+            f"{self.KEYSTONE_BASE_URL}/v3/auth/tokens",
             request_headers=request_headers,
             json=user_token,
             headers={"X-Subject-Token": uuid.uuid4().hex},
@@ -2129,7 +2125,7 @@ class AuthProtocolLoadingTests(BaseAuthTokenMiddlewareTest):
 
 class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
     def setUp(self):
-        super(TestAuthPluginUserAgentGeneration, self).setUp()
+        super().setUp()
         self.auth_url = uuid.uuid4().hex
         self.project_id = uuid.uuid4().hex
         self.username = uuid.uuid4().hex
@@ -2175,7 +2171,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
             "project": project,
         }
         app = self._create_app(conf, project_version, ksm_version)
-        project_with_version = "{0}/{1} ".format(project, project_version)
+        project_with_version = f"{project}/{project_version} "
         self._assert_user_agent(app, project_with_version, ksm_version)
 
     def test_project_not_installed_results_in_unknown_version(self):
@@ -2190,7 +2186,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
         v = pbr.version.VersionInfo("keystonemiddleware").version_string()
 
         app = self.create_simple_middleware(conf=conf, use_global_conf=True)
-        project_with_version = "{0}/{1} ".format(project, "unknown")
+        project_with_version = "{}/{} ".format(project, "unknown")
         self._assert_user_agent(app, project_with_version, v)
 
     def test_project_in_oslo_configuration(self):
@@ -2203,7 +2199,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
             self.cfg.conf, "project", new=project, create=True
         ):
             app = self._create_app(conf, project_version, ksm_version)
-        project = "{0}/{1} ".format(project, project_version)
+        project = f"{project}/{project_version} "
         self._assert_user_agent(app, project, ksm_version)
 
     def _create_app(self, conf, project_version, ksm_version):
@@ -2226,9 +2222,7 @@ class TestAuthPluginUserAgentGeneration(BaseAuthTokenMiddlewareTest):
 
     def _assert_user_agent(self, app, project, ksm_version):
         sess = app._identity_server._adapter.session
-        expected_ua = "{0}keystonemiddleware.auth_token/{1}".format(
-            project, ksm_version
-        )
+        expected_ua = f"{project}keystonemiddleware.auth_token/{ksm_version}"
         self.assertThat(sess.user_agent, matchers.StartsWith(expected_ua))
 
 

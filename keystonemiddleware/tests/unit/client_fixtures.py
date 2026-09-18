@@ -49,7 +49,7 @@ class Examples(fixtures.Fixture):
     """
 
     def setUp(self):
-        super(Examples, self).setUp()
+        super().setUp()
 
         self.KERBEROS_BIND = "USER@REALM"
         self.SERVICE_KERBEROS_BIND = "SERVICE_USER@SERVICE_REALM"

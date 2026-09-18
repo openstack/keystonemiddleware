@@ -51,7 +51,7 @@ from keystonemiddleware.tests.unit import utils
 _no_value = object()
 
 
-class FakeSocket(object):
+class FakeSocket:
     def __init__(self, binary_peer_cert):
         self.binary_peer_cert = binary_peer_cert
 
@@ -59,7 +59,7 @@ class FakeSocket(object):
         return self.binary_peer_cert
 
 
-class FakeWsgiInput(object):
+class FakeWsgiInput:
     def __init__(self, fake_socket):
         self.fake_socket = fake_socket
 
@@ -70,7 +70,7 @@ class FakeWsgiInput(object):
 class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
     def setUp(self, expected_env=None, auth_version=None, fake_app=None):
         cfg.CONF.clear()
-        super(BaseOauth2mTlsTokenMiddlewareTest, self).setUp()
+        super().setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         self.expected_env = expected_env or dict()
@@ -81,7 +81,7 @@ class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
             "auth_version": auth_version,
             "www_authenticate_uri": "https://keystone.example.com:1234",
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
         self.auth_version = auth_version
@@ -137,7 +137,7 @@ class BaseOauth2mTlsTokenMiddlewareTest(base.BaseAuthTokenTestCase):
             resp.headers["WWW-Authenticate"],
         )
         self.assertEqual(
-            'Keystone uri="%s"' % self.conf.get("www_authenticate_uri"),
+            'Keystone uri="{}"'.format(self.conf.get("www_authenticate_uri")),
             resp.headers["WWW-Authenticate"],
         )
         self.assertEqual("Unauthorized", error.get("error").get("title"))
@@ -153,12 +153,10 @@ class Oauth2mTlsTokenMiddlewareTest(
     resources = [("examples", client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(Oauth2mTlsTokenMiddlewareTest, self).setUp(
-            auth_version="v3.0", fake_app=FakeOauth2TokenApp
-        )
+        super().setUp(auth_version="v3.0", fake_app=FakeOauth2TokenApp)
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": uuid.uuid4().hex},
         )
@@ -280,7 +278,7 @@ class Oauth2mTlsTokenMiddlewareTest(
 
     def test_not_wsgi_input(self):
         token = self.examples.v3_OAUTH2_CREDENTIAL
-        resp = super(Oauth2mTlsTokenMiddlewareTest, self).call_middleware(
+        resp = super().call_middleware(
             headers=get_authorization_header(token),
             expected_status=401,
             method="GET",
@@ -294,7 +292,7 @@ class Oauth2mTlsTokenMiddlewareTest(
 
     def test_not_socket(self):
         token = self.examples.v3_OAUTH2_CREDENTIAL
-        resp = super(Oauth2mTlsTokenMiddlewareTest, self).call_middleware(
+        resp = super().call_middleware(
             headers=get_authorization_header(token),
             expected_status=401,
             method="GET",
@@ -308,7 +306,7 @@ class Oauth2mTlsTokenMiddlewareTest(
 
     def test_not_peer_cert(self):
         token = self.examples.v3_OAUTH2_CREDENTIAL
-        resp = super(Oauth2mTlsTokenMiddlewareTest, self).call_middleware(
+        resp = super().call_middleware(
             headers=get_authorization_header(token),
             expected_status=401,
             method="GET",
@@ -334,8 +332,9 @@ class Oauth2mTlsTokenMiddlewareTest(
         self.assertUnauthorizedResp(resp)
         self.assertIn("Invalid token contents.", self.logger.output)
         self.assertIn(
-            "Invalid OAuth2.0 certificate-bound access token: %s"
-            % "Token authorization failed",
+            "Invalid OAuth2.0 certificate-bound access token: {}".format(
+                "Token authorization failed"
+            ),
             self.logger.output,
         )
 
@@ -381,7 +380,7 @@ class FilterFactoryTest(utils.BaseTestCase):
     def test_filter_factory(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
         auth_filter = oauth2_mtls_token.filter_factory(conf)

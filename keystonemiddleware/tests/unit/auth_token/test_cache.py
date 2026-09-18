@@ -33,7 +33,7 @@ MEMCACHED_AVAILABLE = None
 
 class TestTokenSerializer(base.BaseAuthTokenTestCase):
     def setUp(self):
-        super(TestTokenSerializer, self).setUp()
+        super().setUp()
         self.serializer = _cache.TokenSerializer(mock.Mock())
 
     def test_fixed_cache_key_length(self):
@@ -89,7 +89,7 @@ class TestTokenSerializer(base.BaseAuthTokenTestCase):
 
 class TestSecureTokenSerializer(base.BaseAuthTokenTestCase):
     def setUp(self):
-        super(TestSecureTokenSerializer, self).setUp()
+        super().setUp()
         self.secret_key = uuid.uuid4().hex
         self.serializer = _cache.SecureTokenSerializer(
             mock.Mock(), "encrypt", self.secret_key
@@ -137,7 +137,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         # test missing cache_secret_key
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "Encrypt",
@@ -148,7 +148,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         # test invalue cache_security_strategy
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "whatever",
@@ -159,7 +159,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         # test missing cache_secret_key
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "mac",
@@ -170,7 +170,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         # test empty cache_secret_key
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "Encrypt",
@@ -182,7 +182,7 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
         # test empty cache_secret_key
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "mAc",
@@ -197,13 +197,13 @@ class NoMemcacheAuthToken(base.BaseAuthTokenTestCase):
     """These tests will not have the memcache module available."""
 
     def setUp(self):
-        super(NoMemcacheAuthToken, self).setUp()
+        super().setUp()
         self.useFixture(utils.DisableModuleFixture("memcache"))
 
     def test_nomemcache(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "www_authenticate_uri": "https://keystone.example.com:1234",
@@ -214,7 +214,7 @@ class NoMemcacheAuthToken(base.BaseAuthTokenTestCase):
 
 class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def setUp(self):
-        super(TestLiveMemcache, self).setUp()
+        super().setUp()
 
         global MEMCACHED_AVAILABLE
 
@@ -234,7 +234,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_encrypt_cache_data(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "encrypt",
@@ -280,7 +280,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "encrypt",
@@ -299,7 +299,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_sign_cache_data(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_security_strategy": "mac",
@@ -318,7 +318,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_no_memcache_protection(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "cache_secret_key": "mysecret",
@@ -335,7 +335,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_memcache_pool(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "memcache_use_advanced_pool": True,
@@ -353,7 +353,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_oslo_cache(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "use_oslo_cache": True,
         }
@@ -377,7 +377,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_oslo_cache_encrypt_cache_data(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "cache_security_strategy": "encrypt",
             "cache_secret_key": "mysecret",
@@ -403,7 +403,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
     def test_oslo_cache_sign_cache_data(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "cache_security_strategy": "encrypt",
             "cache_secret_key": "hmac",
@@ -429,7 +429,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
 class TestMemcachePoolAbstraction(utils.TestCase):
     def setUp(self):
-        super(TestMemcachePoolAbstraction, self).setUp()
+        super().setUp()
         self.useFixture(
             fixtures.MockPatch("oslo_cache._memcache_pool._MemcacheClient")
         )

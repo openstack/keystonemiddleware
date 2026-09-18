@@ -294,11 +294,11 @@ def _path_matches(request_path, path_pattern):
             path_regex += ".*"
         if token["literal"]:
             path_regex += token["literal"]
-    path_regex = r"^%s$" % path_regex
+    path_regex = rf"^{path_regex}$"
     return re.match(path_regex, request_path)
 
 
-class _BIND_MODE(object):
+class _BIND_MODE:
     DISABLED = "disabled"
     PERMISSIVE = "permissive"
     STRICT = "strict"
@@ -306,7 +306,7 @@ class _BIND_MODE(object):
     KERBEROS = "kerberos"
 
 
-class BaseAuthProtocol(object):
+class BaseAuthProtocol:
     """A base class for AuthProtocol token checking implementations.
 
     :param Callable app: The next application to call after middleware.
@@ -630,7 +630,7 @@ class AuthProtocol(BaseAuthProtocol):
                 "recommended to set this to True."
             )
 
-        super(AuthProtocol, self).__init__(
+        super().__init__(
             app,
             log=log,
             enforce_token_bind=self._conf.get("enforce_token_bind"),
@@ -678,7 +678,7 @@ class AuthProtocol(BaseAuthProtocol):
         request.remove_auth_headers()
         self._token_cache.initialize(request.environ)
 
-        resp = super(AuthProtocol, self).process_request(request)
+        resp = super().process_request(request)
         if resp:
             return resp
 
@@ -749,7 +749,7 @@ class AuthProtocol(BaseAuthProtocol):
 
     @property
     def _reject_auth_headers(self):
-        header_val = 'Keystone uri="%s"' % self.www_authenticate_uri
+        header_val = f'Keystone uri="{self.www_authenticate_uri}"'
         return [("WWW-Authenticate", header_val)]
 
     def fetch_token(self, token, allow_expired=False):
@@ -791,9 +791,7 @@ class AuthProtocol(BaseAuthProtocol):
                     "Keystone unavailable; marking token as "
                     "invalid and deferring auth decision."
                 )
-                raise ksm_exceptions.InvalidToken(
-                    "Keystone unavailable: %s" % e
-                )
+                raise ksm_exceptions.InvalidToken(f"Keystone unavailable: {e}")
             raise webob.exc.HTTPServiceUnavailable(
                 "The Keystone service is temporarily unavailable."
             )

@@ -29,7 +29,7 @@ class AuthTokenFixtureTest(
         self.project_id = uuid.uuid4().hex
         self.project_name = uuid.uuid4().hex
         self.role_list = [uuid.uuid4().hex, uuid.uuid4().hex]
-        super(AuthTokenFixtureTest, self).setUp()
+        super().setUp()
 
         self.atm_fixture = self.useFixture(fixture.AuthTokenFixture())
         self.atm_fixture.add_token_data(

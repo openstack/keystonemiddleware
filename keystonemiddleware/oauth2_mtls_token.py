@@ -31,7 +31,7 @@ class OAuth2mTlsProtocol(AuthProtocol):
     def __init__(self, app, conf):
         log = logging.getLogger(conf.get("log_name", __name__))
         log.info("Starting Keystone oauth2_mls_token middleware")
-        super(OAuth2mTlsProtocol, self).__init__(app, conf)
+        super().__init__(app, conf)
 
     def _confirm_certificate_thumbprint(self, token_thumb, peer_cert):
         """Check if the thumbprint in the token is valid.
@@ -73,7 +73,7 @@ class OAuth2mTlsProtocol(AuthProtocol):
                 return False
         except Exception as error:
             self.log.warning(
-                "Unable to obtain the client certificate. %s" % str(error)
+                f"Unable to obtain the client certificate. {str(error)}"
             )
             return False
 

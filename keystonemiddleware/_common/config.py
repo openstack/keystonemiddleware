@@ -71,7 +71,7 @@ def _conf_values_type_convert(group_name, all_options, conf):
     return opts
 
 
-class Config(object):
+class Config:
     def __init__(self, name, group_name, all_options, conf):
         local_oslo_config = conf.pop("oslo_config_config", None)
         local_config_project = conf.pop("oslo_config_project", None)
@@ -155,9 +155,9 @@ class Config(object):
                 except importlib.metadata.PackageNotFoundError:
                     version = "unknown"
 
-                project = "%s/%s " % (project, version)
+                project = f"{project}/{version} "
 
-            self._user_agent = "%skeystonemiddleware.%s/%s" % (
+            self._user_agent = "{}keystonemiddleware.{}/{}".format(
                 project,
                 self.name,
                 pbr.version.VersionInfo("keystonemiddleware").version_string(),

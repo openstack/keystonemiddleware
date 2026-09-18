@@ -41,7 +41,7 @@ class BaseAuditMiddlewareTest(utils.MiddlewareTestCase):
     PROJECT_NAME = "keystonemiddleware"
 
     def setUp(self):
-        super(BaseAuditMiddlewareTest, self).setUp()
+        super().setUp()
 
         self.audit_map_file_fixture = self.useFixture(
             createfile.CreateFileWithContent("audit", audit_map_content)

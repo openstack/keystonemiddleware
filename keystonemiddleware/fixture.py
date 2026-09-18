@@ -28,7 +28,7 @@ class AuthTokenFixture(fixtures.Fixture):
     """Overrides what keystonemiddleware will return to the app behind it."""
 
     def setUp(self):
-        super(AuthTokenFixture, self).setUp()
+        super().setUp()
         # Ensure that the initialized token data is cleaned up
         self._token_data = {}
         self.addCleanup(self._token_data.clear)

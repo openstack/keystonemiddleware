@@ -54,7 +54,7 @@ class FakeOauth2TokenApp(FakeApp):
 class BaseOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase):
     def setUp(self, expected_env=None, auth_version=None, fake_app=None):
         cfg.CONF.clear()
-        super(BaseOauth2TokenMiddlewareTest, self).setUp()
+        super().setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         self.expected_env = expected_env or dict()
@@ -65,7 +65,7 @@ class BaseOauth2TokenMiddlewareTest(base.BaseAuthTokenTestCase):
             "auth_version": auth_version,
             "www_authenticate_uri": "https://keystone.example.com:1234",
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
         self.auth_version = auth_version
@@ -119,12 +119,10 @@ class Oauth2TokenMiddlewareTest(
     resources = [("examples", client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(Oauth2TokenMiddlewareTest, self).setUp(
-            auth_version="v3.0", fake_app=FakeOauth2TokenApp
-        )
+        super().setUp(auth_version="v3.0", fake_app=FakeOauth2TokenApp)
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)
         self.requests_mock.get(
-            "%s/v3/auth/tokens" % BASE_URI,
+            f"{BASE_URI}/v3/auth/tokens",
             text=self.token_response,
             headers={"X-Subject-Token": uuid.uuid4().hex},
         )
@@ -343,7 +341,7 @@ class FilterFactoryTest(utils.BaseTestCase):
     def test_filter_factory(self):
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
         }
         auth_filter = oauth2_token.filter_factory(conf)

@@ -207,9 +207,7 @@ class FakeOauth2TokenApp(FakeApp):
         need_service_token=False,
         app_response_status_code=200,
     ):
-        super(FakeOauth2TokenApp, self).__init__(
-            expected_env, need_service_token
-        )
+        super().__init__(expected_env, need_service_token)
 
         self._status_code = app_response_status_code
 
@@ -226,7 +224,7 @@ class FakeOauth2TokenApp(FakeApp):
         return resp
 
 
-class FakeSocket(object):
+class FakeSocket:
     def __init__(self, binary_peer_cert):
         self.binary_peer_cert = binary_peer_cert
 
@@ -237,7 +235,7 @@ class FakeSocket(object):
             return None
 
 
-class FakeWsgiInput(object):
+class FakeWsgiInput:
     def __init__(self, fake_socket):
         self.fake_socket = fake_socket
 
@@ -252,7 +250,7 @@ class BaseExternalOauth2TokenMiddlewareTest(
 
     def setUp(self):
         cfg.CONF.clear()
-        super(BaseExternalOauth2TokenMiddlewareTest, self).setUp()
+        super().setUp()
 
         self.logger = self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         self.expected_env = dict()
@@ -335,30 +333,25 @@ class BaseExternalOauth2TokenMiddlewareTest(
         system_scope=False,
     ):
         if auth_method == "tls_client_auth":
-            body = "client_id=%s&token=%s&token_type_hint=access_token" % (
-                introspect_client_id,
-                access_token,
-            )
+            body = f"client_id={introspect_client_id}&token={access_token}&token_type_hint=access_token"
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_post":
-            body = (
-                "client_id=%s&client_secret=%s&token=%s&token_type_hint=access_token"
-            ) % (introspect_client_id, introspect_client_secret, access_token)
+            body = f"client_id={introspect_client_id}&client_secret={introspect_client_secret}&token={access_token}&token_type_hint=access_token"
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_basic":
-            body = "token=%s&token_type_hint=access_token" % access_token
+            body = f"token={access_token}&token_type_hint=access_token"
             self.assertEqual(request.text, body)
             auth_basic = request._request.headers.get("Authorization")
             self.assertIsNotNone(auth_basic)
 
             auth = "Basic " + base64.standard_b64encode(
-                (
-                    "%s:%s" % (introspect_client_id, introspect_client_secret)
-                ).encode("ascii")
+                (f"{introspect_client_id}:{introspect_client_secret}").encode(
+                    "ascii"
+                )
             ).decode("ascii")
             self.assertEqual(auth_basic, auth)
         elif auth_method == "private_key_jwt":
-            self.assertIn("client_id=%s" % introspect_client_id, request.text)
+            self.assertIn(f"client_id={introspect_client_id}", request.text)
             self.assertIn(
                 (
                     "client_assertion_type=urn%3Aietf%3Aparams%3A"
@@ -367,10 +360,10 @@ class BaseExternalOauth2TokenMiddlewareTest(
                 request.text,
             )
             self.assertIn("client_assertion=", request.text)
-            self.assertIn("token=%s" % access_token, request.text)
+            self.assertIn(f"token={access_token}", request.text)
             self.assertIn("token_type_hint=access_token", request.text)
         elif auth_method == "client_secret_jwt":
-            self.assertIn("client_id=%s" % introspect_client_id, request.text)
+            self.assertIn(f"client_id={introspect_client_id}", request.text)
             self.assertIn(
                 (
                     "client_assertion_type=urn%3Aietf%3Aparams%3A"
@@ -379,7 +372,7 @@ class BaseExternalOauth2TokenMiddlewareTest(
                 request.text,
             )
             self.assertIn("client_assertion=", request.text)
-            self.assertIn("token=%s" % access_token, request.text)
+            self.assertIn(f"token={access_token}", request.text)
             self.assertIn("token_type_hint=access_token", request.text)
 
         resp = {
@@ -561,7 +554,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
     resources = [("examples", client_fixtures.EXAMPLES_RESOURCE)]
 
     def setUp(self):
-        super(ExternalOauth2TokenMiddlewareTlsClientAuthTest, self).setUp()
+        super().setUp()
 
         self._test_client_id = str(uuid.uuid4())
         self._auth_method = "tls_client_auth"
@@ -744,7 +737,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_socket_is_none_401(self):
@@ -777,7 +770,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_peercert_is_none_401(self):
@@ -810,7 +803,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_peercert_error_format_401(self):
@@ -843,7 +836,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_wsgi_input_is_none_401(self):
@@ -876,7 +869,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_is_not_match_401(self):
@@ -910,7 +903,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_confirm_certificate_thumbprint_apache_default_200(self):
@@ -989,7 +982,7 @@ class ExternalOauth2TokenMiddlewareTlsClientAuthTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
 
@@ -997,7 +990,7 @@ class ExternalOauth2TokenMiddlewarePrivateJWTKeyTest(
     BaseExternalOauth2TokenMiddlewareTest
 ):
     def setUp(self):
-        super(ExternalOauth2TokenMiddlewarePrivateJWTKeyTest, self).setUp()
+        super().setUp()
 
         self._test_client_id = str(uuid.uuid4())
         self._test_client_secret = str(uuid.uuid4())
@@ -1260,7 +1253,7 @@ class ExternalOauth2TokenMiddlewareClientSecretJWTTest(
     BaseExternalOauth2TokenMiddlewareTest
 ):
     def setUp(self):
-        super(ExternalOauth2TokenMiddlewareClientSecretJWTTest, self).setUp()
+        super().setUp()
 
         self._test_client_id = str(uuid.uuid4())
         self._test_client_secret = str(uuid.uuid4())
@@ -1447,7 +1440,7 @@ class ExternalOauth2TokenMiddlewareClientSecretJWTTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_fetch_token_introspect_response_500(self):
@@ -1505,7 +1498,7 @@ class ExternalOauth2TokenMiddlewareClientSecretPostTest(
     BaseExternalOauth2TokenMiddlewareTest
 ):
     def setUp(self):
-        super(ExternalOauth2TokenMiddlewareClientSecretPostTest, self).setUp()
+        super().setUp()
 
         self._test_client_id = str(uuid.uuid4())
         self._test_client_secret = str(uuid.uuid4())
@@ -1626,7 +1619,7 @@ class ExternalOauth2TokenMiddlewareClientSecretPostTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % test_audience,
+            f'Authorization OAuth 2.0 uri="{test_audience}"',
         )
 
     def test_read_data_from_token_key_type_not_dict_403(self):
@@ -1786,7 +1779,7 @@ class ExternalOauth2TokenMiddlewareClientSecretBasicTest(
     BaseExternalOauth2TokenMiddlewareTest
 ):
     def setUp(self):
-        super(ExternalOauth2TokenMiddlewareClientSecretBasicTest, self).setUp()
+        super().setUp()
 
         self._test_client_id = str(uuid.uuid4())
         self._test_client_secret = str(uuid.uuid4())
@@ -2000,7 +1993,7 @@ class ExternalOauth2TokenMiddlewareClientSecretBasicTest(
         )
         self.assertEqual(
             resp.headers.get("WWW-Authenticate"),
-            'Authorization OAuth 2.0 uri="%s"' % self._audience,
+            f'Authorization OAuth 2.0 uri="{self._audience}"',
         )
 
     def test_spoofed_headers_are_sanitized(self):
@@ -2084,7 +2077,7 @@ class ExternalOauth2TokenMiddlewareClientSecretBasicTest(
 
 class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
     def setUp(self):
-        super(ExternalAuth2ProtocolTest, self).setUp()
+        super().setUp()
         self._test_client_id = str(uuid.uuid4())
         self._test_client_secret = str(uuid.uuid4())
         self._auth_method = "client_secret_basic"
