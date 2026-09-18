@@ -20,3 +20,8 @@ repos:
       - id: ruff-check
         args: ['--fix', '--unsafe-fixes']
       - id: ruff-format
+  - repo: https://opendev.org/openstack/hacking
+    rev: 8.1.0
+    hooks:
+      - id: hacking
+        exclude: '^(doc|releasenotes)/.*$'

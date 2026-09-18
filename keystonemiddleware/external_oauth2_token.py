@@ -909,9 +909,9 @@ class ExternalAuth2Protocol(object):
                 raise ConfigurationError(
                     _(
                         "Configuration error. The parameter "
-                        'is not set for "%s" in group [%s].'
+                        'is not set for "%(key)s" in group [%(group)s].'
                     )
-                    % (key, _EXT_AUTH_CONFIG_GROUP_NAME)
+                    % {"key": key, "group": _EXT_AUTH_CONFIG_GROUP_NAME}
                 )
             else:
                 return None
