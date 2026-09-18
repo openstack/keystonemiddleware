@@ -1,3 +1,16 @@
 [build-system]
 requires = ["pbr>=6.1.1"]
 build-backend = "pbr.build"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "F", "S", "W"]
+# FIXME(stephenfin): These are temporarily disabled so we can apply the ruff
+# format changes cleanly
+ignore = ["S105", "E501", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# tests use fake credentials and asserts on purpose
+"keystonemiddleware/tests/**" = ["S101", "S105", "S106", "S311"]
