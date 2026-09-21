@@ -226,6 +226,18 @@ Add the config group for external authentication server:
 .. code-block:: ini
 
     [ext_oauth2_auth]
+    # (Optional) If defined, indicate whether token data should be
+    # authenticated or authenticated and encrypted. If MAC, token data is
+    # authenticated (with HMAC) in the cache. If ENCRYPT, token data is
+    # encrypted and authenticated in the cache. If the value is not one of
+    # these options or empty, auth_token will raise an exception on
+    # initialization.
+    #cache_security_strategy = <None>
+
+    # (Optional, mandatory if cache_security_strategy is defined)
+    # This string is used for key derivation.
+    #cache_secret_key = <None>
+
     # Required if identity server requires client certificate.
     #certfile = <None>
 
@@ -336,18 +348,6 @@ Add the config group for external authentication server:
     # (in seconds). Set to -1 to disable caching completely.
     #token_cache_time = 300
 
-    # (Optional) If defined, indicate whether token data should be
-    # authenticated or authenticated and encrypted. If MAC, token data is
-    # authenticated (with HMAC) in the cache. If ENCRYPT, token data is
-    # encrypted and authenticated in the cache. If the value is not one of
-    # these options or empty, auth_token will raise an exception on
-    # initialization.
-    #memcache_security_strategy = <None>
-
-    # (Optional, mandatory if memcache_security_strategy is defined)
-    # This string is used for key derivation.
-    #memcache_secret_key = <None>
-
     # (Optional) Number of seconds memcached server is considered dead before
     # it is tried again.
     #memcache_pool_dead_retry = 5 * 60
@@ -418,16 +418,16 @@ authentication responses will be readable. To mitigate this risk,
 ``auth_token`` middleware provides an option to authenticate and optionally
 encrypt the token data stored in the cache.
 
-* ``memcache_security_strategy``: (optional) if defined, indicate
+* ``cache_security_strategy``: (optional) if defined, indicate
   whether token data should be authenticated or authenticated and
   encrypted. Acceptable values are ``MAC`` or ``ENCRYPT``. If ``MAC``,
   token data is authenticated (with HMAC) in the cache. If
   ``ENCRYPT``, token data is encrypted and authenticated in the
   cache. If the value is not one of these options or empty,
   ``auth_token`` will raise an exception on initialization.
-* ``memcache_secret_key``: (optional, mandatory if
-  ``memcache_security_strategy`` is defined) this string is used for
-  key derivation. If ``memcache_security_strategy`` is defined and
+* ``cache_secret_key``: (optional, mandatory if
+  ``cache_security_strategy`` is defined) this string is used for
+  key derivation. If ``cache_security_strategy`` is defined and
   ``memcache_secret_key`` is absent, ``auth_token`` will raise an
   exception on initialization.
 

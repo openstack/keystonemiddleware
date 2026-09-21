@@ -189,8 +189,8 @@ class SecureTokenSerializer(TokenSerializer):
     def __init__(self, log, security_strategy, secret_key):
         super(SecureTokenSerializer, self).__init__(log)
         if not secret_key:
-            msg = _('memcache_secret_key must be defined when a '
-                    'memcache_security_strategy is defined')
+            msg = _('cache_secret_key must be defined when a '
+                    'cache_security_strategy is defined')
             raise exc.ConfigurationError(msg)
 
         if isinstance(security_strategy, str):

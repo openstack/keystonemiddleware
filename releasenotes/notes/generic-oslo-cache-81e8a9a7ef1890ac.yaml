@@ -1,0 +1,13 @@
+---
+deprecations:
+  - |
+    The following options have been deprecated.
+
+    - ``[keystone_authtoken] memcache_security_strategy``, in favor of
+      ``[keystone_authtoken] cache_security_strategy``.
+    - ``[keystone_authtoken] memcache_secret_key``, in favor of
+      ``[keystone_authtoken] cache_secret_key``.
+    - ``[ext_oauth2_auth] memcache_security_strategy``, in favor of
+      ``[ext_oauth2_auth] cache_security_strategy``.
+    - ``[ext_oauth2_auth] memcache_secret_key``, in favor of
+      ``[ext_oauth2_auth] cache_secret_key``.

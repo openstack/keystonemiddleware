@@ -825,9 +825,9 @@ class AuthProtocol(BaseAuthProtocol):
             requested_auth_interface=self._interface)
 
     def _token_cache_factory(self):
-        security_strategy = self._conf.get('memcache_security_strategy')
+        security_strategy = self._conf.get('cache_security_strategy')
         if security_strategy.lower() != 'none':
-            secret_key = self._conf.get('memcache_secret_key')
+            secret_key = self._conf.get('cache_secret_key')
             serializer = _cache.SecureTokenSerializer(
                 self.log, security_strategy, secret_key)
         else:

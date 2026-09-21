@@ -79,7 +79,7 @@ _OPTS = [
                ' tokens, the middleware caches previously-seen tokens for a'
                ' configurable duration (in seconds). Set to -1 to disable'
                ' caching completely.'),
-    cfg.StrOpt('memcache_security_strategy',
+    cfg.StrOpt('cache_security_strategy',
                default='None',
                choices=(('None',
                          'Token data is not authenticated or encrypted.'),
@@ -88,11 +88,13 @@ _OPTS = [
                         ('ENCRYPT',
                          'Token data is encrypted and authenticated.')),
                ignore_case=True,
+               deprecated_name='memcache_security_strategy',
                help='(Optional) If defined, indicate whether token data'
                ' should be authenticated or authenticated and encrypted.'),
-    cfg.StrOpt('memcache_secret_key',
+    cfg.StrOpt('cache_secret_key',
                secret=True,
-               help='(Optional, mandatory if memcache_security_strategy is'
+               deprecated_name='memcache_secret_key',
+               help='(Optional, mandatory if cache_security_strategy is'
                ' defined) This string is used for key derivation.'),
     cfg.BoolOpt('memcache_tls_enabled',
                 default=False,

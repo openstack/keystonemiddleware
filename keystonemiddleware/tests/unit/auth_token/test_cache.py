@@ -135,46 +135,35 @@ class TestSecureTokenSerializer(base.BaseAuthTokenTestCase):
 class TestCacheSetup(base.BaseAuthTokenTestCase):
 
     def test_assert_valid_memcache_protection_config(self):
-        # test missing memcache_secret_key
+        # test missing cache_secret_key
         conf = {
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'Encrypt'
+            'cache_security_strategy': 'Encrypt'
         }
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
                           conf=conf)
-        # test invalue memcache_security_strategy
+        # test invalue cache_security_strategy
         conf = {
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'whatever'
+            'cache_security_strategy': 'whatever'
         }
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
                           conf=conf)
-        # test missing memcache_secret_key
+        # test missing cache_secret_key
         conf = {
             'auth_type': 'admin_token',
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mac'
-        }
-        self.assertRaises(exc.ConfigurationError,
-                          self.create_simple_middleware,
-                          conf=conf)
-        conf = {
-            'auth_type': 'admin_token',
-            'endpoint': '%s/v3' % BASE_URI,
-            'token': FAKE_ADMIN_TOKEN_ID,
-            'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'Encrypt',
-            'memcache_secret_key': ''
+            'cache_security_strategy': 'mac'
         }
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
@@ -184,8 +173,19 @@ class TestCacheSetup(base.BaseAuthTokenTestCase):
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mAc',
-            'memcache_secret_key': ''
+            'cache_security_strategy': 'Encrypt',
+            'cache_secret_key': ''
+        }
+        self.assertRaises(exc.ConfigurationError,
+                          self.create_simple_middleware,
+                          conf=conf)
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
+            'cache_security_strategy': 'mAc',
+            'cache_secret_key': ''
         }
         self.assertRaises(exc.ConfigurationError,
                           self.create_simple_middleware,
@@ -236,8 +236,8 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'encrypt',
-            'memcache_secret_key': 'mysecret'
+            'cache_security_strategy': 'encrypt',
+            'cache_secret_key': 'mysecret'
         }
 
         token = uuid.uuid4().hex.encode()
@@ -281,8 +281,8 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'encrypt',
-            'memcache_secret_key': 'mysecret'
+            'cache_security_strategy': 'encrypt',
+            'cache_secret_key': 'mysecret'
         }
 
         token = uuid.uuid4().hex.encode()
@@ -300,8 +300,8 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_security_strategy': 'mac',
-            'memcache_secret_key': 'mysecret'
+            'cache_security_strategy': 'mac',
+            'cache_secret_key': 'mysecret'
         }
 
         token = uuid.uuid4().hex.encode()
@@ -319,7 +319,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
             'endpoint': '%s/v3' % BASE_URI,
             'token': FAKE_ADMIN_TOKEN_ID,
             'memcached_servers': ','.join(MEMCACHED_SERVERS),
-            'memcache_secret_key': 'mysecret'
+            'cache_secret_key': 'mysecret'
         }
 
         token = uuid.uuid4().hex.encode()

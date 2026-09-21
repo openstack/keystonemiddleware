@@ -131,8 +131,8 @@ def get_config(
         memcache_pool_unused_timeout=None,
         memcache_pool_conn_get_timeout=None,
         memcache_pool_socket_timeout=None,
-        memcache_security_strategy=None,
-        memcache_secret_key=None):
+        cache_security_strategy=None,
+        cache_secret_key=None):
     conf = {}
     if introspect_endpoint is not None:
         conf['introspect_endpoint'] = introspect_endpoint
@@ -190,10 +190,10 @@ def get_config(
         conf['memcache_pool_conn_get_timeout'] = memcache_pool_conn_get_timeout
     if memcache_pool_socket_timeout is not None:
         conf['memcache_pool_socket_timeout'] = memcache_pool_socket_timeout
-    if memcache_security_strategy is not None:
-        conf['memcache_security_strategy'] = memcache_security_strategy
-    if memcache_secret_key is not None:
-        conf['memcache_secret_key'] = memcache_secret_key
+    if cache_security_strategy is not None:
+        conf['cache_security_strategy'] = cache_security_strategy
+    if cache_secret_key is not None:
+        conf['cache_secret_key'] = cache_secret_key
 
     return conf
 
@@ -1931,8 +1931,8 @@ class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
             memcache_pool_unused_timeout=60,
             memcache_pool_conn_get_timeout=10,
             memcache_pool_socket_timeout=3,
-            memcache_security_strategy=None,
-            memcache_secret_key=None
+            cache_security_strategy=None,
+            cache_secret_key=None
         )
         uuid_token_default = self.examples.v3_UUID_TOKEN_DEFAULT
         uuid_serv_token_default = self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT
@@ -1990,14 +1990,14 @@ class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
 
     def test_token_cache_factory_secure(self):
         conf = copy.deepcopy(self._test_conf)
-        conf["memcache_secret_key"] = "test_key"
-        conf["memcache_security_strategy"] = "MAC"
+        conf["cache_secret_key"] = "test_key"
+        conf["cache_security_strategy"] = "MAC"
         self.set_middleware(conf=conf)
         self.assertIsInstance(self.middleware._token_cache,
                               _cache.TokenCache)
         self.assertIsInstance(self.middleware._token_cache._serializer,
                               _cache.SecureTokenSerializer)
-        conf["memcache_security_strategy"] = "ENCRYPT"
+        conf["cache_security_strategy"] = "ENCRYPT"
         self.set_middleware(conf=conf)
         self.assertIsInstance(self.middleware._token_cache,
                               _cache.TokenCache)
