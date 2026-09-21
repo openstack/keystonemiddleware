@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Utilities for memcache encryption and integrity check.
+Utilities for cache encryption and integrity check.
 
 Data should be serialized before entering these functions. Encryption
 has a dependency on the cryptography module. If cryptography is not
@@ -55,7 +55,7 @@ DIGEST_LENGTH_B64 = 4 * int(math.ceil(DIGEST_LENGTH / 3.0))
 class InvalidMacError(Exception):
     """raise when unable to verify MACed data.
 
-    This usually indicates that data had been expectedly modified in memcache.
+    This usually indicates that data had been expectedly modified.
 
     """
 

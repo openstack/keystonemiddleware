@@ -825,8 +825,13 @@ class AuthProtocol(BaseAuthProtocol):
             requested_auth_interface=self._interface)
 
     def _token_cache_factory(self):
-
         security_strategy = self._conf.get('memcache_security_strategy')
+        if security_strategy.lower() != 'none':
+            secret_key = self._conf.get('memcache_secret_key')
+            serializer = _cache.SecureTokenSerializer(
+                self.log, security_strategy, secret_key)
+        else:
+            serializer = _cache.TokenSerializer(self.log)
 
         cache_kwargs = dict(
             cache_time=int(self._conf.get('token_cache_time')),
@@ -861,14 +866,7 @@ class AuthProtocol(BaseAuthProtocol):
 
             cache_kwargs['tls_context'] = tls_context
 
-        if security_strategy.lower() != 'none':
-            secret_key = self._conf.get('memcache_secret_key')
-            return _cache.SecureTokenCache(self.log,
-                                           security_strategy,
-                                           secret_key,
-                                           **cache_kwargs)
-        else:
-            return _cache.TokenCache(self.log, **cache_kwargs)
+        return _cache.TokenCache(self.log, serializer, **cache_kwargs)
 
 
 def filter_factory(global_conf, **local_conf):

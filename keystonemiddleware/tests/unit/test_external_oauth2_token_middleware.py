@@ -1985,6 +1985,8 @@ class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
         conf = copy.deepcopy(self._test_conf)
         self.set_middleware(conf=conf)
         self.assertIsInstance(self.middleware._token_cache, _cache.TokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.TokenSerializer)
 
     def test_token_cache_factory_secure(self):
         conf = copy.deepcopy(self._test_conf)
@@ -1992,11 +1994,15 @@ class ExternalAuth2ProtocolTest(BaseExternalOauth2TokenMiddlewareTest):
         conf["memcache_security_strategy"] = "MAC"
         self.set_middleware(conf=conf)
         self.assertIsInstance(self.middleware._token_cache,
-                              _cache.SecureTokenCache)
+                              _cache.TokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.SecureTokenSerializer)
         conf["memcache_security_strategy"] = "ENCRYPT"
         self.set_middleware(conf=conf)
         self.assertIsInstance(self.middleware._token_cache,
-                              _cache.SecureTokenCache)
+                              _cache.TokenCache)
+        self.assertIsInstance(self.middleware._token_cache._serializer,
+                              _cache.SecureTokenSerializer)
 
     def test_caching_token_on_verify(self):
         conf = copy.deepcopy(self._test_conf)

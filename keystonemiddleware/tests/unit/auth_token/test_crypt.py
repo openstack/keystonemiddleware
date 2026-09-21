@@ -12,13 +12,13 @@
 
 import struct
 
-from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
+from keystonemiddleware.auth_token import _crypt as crypt
 from keystonemiddleware.tests.unit import utils
 
 
-class MemcacheCryptPositiveTests(utils.BaseTestCase):
+class CryptPositiveTests(utils.BaseTestCase):
     def _setup_keys(self, strategy):
-        return memcache_crypt.derive_keys('token', 'secret', strategy)
+        return crypt.derive_keys('token', 'secret', strategy)
 
     def test_derive_keys(self):
         keys = self._setup_keys(b'strategy')
@@ -37,8 +37,8 @@ class MemcacheCryptPositiveTests(utils.BaseTestCase):
 
     def test_sign_data(self):
         keys = self._setup_keys(b'MAC')
-        sig = memcache_crypt.sign_data(keys['MAC'], b'data')
-        self.assertEqual(len(sig), memcache_crypt.DIGEST_LENGTH_B64)
+        sig = crypt.sign_data(keys['MAC'], b'data')
+        self.assertEqual(len(sig), crypt.DIGEST_LENGTH_B64)
 
     def test_encryption(self):
         int2byte = struct.Struct(">B").pack
@@ -46,32 +46,31 @@ class MemcacheCryptPositiveTests(utils.BaseTestCase):
         # what you put in is what you get out
         for data in [b'data', b'1234567890123456', b'\x00\xFF' * 13
                      ] + [int2byte(x % 256) * x for x in range(768)]:
-            crypt = memcache_crypt.encrypt_data(keys['ENCRYPTION'], data)
-            decrypt = memcache_crypt.decrypt_data(keys['ENCRYPTION'], crypt)
-            self.assertEqual(data, decrypt)
-            self.assertRaises(memcache_crypt.DecryptError,
-                              memcache_crypt.decrypt_data,
-                              keys['ENCRYPTION'], crypt[:-1])
+            crypted = crypt.encrypt_data(keys['ENCRYPTION'], data)
+            decrypted = crypt.decrypt_data(keys['ENCRYPTION'], crypted)
+            self.assertEqual(data, decrypted)
+            self.assertRaises(crypt.DecryptError,
+                              crypt.decrypt_data,
+                              keys['ENCRYPTION'], crypted[:-1])
 
     def test_protect_wrappers(self):
         data = b'My Pretty Little Data'
         for strategy in [b'MAC', b'ENCRYPT']:
             keys = self._setup_keys(strategy)
-            protected = memcache_crypt.protect_data(keys, data)
+            protected = crypt.protect_data(keys, data)
             self.assertNotEqual(protected, data)
             if strategy == b'ENCRYPT':
                 self.assertNotIn(data, protected)
-            unprotected = memcache_crypt.unprotect_data(keys, protected)
+            unprotected = crypt.unprotect_data(keys, protected)
             self.assertEqual(data, unprotected)
-            self.assertRaises(memcache_crypt.InvalidMacError,
-                              memcache_crypt.unprotect_data,
+            self.assertRaises(crypt.InvalidMacError,
+                              crypt.unprotect_data,
                               keys, protected[:-1])
-            self.assertIsNone(memcache_crypt.unprotect_data(keys, None))
+            self.assertIsNone(crypt.unprotect_data(keys, None))
 
     def test_no_cryptography(self):
-        aes = memcache_crypt.ciphers
-        memcache_crypt.ciphers = None
-        self.assertRaises(memcache_crypt.CryptoUnavailableError,
-                          memcache_crypt.encrypt_data, 'token', 'secret',
-                          'data')
-        memcache_crypt.ciphers = aes
+        aes = crypt.ciphers
+        crypt.ciphers = None
+        self.assertRaises(crypt.CryptoUnavailableError,
+                          crypt.encrypt_data, 'token', 'secret', 'data')
+        crypt.ciphers = aes

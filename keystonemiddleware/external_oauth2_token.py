@@ -509,6 +509,13 @@ class ExternalAuth2Protocol(object):
 
     def _token_cache_factory(self):
         security_strategy = self._conf.get('memcache_security_strategy')
+        if security_strategy.lower() != 'none':
+            secret_key = self._conf.get('memcache_secret_key')
+            serializer = _cache.SecureTokenSerializer(
+                self._log, security_strategy, secret_key)
+        else:
+            serializer = _cache.TokenSerializer(self._log)
+
         cache_kwargs = dict(
             cache_time=int(self._conf.get('token_cache_time')),
             memcached_servers=self._conf.get('memcached_servers'),
@@ -523,13 +530,8 @@ class ExternalAuth2Protocol(object):
             socket_timeout=self._conf.get(
                 'memcache_pool_socket_timeout'),
         )
-        if security_strategy.lower() != 'none':
-            secret_key = self._conf.get('memcache_secret_key')
-            return _cache.SecureTokenCache(self._log,
-                                           security_strategy,
-                                           secret_key,
-                                           **cache_kwargs)
-        return _cache.TokenCache(self._log, **cache_kwargs)
+
+        return _cache.TokenCache(self._log, serializer, **cache_kwargs)
 
     @webob.dec.wsgify(RequestClass=_request._AuthTokenRequest)
     def __call__(self, req):

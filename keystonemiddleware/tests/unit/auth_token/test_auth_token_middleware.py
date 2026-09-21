@@ -351,21 +351,6 @@ class GeneralAuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
 
     resources = [('examples', client_fixtures.EXAMPLES_RESOURCE)]
 
-    def test_fixed_cache_key_length(self):
-        self.set_middleware()
-        short_string = uuid.uuid4().hex
-        long_string = 8 * uuid.uuid4().hex
-
-        token_cache = self.middleware._token_cache
-        hashed_short_string_key, context_ = token_cache._get_cache_key(
-            short_string)
-        hashed_long_string_key, context_ = token_cache._get_cache_key(
-            long_string)
-
-        # The hash keys should always match in length
-        self.assertThat(hashed_short_string_key,
-                        matchers.HasLength(len(hashed_long_string_key)))
-
     def test_conf_values_type_convert(self):
         conf = {
             'www_authenticate_uri': BASE_HOST,

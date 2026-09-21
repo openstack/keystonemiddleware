@@ -10,14 +10,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import random
 import uuid
 
 import fixtures
 from unittest import mock
 
 from keystonemiddleware.auth_token import _cache
+from keystonemiddleware.auth_token import _crypt as crypt
 from keystonemiddleware.auth_token import _exceptions as exc
-from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.tests.unit.auth_token import base
 from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware \
     import BASE_URI
@@ -27,6 +28,108 @@ from keystonemiddleware.tests.unit import utils
 
 MEMCACHED_SERVERS = ['localhost:11211']
 MEMCACHED_AVAILABLE = None
+
+
+class TestTokenSerializer(base.BaseAuthTokenTestCase):
+
+    def setUp(self):
+        super(TestTokenSerializer, self).setUp()
+        self.serializer = _cache.TokenSerializer(mock.Mock())
+
+    def test_fixed_cache_key_length(self):
+        short_string = uuid.uuid4().hex
+        long_string = 8 * uuid.uuid4().hex
+
+        hashed_short_string_key, short_context = \
+            self.serializer.get_cache_key(short_string)
+        hashed_long_string_key, long_context = \
+            self.serializer.get_cache_key(long_string)
+
+        # The hash keys should always match in length
+        self.assertEqual(len(hashed_short_string_key),
+                         len(hashed_long_string_key))
+        self.assertIsNone(short_context)
+        self.assertIsNone(long_context)
+
+    def test_get_cache_key(self):
+        cache_key, context = self.serializer.get_cache_key('token_id')
+        self.assertTrue(cache_key.startswith('tokens/'))
+        self.assertEqual(
+            'tokens/'
+            'ca88682941bde45de2864ecd5fe6f1598ea2382c6ac3f8c217adbbe9fae52456',
+            cache_key)
+        self.assertIsNone(context)
+
+        # Repeated operation should generate the same key
+        self.assertEqual(
+            cache_key,
+            self.serializer.get_cache_key('token_id')[0]
+        )
+
+        # Generated key should be different if token_id is different
+        self.assertNotEqual(
+            cache_key,
+            self.serializer.get_cache_key('different_token_id')[0]
+        )
+
+    def test_serialize_deserialize(self):
+        _, context = self.serializer.get_cache_key('token_id')
+        data = bytearray(random.randbytes(10))
+
+        # Serialized data should match the original data
+        serialized = self.serializer.serialize(data, context)
+        self.assertEqual(data, serialized)
+
+        # Serialized data should be de-serialized
+        deserialized = self.serializer.deserialize(serialized, context)
+        self.assertEqual(data, deserialized)
+
+
+class TestSecureTokenSerializer(base.BaseAuthTokenTestCase):
+
+    def setUp(self):
+        super(TestSecureTokenSerializer, self).setUp()
+        self.secret_key = uuid.uuid4().hex
+        self.serializer = _cache.SecureTokenSerializer(
+            mock.Mock(), 'encrypt', self.secret_key)
+
+    def test_get_cache_key(self):
+        cache_key, context = self.serializer.get_cache_key('token_id')
+        self.assertTrue(cache_key.startswith('tokens/'))
+        self.assertNotEqual(
+            'tokens/'
+            'ca88682941bde45de2864ecd5fe6f1598ea2382c6ac3f8c217adbbe9fae52456',
+            cache_key,
+        )
+        self.assertIsNotNone(context)
+
+        # Repeated operation should generate the same key
+        self.assertEqual(
+            cache_key,
+            self.serializer.get_cache_key('token_id')[0]
+        )
+        # Generated key should be different if token_id is different
+        self.assertNotEqual(
+            cache_key,
+            self.serializer.get_cache_key('different_token_id')[0]
+        )
+
+    def test_serialize_deserialize(self):
+        _, context = self.serializer.get_cache_key('token_id')
+        data = bytearray(random.randbytes(10))
+
+        # Serialized data should not match the original data
+        serialized = self.serializer.serialize(data, context)
+        self.assertNotEqual(data, serialized)
+
+        # Serialized data should be de-serialized
+        deserialized = self.serializer.deserialize(serialized, context)
+        self.assertEqual(data, deserialized)
+
+        # Corrupted cache results in None
+        self.assertIsNone(
+            self.serializer.deserialize(serialized[:-1], context),
+        )
 
 
 class TestCacheSetup(base.BaseAuthTokenTestCase):
@@ -146,10 +249,32 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
         token_cache.set(token, data)
         self.assertEqual(token_cache.get(token), data)
 
-    @mock.patch("keystonemiddleware.auth_token._memcache_crypt.unprotect_data")
+    @mock.patch("keystonemiddleware.auth_token._crypt.unprotect_data")
     def test_corrupted_cache_data(self, mocked_decrypt_data):
-        mocked_decrypt_data.side_effect = memcache_crypt.InvalidMacError(
-            "corrupted")
+        mocked_decrypt_data.side_effect = crypt.InvalidMacError(
+            "Invalid MAC; data appears to be corrupted.")
+
+        conf = {
+            'auth_type': 'admin_token',
+            'endpoint': '%s/v3' % BASE_URI,
+            'token': FAKE_ADMIN_TOKEN_ID,
+            'memcached_servers': ','.join(MEMCACHED_SERVERS),
+            'memcache_security_strategy': 'encrypt',
+            'memcache_secret_key': 'mysecret'
+        }
+
+        token = uuid.uuid4().hex.encode()
+        data = uuid.uuid4().hex
+
+        token_cache = self.create_simple_middleware(conf=conf)._token_cache
+        token_cache.initialize({})
+
+        token_cache.set(token, data)
+        self.assertIsNone(token_cache.get(token))
+
+    @mock.patch("keystonemiddleware.auth_token._crypt.unprotect_data")
+    def test_cache_data_failed_to_decrypt(self, mocked_decrypt_data):
+        mocked_decrypt_data.side_effect = Exception('something is wrong')
 
         conf = {
             'auth_type': 'admin_token',

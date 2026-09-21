@@ -16,8 +16,8 @@ import hashlib
 from oslo_serialization import jsonutils
 from oslo_utils import timeutils
 
+from keystonemiddleware.auth_token import _crypt as crypt
 from keystonemiddleware.auth_token import _exceptions as exc
-from keystonemiddleware.auth_token import _memcache_crypt as memcache_crypt
 from keystonemiddleware.i18n import _
 
 
@@ -123,6 +123,144 @@ class _MemcacheClientPool(object):
             yield client
 
 
+class TokenSerializer(object):
+    """Serialize and deserialize cache data"""
+
+    _CACHE_KEY_TEMPLATE = 'tokens/%s'
+
+    def __init__(self, log):
+        self._LOG = log
+
+    def get_cache_key(self, token_id):
+        """Get a unique key for this token id.
+
+        Turn the token_id into something that can uniquely identify that token
+        in a key value store.
+
+        As this is generally the first function called in a key lookup this
+        function also returns a context object. This context object is not
+        modified or used by the Cache object but is passed back on subsequent
+        functions so that decryption or other data can be shared throughout a
+        cache lookup.
+
+        :param str token_id: The unique token id.
+
+        :returns: A tuple of a string key and an implementation specific
+                  context object
+        """
+        # NOTE(jamielennox): in the basic implementation there is no need for
+        # a context so just pass None as it will only get passed back later.
+        unused_context = None
+        return self._CACHE_KEY_TEMPLATE % _hash_key(token_id), unused_context
+
+    def deserialize(self, data, context):
+        """Deserialize data from the cache back into python objects.
+
+        Take data retrieved from the cache and return an appropriate python
+        dictionary.
+
+        :param str data: The data retrieved from the cache.
+        :param object context: The context that was returned from
+                               get_cache_key.
+
+        :returns: The python object that was saved.
+        """
+        # memory cache will handle deserialization for us
+        return data
+
+    def serialize(self, data, context):
+        """Serialize data so that it can be saved to the cache.
+
+        Take python objects and serialize them so that they can be saved into
+        the cache.
+
+        :param object data: The python object to be cached.
+        :param object context: The context that was returned from
+                               get_cache_key.
+
+        :returns: The data being stored to the cache.
+        """
+        # memory cache will handle serialization for us
+        return data
+
+
+class SecureTokenSerializer(TokenSerializer):
+    """Serialize and Deserialize token data. The data is also encrypted."""
+    def __init__(self, log, security_strategy, secret_key):
+        super(SecureTokenSerializer, self).__init__(log)
+        if not secret_key:
+            msg = _('memcache_secret_key must be defined when a '
+                    'memcache_security_strategy is defined')
+            raise exc.ConfigurationError(msg)
+
+        if isinstance(security_strategy, str):
+            security_strategy = security_strategy.encode('utf-8')
+        if isinstance(secret_key, str):
+            secret_key = secret_key.encode('utf-8')
+
+        self._security_strategy = security_strategy
+        self._secret_key = secret_key
+
+    def get_cache_key(self, token_id):
+        """Get a unique key for this token id.
+
+        Turn the token_id into something that can uniquely identify that token
+        in a key value store.
+
+        As this is generally the first function called in a key lookup this
+        function also returns a context object. This context object is not
+        modified or used by the Cache object but is passed back on subsequent
+        functions so that decryption or other data can be shared throughout a
+        cache lookup.
+
+        :param str token_id: The unique token id.
+
+        :returns: A tuple of a string key and an implementation specific
+                  context object
+        """
+        context = crypt.derive_keys(token_id,
+                                    self._secret_key,
+                                    self._security_strategy)
+        key = self._CACHE_KEY_TEMPLATE % crypt.get_cache_key(context)
+        return key, context
+
+    def deserialize(self, data, context):
+        """Deserialize data from the cache back into python objects.
+
+        Take data retrieved from the cache and return an appropriate python
+        dictionary.
+
+        :param str data: The data retrieved from the cache.
+        :param object context: The context that was returned from
+                               get_cache_key.
+
+        :returns: The python object that was saved.
+        """
+        try:
+            # unprotect_data will return None if raw_cached is None
+            return crypt.unprotect_data(context, data)
+        except Exception:
+            self._LOG.exception('Failed to decrypt/verify token data')
+
+        # this should have the same effect as data not
+        # found in cache
+        return None
+
+    def serialize(self, data, context):
+        """Serialize data so that it can be saved to the cache.
+
+        Take python objects and serialize them so that they can be saved into
+        the cache.
+
+        :param object data: The python object to be cached.
+        :param object context: The context that was returned from
+                               get_cache_key.
+
+        :returns: The data being stored to the cache.
+        """
+        return crypt.protect_data(context, data)
+
+
 class TokenCache(object):
     """Encapsulates the auth_token token cache functionality.
 
@@ -138,13 +276,12 @@ class TokenCache(object):
 
     """
 
-    _CACHE_KEY_TEMPLATE = 'tokens/%s'
-
-    def __init__(self, log, cache_time=None,
+    def __init__(self, log, serializer, cache_time=None,
                  env_cache_name=None, memcached_servers=None, tls_context=None,
                  use_advanced_pool=True, dead_retry=None, socket_timeout=None,
                  **kwargs):
         self._LOG = log
+        self._serializer = serializer
         self._cache_time = cache_time
         self._env_cache_name = env_cache_name
         self._memcached_servers = memcached_servers
@@ -184,58 +321,6 @@ class TokenCache(object):
         self._cache_pool = self._get_cache_pool(env.get(self._env_cache_name))
         self._initialized = True
 
-    def _get_cache_key(self, token_id):
-        """Get a unique key for this token id.
-
-        Turn the token_id into something that can uniquely identify that token
-        in a key value store.
-
-        As this is generally the first function called in a key lookup this
-        function also returns a context object. This context object is not
-        modified or used by the Cache object but is passed back on subsequent
-        functions so that decryption or other data can be shared throughout a
-        cache lookup.
-
-        :param str token_id: The unique token id.
-
-        :returns: A tuple of a string key and an implementation specific
-                  context object
-        """
-        # NOTE(jamielennox): in the basic implementation there is no need for
-        # a context so just pass None as it will only get passed back later.
-        unused_context = None
-        return self._CACHE_KEY_TEMPLATE % _hash_key(token_id), unused_context
-
-    def _deserialize(self, data, context):
-        """Deserialize data from the cache back into python objects.
-
-        Take data retrieved from the cache and return an appropriate python
-        dictionary.
-
-        :param str data: The data retrieved from the cache.
-        :param object context: The context that was returned from
-                               _get_cache_key.
-
-        :returns: The python object that was saved.
-        """
-        # memory cache will handle deserialization for us
-        return data
-
-    def _serialize(self, data, context):
-        """Serialize data so that it can be saved to the cache.
-
-        Take python objects and serialize them so that they can be saved into
-        the cache.
-
-        :param object data: The data to be cached.
-        :param object context: The context that was returned from
-                               _get_cache_key.
-
-        :returns: The python object that was saved.
-        """
-        # memory cache will handle serialization for us
-        return data
-
     def get(self, token_id):
         """Return token information from cache.
 
@@ -246,7 +331,7 @@ class TokenCache(object):
             # Nothing to do
             return
 
-        key, context = self._get_cache_key(token_id)
+        key, context = self._serializer.get_cache_key(token_id)
 
         with self._cache_pool.reserve() as cache:
             serialized = cache.get(key)
@@ -256,7 +341,7 @@ class TokenCache(object):
 
         if isinstance(serialized, str):
             serialized = serialized.encode('utf8')
-        data = self._deserialize(serialized, context)
+        data = self._serializer.deserialize(serialized, context)
 
         if data is None:
             # In case decryption fails, e.g. data corrupted in memcached.
@@ -267,59 +352,11 @@ class TokenCache(object):
     def set(self, token_id, data):
         """Store value into memcache."""
         data = jsonutils.dumps(data).encode('utf-8')
-        cache_key, context = self._get_cache_key(token_id)
-        data_to_store = self._serialize(data, context)
+        cache_key, context = self._serializer.get_cache_key(token_id)
+        data_to_store = self._serializer.serialize(data, context)
 
         with self._cache_pool.reserve() as cache:
             cache.set(cache_key, data_to_store, time=self._cache_time)
-
-
-class SecureTokenCache(TokenCache):
-    """A token cache that stores tokens encrypted.
-
-    A more secure version of TokenCache that will encrypt tokens before
-    caching them.
-    """
-
-    def __init__(self, log, security_strategy, secret_key, **kwargs):
-        super(SecureTokenCache, self).__init__(log, **kwargs)
-
-        if not secret_key:
-            msg = _('memcache_secret_key must be defined when a '
-                    'memcache_security_strategy is defined')
-            raise exc.ConfigurationError(msg)
-
-        if isinstance(security_strategy, str):
-            security_strategy = security_strategy.encode('utf-8')
-        if isinstance(secret_key, str):
-            secret_key = secret_key.encode('utf-8')
-
-        self._security_strategy = security_strategy
-        self._secret_key = secret_key
-
-    def _get_cache_key(self, token_id):
-        context = memcache_crypt.derive_keys(token_id,
-                                             self._secret_key,
-                                             self._security_strategy)
-        key = self._CACHE_KEY_TEMPLATE % memcache_crypt.get_cache_key(context)
-        return key, context
-
-    def _deserialize(self, data, context):
-        try:
-            # unprotect_data will return None if raw_cached is None
-            return memcache_crypt.unprotect_data(context, data)
-        except memcache_crypt.InvalidMacError as e:
-            self._LOG.info("Unable to deserialize, %s", e)
-        except Exception:
-            msg = 'Failed to decrypt/verify cache data'
-            self._LOG.exception(msg)
-
-        # this should have the same effect as data not
-        # found in cache
-        return None
-
-    def _serialize(self, data, context):
-        return memcache_crypt.protect_data(context, data)
 
 
 class _FakeClient(object):
