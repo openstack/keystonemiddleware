@@ -73,7 +73,7 @@ class OAuth2mTlsProtocol(AuthProtocol):
                 return False
         except Exception as error:
             self.log.warning(
-                f"Unable to obtain the client certificate. {str(error)}"
+                "Unable to obtain the client certificate. %s", str(error)
             )
             return False
 

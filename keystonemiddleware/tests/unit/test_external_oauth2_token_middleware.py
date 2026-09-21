@@ -333,10 +333,10 @@ class BaseExternalOauth2TokenMiddlewareTest(
         system_scope=False,
     ):
         if auth_method == "tls_client_auth":
-            body = f"client_id={introspect_client_id}&token={access_token}&token_type_hint=access_token"
+            body = f"client_id={introspect_client_id}&token={access_token}&token_type_hint=access_token"  # noqa: E501
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_post":
-            body = f"client_id={introspect_client_id}&client_secret={introspect_client_secret}&token={access_token}&token_type_hint=access_token"
+            body = f"client_id={introspect_client_id}&client_secret={introspect_client_secret}&token={access_token}&token_type_hint=access_token"  # noqa: E501
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_basic":
             body = f"token={access_token}&token_type_hint=access_token"

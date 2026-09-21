@@ -131,7 +131,10 @@ class IdentityServer:
                 )
                 return klass
 
-        versions = ["v%d.%d" % s.AUTH_VERSION for s in _REQUEST_STRATEGIES]
+        versions = [
+            f"v{s.AUTH_VERSION[0]}.{s.AUTH_VERSION[1]}"
+            for s in _REQUEST_STRATEGIES
+        ]
         self._LOG.error(
             "No attempted versions [%s] supported by server",
             ", ".join(versions),

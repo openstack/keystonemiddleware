@@ -15,7 +15,10 @@ from keystoneauth1.identity import base as base_identity
 
 def _log_format(auth_ref):
     roles = ",".join(auth_ref.role_names)
-    return f"user_id {auth_ref.user_id}, project_id {auth_ref.project_id}, roles {roles}"
+    return (
+        f"user_id {auth_ref.user_id}, project_id {auth_ref.project_id}, "
+        f"roles {roles}"
+    )
 
 
 class UserAuthPlugin(base_identity.BaseIdentityPlugin):

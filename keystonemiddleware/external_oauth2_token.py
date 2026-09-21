@@ -966,9 +966,9 @@ class ExternalAuth2Protocol:
             http_response = self._http_client.introspect(access_token)
             if http_response.status_code != 200:
                 self._log.critical(
-                    "The introspect API returns an "
-                    "incorrect response. "
-                    f"response_status: {http_response.status_code}, response_text: {http_response.text}"
+                    f"The introspect API returns an incorrect response. "
+                    f"response_status: {http_response.status_code}, "
+                    f"response_text: {http_response.text}"
                 )
                 raise ServiceError(
                     _("The token cannot be verified for validity.")
@@ -1050,9 +1050,10 @@ class ExternalAuth2Protocol:
                 else:
                     if not isinstance(meta_value, dict):
                         self._log.warning(
-                            "Failed to parse the necessary information. "
-                            "The meta_value is not of type dict."
-                            f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}"
+                            f"Failed to parse the necessary information. "
+                            f"The meta_value is not of type dict."
+                            f"config_key: {config_key}, meta_key: {meta_key}, "
+                            f"value: {meta_value}"
                         )
                         raise ForbiddenToken(
                             _(
@@ -1068,9 +1069,10 @@ class ExternalAuth2Protocol:
         if not meta_value:
             if is_required:
                 self._log.warning(
-                    "Failed to parse the necessary information. "
-                    "The meta value is required."
-                    f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}, need_type: {value_type}"
+                    f"Failed to parse the necessary information. "
+                    f"The meta value is required."
+                    f"config_key: {config_key}, meta_key: {meta_key}, "
+                    f"value: {meta_value}, need_type: {value_type}"
                 )
                 raise ForbiddenToken(
                     _(
@@ -1084,9 +1086,10 @@ class ExternalAuth2Protocol:
         else:
             if not isinstance(meta_value, value_type):
                 self._log.warning(
-                    "Failed to parse the necessary information. "
-                    "The meta value is of an incorrect type."
-                    f"config_key: {config_key} , meta_key: {meta_key}, value: {meta_value}, need_type: {value_type}"
+                    f"Failed to parse the necessary information. "
+                    f"The meta value is of an incorrect type."
+                    f"config_key: {config_key}, meta_key: {meta_key}, "
+                    f"value: {meta_value}, need_type: {value_type}"
                 )
                 raise ForbiddenToken(
                     _(

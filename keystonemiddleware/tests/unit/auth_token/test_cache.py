@@ -258,7 +258,7 @@ class TestLiveMemcache(base.BaseAuthTokenTestCase):
 
         conf = {
             "auth_type": "admin_token",
-            "endpoint": "%s/v3" % BASE_URI,
+            "endpoint": f"{BASE_URI}/v3",
             "token": FAKE_ADMIN_TOKEN_ID,
             "memcached_servers": ",".join(MEMCACHED_SERVERS),
             "memcache_security_strategy": "encrypt",
