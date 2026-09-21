@@ -828,6 +828,65 @@ class CommonAuthTokenMiddlewareTest(object):
                                   use_kerberos='ronald@MCDONALDS.COM',
                                   success=False)
 
+    def test_kerberos_bind_skipped_by_invalid_service_token(self):
+        """LP#2162748 follow-up: garbage X-Service-Token skips Kerberos bind.
+
+        ``_confirm_token_bind()`` is gated on ``if not request.service_token``
+        (header presence), not ``service_token_valid``. With
+        ``delay_auth_decision``, the invalid service token does not abort
+        the request, so a Kerberos-bound user token is marked Confirmed
+        without a Negotiate session — the theft scenario binding exists
+        to prevent.
+        """
+        conf = {
+            "www_authenticate_uri": BASE_HOST,
+            "auth_type": "admin_token",
+            "endpoint": f"{BASE_URI}/v3",
+            "token": FAKE_ADMIN_TOKEN_ID,
+            "enforce_token_bind": "kerberos",
+            "auth_version": self.auth_version,
+            "delay_auth_decision": True,
+        }
+        self.set_middleware(conf=conf)
+
+        # Replace FakeApp — its delayed-auth branches KeyError when no
+        # service-status header is present. We only care what auth_token
+        # stamped on the request.
+        @webob.dec.wsgify
+        def _passthrough(req):
+            return webob.Response(body=b"OK", status=200)
+
+        self.middleware._app = _passthrough
+        token = self.token_dict["uuid_token_bind"]
+
+        # Baseline: no service token, no Kerberos → bind fails → user Invalid.
+        req = webob.Request.blank("/")
+        req.headers["X-Auth-Token"] = token
+        resp = req.get_response(self.middleware)
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(
+            "Invalid",
+            req.environ.get("HTTP_X_IDENTITY_STATUS"),
+        )
+
+        # Attack: same bound token + arbitrary X-Service-Token, still no
+        # Kerberos. Bind is skipped; user is Confirmed.
+        req = webob.Request.blank("/")
+        req.headers["X-Auth-Token"] = token
+        req.headers["X-Service-Token"] = "invalid-garbage"
+        resp = req.get_response(self.middleware)
+        self.assertEqual(200, resp.status_int)
+        self.assertEqual(
+            "Invalid",
+            req.environ.get("HTTP_X_SERVICE_IDENTITY_STATUS"),
+        )
+        # Vulnerable before the fix: Confirmed without Kerberos. After the
+        # fix, bind runs because service_token_valid is False → Invalid.
+        self.assertEqual(
+            "Invalid",
+            req.environ.get("HTTP_X_IDENTITY_STATUS"),
+        )
+
     def test_uuid_bind_token_with_unknown_named_FOO(self):
         token = self.token_dict['uuid_token_bind']
 
@@ -1262,6 +1321,20 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
         self.call_middleware(headers=headers,
                              expected_status=200,
                              method='GET', path='/v2/images')
+
+    def test_app_cred_access_rules_invalid_service_token(self):
+        """Arbitrary invalid X-Service-Token must not bypass access_rules."""
+        self.set_middleware(conf={"service_type": "compute"})
+        token = self.examples.v3_APP_CRED_ACCESS_RULES
+        self.call_middleware(
+            headers={
+                "X-Auth-Token": token,
+                "X-Service-Token": "invalid-garbage",
+            },
+            expected_status=401,
+            method="GET",
+            path="/v2.1/servers/someuuid",
+        )
 
     def test_app_cred_no_access_rules_token(self):
         self.set_middleware(conf={'service_type': 'compute'})

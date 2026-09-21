@@ -1,0 +1,14 @@
+---
+security:
+  - |
+    [`bug 2162748 <https://launchpad.net/bugs/2162748>`_]
+    ``auth_token`` middleware no longer treats the mere presence of an
+    ``X-Service-Token`` header as sufficient to skip application
+    credential ``access_rules`` checks or token binding
+    (``enforce_token_bind``, including Kerberos). Both paths now
+    require the service token to also be valid
+    (``service_token_valid``). Previously an arbitrary
+    ``X-Service-Token`` value could bypass ``access_rules`` and, when
+    ``delay_auth_decision`` was enabled, skip Kerberos (or other)
+    binding so a stolen bound user token would be marked Confirmed
+    without a Negotiate session.
