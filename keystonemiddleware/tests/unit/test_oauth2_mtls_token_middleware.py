@@ -29,28 +29,14 @@ from keystoneauth1 import exceptions as ksa_exceptions
 
 from keystonemiddleware import oauth2_mtls_token
 from keystonemiddleware.tests.unit.auth_token import base
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
+from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (  # noqa: E501
     BASE_URI,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     ENDPOINT_NOT_FOUND_TOKEN,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     ERROR_TOKEN,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     FAKE_ADMIN_TOKEN_ID,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     FakeApp,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     request_timeout_response,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     TIMEOUT_TOKEN,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     VERSION_LIST_v3,
 )
 from keystonemiddleware.tests.unit import client_fixtures

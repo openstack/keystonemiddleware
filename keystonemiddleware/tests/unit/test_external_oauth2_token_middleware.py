@@ -35,10 +35,8 @@ from keystoneauth1 import session
 from keystonemiddleware.auth_token import _cache
 from keystonemiddleware import external_oauth2_token
 from keystonemiddleware.tests.unit.auth_token import base
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
+from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (  # noqa: E501
     FakeApp,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     VERSION_LIST_v3,
 )
 from keystonemiddleware.tests.unit import client_fixtures
@@ -344,8 +342,7 @@ class BaseExternalOauth2TokenMiddlewareTest(
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_post":
             body = (
-                "client_id=%s&client_secret=%s"
-                "&token=%s&token_type_hint=access_token"
+                "client_id=%s&client_secret=%s&token=%s&token_type_hint=access_token"
             ) % (introspect_client_id, introspect_client_secret, access_token)
             self.assertEqual(request.text, body)
         elif auth_method == "client_secret_basic":

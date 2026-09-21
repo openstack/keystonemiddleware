@@ -1086,8 +1086,8 @@ class v3AuthTokenMiddlewareTest(
             "uuid_token_default": self.examples.v3_UUID_TOKEN_DEFAULT,
             "uuid_token_unscoped": self.examples.v3_UUID_TOKEN_UNSCOPED,
             "uuid_token_bind": self.examples.v3_UUID_TOKEN_BIND,
-            "uuid_token_unknown_bind": self.examples.v3_UUID_TOKEN_UNKNOWN_BIND,
-            "uuid_service_token_default": self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT,
+            "uuid_token_unknown_bind": self.examples.v3_UUID_TOKEN_UNKNOWN_BIND,  # noqa: E501
+            "uuid_service_token_default": self.examples.v3_UUID_SERVICE_TOKEN_DEFAULT,  # noqa: E501
         }
 
         self.requests_mock.get(BASE_URI, json=VERSION_LIST_v3, status_code=300)

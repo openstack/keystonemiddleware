@@ -55,8 +55,8 @@ _EXTERNAL_AUTH2_OPTS = [
     cfg.BoolOpt("insecure", default=False, help="Verify HTTPS connections."),
     cfg.IntOpt(
         "http_connect_timeout",
-        help="Request timeout value for communicating with Identity "
-        "API server.",
+        help="Request timeout value for communicating with Identity API "
+        "server.",
     ),
     cfg.StrOpt(
         "introspect_endpoint",
@@ -84,8 +84,8 @@ _EXTERNAL_AUTH2_OPTS = [
     ),
     cfg.StrOpt(
         "client_id",
-        help="The OAuth 2.0 Client Identifier valid at the "
-        "Authorization Server.",
+        help="The OAuth 2.0 Client Identifier valid at the Authorization "
+        "Server.",
     ),
     cfg.StrOpt(
         "client_secret",
@@ -159,8 +159,8 @@ _EXTERNAL_AUTH2_OPTS = [
     ),
     cfg.StrOpt(
         "mapping_user_domain_id",
-        help="Specifies the method for obtaining the domain ID which "
-        "the user belongs.",
+        help="Specifies the method for obtaining the domain ID which the user "
+        "belongs.",
     ),
     cfg.StrOpt(
         "mapping_user_domain_name",
@@ -249,8 +249,8 @@ _EXTERNAL_AUTH2_OPTS = [
     cfg.BoolOpt(
         "memcache_use_advanced_pool",
         default=True,
-        help="(Optional) Use the advanced (eventlet safe) memcached "
-        "client pool.",
+        help="(Optional) Use the advanced (eventlet safe) memcached client "
+        "pool.",
     ),
     cfg.BoolOpt(
         "use_oslo_cache",
@@ -477,8 +477,8 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
             )
         if not jwt_key:
             self.logger.critical(
-                "Configuration error. The JWT key file "
-                "content is empty. path: %s",
+                "Configuration error. The JWT key file content is empty. "
+                "path: %s",
                 self.jwt_key_file,
             )
             raise ConfigurationError(
@@ -518,10 +518,10 @@ class PrivateKeyJwtAuthClient(AbstractAuthClient):
             )
         req_data = {
             "client_id": self.client_id,
-            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",  # noqa: E501
             "client_assertion": client_assertion,
             "token": access_token,
-            "token_type_hint": "access_token",  # nosec: B105
+            "token_type_hint": "access_token",
         }
         http_response = self.session.request(
             self.introspect_endpoint,
@@ -600,10 +600,10 @@ class ClientSecretJwtAuthClient(AbstractAuthClient):
             )
         req_data = {
             "client_id": self.client_id,
-            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",  # noqa: E501
             "client_assertion": client_assertion,
             "token": access_token,
-            "token_type_hint": "access_token",  # nosec: B105
+            "token_type_hint": "access_token",
         }
         http_response = self.session.request(
             self.introspect_endpoint,
@@ -771,14 +771,13 @@ class ExternalAuth2Protocol(object):
 
         except InvalidToken as error:
             self._log.info(
-                "Rejecting request. "
-                "Need a valid OAuth 2.0 access token. "
+                "Rejecting request. Need a valid OAuth 2.0 access token. "
                 "error: %s",
                 error,
             )
             message = _(
-                "The request you have made is denied, "
-                "because the token is invalid."
+                "The request you have made is denied, because the token "
+                "is invalid."
             )
             body = {
                 "error": {
@@ -795,9 +794,8 @@ class ExternalAuth2Protocol(object):
             )
         except ForbiddenToken as error:
             self._log.warning(
-                "Rejecting request. "
-                "The necessary information is required."
-                "error: %s",
+                "Rejecting request. The necessary information is "
+                "required.error: %s",
                 error,
             )
             message = _(
@@ -1019,8 +1017,8 @@ class ExternalAuth2Protocol(object):
             self._log.critical("Unable to validate token: %s", error)
             raise ServiceError(
                 _(
-                    "An exception occurred during the token "
-                    "verification process."
+                    "An exception occurred during the token verification "
+                    "process."
                 )
             )
 
@@ -1085,8 +1083,8 @@ class ExternalAuth2Protocol(object):
                 )
                 raise ForbiddenToken(
                     _(
-                        "Failed to parse the necessary "
-                        'information for the field "%s".'
+                        "Failed to parse the necessary information for the "
+                        'field "%s".'
                     )
                     % meta_key
                 )
@@ -1102,8 +1100,8 @@ class ExternalAuth2Protocol(object):
                 )
                 raise ForbiddenToken(
                     _(
-                        "Failed to parse the necessary "
-                        'information for the field "%s".'
+                        "Failed to parse the necessary information for the "
+                        'field "%s".'
                     )
                     % meta_key
                 )

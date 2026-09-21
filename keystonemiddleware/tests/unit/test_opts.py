@@ -69,7 +69,7 @@ class OptsTestCase(utils.TestCase):
             "service_token_roles_required",
             "service_type",
         ]
-        opt_names = set([o.name for (g, l) in result_of_old_opts for o in l])
+        opt_names = set([o.name for (g, x) in result_of_old_opts for o in x])
         for opt in expected_opt_names:
             self.assertIn(opt, opt_names)
 
@@ -120,7 +120,7 @@ class OptsTestCase(utils.TestCase):
             "service_token_roles_required",
             "service_type",
         ]
-        opt_names = [o.name for (g, l) in result for o in l]
+        opt_names = [o.name for (g, x) in result for o in x]
         for opt in expected_opt_names:
             self.assertIn(opt, opt_names)
 

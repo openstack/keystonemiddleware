@@ -54,8 +54,8 @@ _OPTS = [
     ),
     cfg.IntOpt(
         "http_connect_timeout",
-        help="Request timeout value for communicating with Identity"
-        " API server.",
+        help="Request timeout value for communicating with Identity API "
+        "server.",
     ),
     cfg.IntOpt(
         "http_request_max_retries",
@@ -193,8 +193,8 @@ _OPTS = [
     cfg.BoolOpt(
         "memcache_use_advanced_pool",
         default=True,
-        help="(Optional) Use the advanced (eventlet safe) memcached "
-        "client pool.",
+        help="(Optional) Use the advanced (eventlet safe) memcached client "
+        "pool.",
     ),
     cfg.BoolOpt(
         "use_oslo_cache",

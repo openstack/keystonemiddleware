@@ -21,10 +21,8 @@ from keystonemiddleware.auth_token import _cache
 from keystonemiddleware.auth_token import _crypt as crypt
 from keystonemiddleware.auth_token import _exceptions as exc
 from keystonemiddleware.tests.unit.auth_token import base
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
+from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (  # noqa: E501
     BASE_URI,
-)
-from keystonemiddleware.tests.unit.auth_token.test_auth_token_middleware import (
     FAKE_ADMIN_TOKEN_ID,
 )
 from keystonemiddleware.tests.unit import utils

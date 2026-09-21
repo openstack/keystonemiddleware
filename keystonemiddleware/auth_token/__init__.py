@@ -280,7 +280,7 @@ def _path_matches(request_path, path_pattern):
     # The fnmatch module doesn't provide the ability to match * versus **,
     # so convert to regex.
     token_regex = (
-        r"(?P<tag>{[^}]*})|"  # {tag} # nosec
+        r"(?P<tag>{[^}]*})|"  # {tag} # noqa: S105
         r"(?P<wild>\*(?=$|[^\*]))|"  # *
         r"(?P<rec_wild>\*\*)|"  # **
         r"(?P<literal>[^{}\*])"

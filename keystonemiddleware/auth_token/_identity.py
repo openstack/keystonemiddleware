@@ -169,8 +169,8 @@ class IdentityServer(object):
                 self._LOG.info("Retrying validation")
                 return self.verify_token(user_token, False)
             msg = _(
-                "Identity server rejected authorization necessary to "
-                "fetch token data"
+                "Identity server rejected authorization necessary to fetch "
+                "token data"
             )
             raise ksm_exceptions.ServiceError(msg)
         except ksa_exceptions.HttpError as e:
