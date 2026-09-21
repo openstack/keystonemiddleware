@@ -417,7 +417,11 @@ class BaseAuthProtocol:
                     user_auth_ref, allow_expired=allow_expired
                 )
                 self.validate_allowed_request(request, data["token"])
-                if not request.service_token:
+                # Require a *valid* service token before skipping bind, same
+                # presence-vs-validity fix as validate_allowed_request
+                # (LP#2162748). An arbitrary X-Service-Token must not defeat
+                # Kerberos (or other) token binding.
+                if not (request.service_token and request.service_token_valid):
                     self._confirm_token_bind(user_auth_ref, request)
             except ksm_exceptions.InvalidToken:
                 self.log.info("Invalid user token")
@@ -589,10 +593,10 @@ class BaseAuthProtocol:
                 " type in the catalog."
             )
             raise ksm_exceptions.InvalidToken(_("Token authorization failed"))
-        if request.service_token:
-            # The request may not match an allowed request, but the presence
-            # of the service token indicates this is a chain of requests and
-            # hence this request was not user-facing
+        if request.service_token and request.service_token_valid:
+            # The request may not match an allowed request, but a valid
+            # service token indicates this is a chain of requests and
+            # hence this request was not user-facing (LP#2162748).
             return
         for access_rule in access_rules:
             method = access_rule["method"]

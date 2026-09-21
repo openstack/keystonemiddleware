@@ -19,6 +19,7 @@ import testtools
 import webob
 
 from keystonemiddleware import auth_token
+from keystonemiddleware.auth_token import _exceptions as ksm_exceptions
 from keystonemiddleware.auth_token import _request
 
 
@@ -234,3 +235,92 @@ class BaseAuthProtocolTests(testtools.TestCase):
             m, headers={"X-Project-Id": project_id, "X-Domain-Id": domain_id}
         )
         self.assertEqual(body, resp.text)
+
+    def test_app_cred_access_rules_invalid_service_token(self):
+        """An invalid service token must not bypass access_rules."""
+        access_rules = [
+            {"path": "/v2.1/servers", "method": "GET", "service": "compute"}
+        ]
+        token_data = {
+            "is_admin": 0,
+            "user": {"id": "user1"},
+            "methods": [],
+            "application_credential": {
+                "id": "app_cred_1",
+                "access_rules": access_rules,
+            },
+            "catalog": [
+                {
+                    "type": "compute",
+                    "name": "nova",
+                    "endpoints": [
+                        {
+                            "id": "ep",
+                            "interface": "public",
+                            "url": "http://nova:8774/v2.1",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_request = mock.MagicMock()
+        mock_request.method = "GET"
+        mock_request.path = "/v2.1/servers/someuuid"
+        mock_request.service_token = "garbage-invalid-token"
+        mock_request.service_token_valid = False
+
+        class TestMiddleware(auth_token.BaseAuthProtocol):
+            def __init__(self, app):
+                super(TestMiddleware, self).__init__(app)
+                self._service_type = "compute"
+
+        m = TestMiddleware(FakeApp())
+
+        self.assertRaises(
+            ksm_exceptions.InvalidToken,
+            m.validate_allowed_request,
+            mock_request,
+            token_data,
+        )
+
+    def test_app_cred_access_rules_valid_service_token(self):
+        """A valid service token should bypass access_rules."""
+        access_rules = [
+            {"path": "/v2.1/servers", "method": "GET", "service": "compute"}
+        ]
+        token_data = {
+            "is_admin": 0,
+            "user": {"id": "user1"},
+            "methods": [],
+            "application_credential": {
+                "id": "app_cred_1",
+                "access_rules": access_rules,
+            },
+            "catalog": [
+                {
+                    "type": "compute",
+                    "name": "nova",
+                    "endpoints": [
+                        {
+                            "id": "ep",
+                            "interface": "public",
+                            "url": "http://nova:8774/v2.1",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_request = mock.MagicMock()
+        mock_request.method = "GET"
+        mock_request.path = "/v2.1/servers/someuuid"
+        mock_request.service_token = "valid-service-token"
+        mock_request.service_token_valid = True
+
+        class TestMiddleware(auth_token.BaseAuthProtocol):
+            def __init__(self, app):
+                super(TestMiddleware, self).__init__(app)
+                self._service_type = "compute"
+
+        m = TestMiddleware(FakeApp())
+
+        m.validate_allowed_request(mock_request, token_data)
