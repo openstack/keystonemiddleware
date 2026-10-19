@@ -25,7 +25,8 @@ def _normalize_catalog(catalog):
         try:
             service['name'] = v3_service['name']
         except KeyError:  # nosec
-            # v3 service doesn't have a name, move on.
+            # The name key was added in v3.3 API. If the key does not exist,
+            # move on.
             pass
 
         # now convert the endpoints. Because in v3 we specify region per
