@@ -55,9 +55,7 @@ def _conf_values_type_convert(group_name, all_options, conf):
                 type_, dest = opt_types[k]
                 v = type_(v)
         except KeyError:  # nosec
-            _LOG.warning(
-                'The option "%s" is not known to keystonemiddleware', k
-            )
+            _LOG.debug('The option "%s" is not known to keystonemiddleware', k)
         except ValueError as e:
             raise exceptions.ConfigurationError(
                 _(
