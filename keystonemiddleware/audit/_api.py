@@ -201,7 +201,7 @@ class OpenStackAuditApi:
                 endp["type"], taxonomy.UNKNOWN
             ),
             name=endp["name"],
-            id=endp["endpoints"][0].get("id", endp["name"]),
+            id=endp.get("id", endp["name"]),
             admin_endp=endpoint.Endpoint(
                 name="admin",
                 url=endp["endpoints"][0].get("adminURL", taxonomy.UNKNOWN),

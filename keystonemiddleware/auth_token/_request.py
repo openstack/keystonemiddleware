@@ -22,6 +22,7 @@ def _normalize_catalog(catalog):
     for v3_service in catalog:
         # first copy over the entries we allow for the service
         service = {"type": v3_service["type"]}
+        service["id"] = v3_service["id"]
         try:
             service["name"] = v3_service["name"]
         except KeyError:  # nosec
