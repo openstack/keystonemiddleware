@@ -195,6 +195,60 @@ class Oauth2TokenMiddlewareTest(
             token_auth.user.application_credential_access_rules,
         )
 
+    def test_app_cred_access_rules_service_token_header(self):
+        """A client X-Service-Token must neither crash nor lift the rules.
+
+        The oauth2_token middleware never validates a service token, so
+        X-Service-Identity-Status is never set: reading
+        service_token_valid must tolerate the missing header instead of
+        raising KeyError, and the access_rules check must still run.
+        """
+        self.set_middleware(conf={"service_type": "compute"})
+        token = self.examples.v3_APP_CRED_ACCESS_RULES
+        headers = {
+            **get_authorization_header(token),
+            "X-Service-Token": "not-a-service-token",
+        }
+        self.call_middleware(
+            headers=headers,
+            expected_status=200,
+            method="GET",
+            path="/v2.1/servers",
+        )
+        self.call_middleware(
+            headers=headers,
+            expected_status=401,
+            method="GET",
+            path="/v2.1/servers/someuuid",
+        )
+
+    def test_app_cred_access_rules_forged_service_status(self):
+        """A forged X-Service-Identity-Status must not validate a token.
+
+        The authentication headers are stripped on entry and oauth2_token
+        never validates a service token, so a client cannot mark its own
+        X-Service-Token as valid by sending the status header too.
+        """
+        self.set_middleware(conf={"service_type": "compute"})
+        token = self.examples.v3_APP_CRED_ACCESS_RULES
+        headers = {
+            **get_authorization_header(token),
+            "X-Service-Token": "not-a-service-token",
+            "X-Service-Identity-Status": "Confirmed",
+        }
+        self.call_middleware(
+            headers=headers,
+            expected_status=200,
+            method="GET",
+            path="/v2.1/servers",
+        )
+        self.call_middleware(
+            headers=headers,
+            expected_status=401,
+            method="GET",
+            path="/v2.1/servers/someuuid",
+        )
+
     def test_app_cred_no_access_rules_token(self):
         self.set_middleware(conf={"service_type": "compute"})
         token = self.examples.v3_APP_CRED_EMPTY_ACCESS_RULES
