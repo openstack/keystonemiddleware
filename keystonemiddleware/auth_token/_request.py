@@ -143,10 +143,11 @@ class _AuthTokenRequest(webob.Request):
         """Service token is marked as valid.
 
         :returns: True if the X-Service-Identity-Status header
-                  is set to Confirmed.
+                  is set to Confirmed. False when the header is not
+                  set, e.g. when no service token has been validated.
         :rtype: bool
         """
-        return self.headers[self._SERVICE_STATUS_HEADER] == self._CONFIRMED
+        return self.headers.get(self._SERVICE_STATUS_HEADER) == self._CONFIRMED
 
     @service_token_valid.setter
     def service_token_valid(self, value):
