@@ -111,7 +111,9 @@ class AuditMiddleware:
             for x in conf.get("ignore_req_list", "").split(",")
         ]
         self._ignore_path_list = [
-            x for x in conf.get("ignore_path_list", "").split(",") if x
+            x.strip().rstrip("/")
+            for x in conf.get("ignore_path_list", "").split(",")
+            if x
         ]
         self._cadf_audit = _api.OpenStackAuditApi(
             conf.get("audit_map_file"), _LOG
@@ -169,7 +171,7 @@ class AuditMiddleware:
     def __call__(self, req):
         if (
             req.method in self._ignore_req_list
-            or req.path_info in self._ignore_path_list
+            or req.path_info.rstrip("/") in self._ignore_path_list
         ):
             return req.get_response(self._application)
 
